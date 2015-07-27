@@ -1,0 +1,212 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.extensions.kabsch_spotfinder_threshold_ext &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for dials.extensions.kabsch_spotfinder_threshold_ext</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+<span class="c">#</span>
+<span class="c"># kabsch_spotfinder_threshold.py</span>
+<span class="c">#</span>
+<span class="c">#  Copyright (C) 2013 Diamond Light Source</span>
+<span class="c">#</span>
+<span class="c">#  Author: James Parkhurst</span>
+<span class="c">#</span>
+<span class="c">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c">#  included in the root directory of this package.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
+<span class="kn">from</span> <span class="nn">dials.interfaces</span> <span class="kn">import</span> <span class="n">SpotFinderThresholdIface</span>
+
+
+<div class="viewcode-block" id="KabschSpotFinderThresholdExt"><a class="viewcode-back" href="../../../documentation/library_reference/extensions/index.html#dials.extensions.kabsch_spotfinder_threshold_ext.KabschSpotFinderThresholdExt">[docs]</a><span class="k">class</span> <span class="nc">KabschSpotFinderThresholdExt</span><span class="p">(</span><span class="n">SpotFinderThresholdIface</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Extensions to do xds-like threshold. &#39;&#39;&#39;</span>
+
+  <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;xds&#39;</span>
+
+  <span class="n">default</span> <span class="o">=</span> <span class="bp">True</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="KabschSpotFinderThresholdExt.phil"><a class="viewcode-back" href="../../../documentation/library_reference/extensions/index.html#dials.extensions.kabsch_spotfinder_threshold_ext.KabschSpotFinderThresholdExt.phil">[docs]</a>  <span class="k">def</span> <span class="nf">phil</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+    <span class="n">phil</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+<span class="s">      gain = None</span>
+<span class="s">        .type = float(value_min=0.0)</span>
+<span class="s">        .help = &quot;Use a flat gain map for the entire detector. Cannot be used&quot;</span>
+<span class="s">                &quot;in conjunction with lookup.gain_map parameter.&quot;</span>
+
+<span class="s">      kernel_size = 3 3</span>
+<span class="s">        .help = &quot;The size of the local area around the spot in which&quot;</span>
+<span class="s">                &quot;to calculate the mean and variance. The kernel is&quot;</span>
+<span class="s">                &quot;given as a box of size (2 * nx + 1, 2 * ny + 1) centred&quot;</span>
+<span class="s">                &quot;at the pixel.&quot;</span>
+<span class="s">        .type = ints(size=2)</span>
+<span class="s">        .expert_level = 1</span>
+
+<span class="s">      sigma_background = 6</span>
+<span class="s">        .help = &quot;The number of standard deviations of the coefficient of&quot;</span>
+<span class="s">                &quot;variation (variance / mean) in the local area below&quot;</span>
+<span class="s">                &quot;which the pixel will be classified as background.&quot;</span>
+<span class="s">        .type = float</span>
+<span class="s">        .expert_level = 1</span>
+
+<span class="s">      sigma_strong = 3</span>
+<span class="s">        .help = &quot;The number of standard deviations above the mean in the&quot;</span>
+<span class="s">                &quot;local area above which the pixel will be classified as&quot;</span>
+<span class="s">                &quot;strong.&quot;</span>
+<span class="s">        .type = float</span>
+<span class="s">        .expert_level = 1</span>
+
+<span class="s">      min_local = 2</span>
+<span class="s">        .help = &quot;The minimum number of pixels under the image processing kernel&quot;</span>
+<span class="s">                &quot;that are need to do the thresholding operation. Setting the&quot;</span>
+<span class="s">                &quot;value between 2 and the total number of pixels under the&quot;</span>
+<span class="s">                &quot;kernel will force the algorithm to use that number as the&quot;</span>
+<span class="s">                &quot;minimum. If the value is less than or equal to zero, then&quot;</span>
+<span class="s">                &quot;the algorithm will use all pixels under the kernel. In&quot;</span>
+<span class="s">                &quot;effect this will add a border of pixels which are always&quot;</span>
+<span class="s">                &quot;classed as background around the edge of the image and around&quot;</span>
+<span class="s">                &quot;any masked out pixels.&quot;</span>
+<span class="s">        .type = int</span>
+<span class="s">        .expert_level = 1</span>
+
+<span class="s">      global_threshold = 0</span>
+<span class="s">        .type = float</span>
+<span class="s">        .help = &quot;The global threshold value. Consider all pixels less than this&quot;</span>
+<span class="s">                &quot;value to be part of the background.&quot;</span>
+<span class="s">    &#39;&#39;&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">phil</span>
+</div>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the algorithm.</span>
+
+<span class="sd">    :param params: The input parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.peak_finding.threshold</span> <span class="kn">import</span> <span class="n">XDSThresholdStrategy</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">threshold</span><span class="o">.</span><span class="n">xds</span><span class="o">.</span><span class="n">gain</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">gain_map</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;Cannot use gain and gain_map parameters simultaneously.&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_algorithm</span> <span class="o">=</span> <span class="n">XDSThresholdStrategy</span><span class="p">(</span>
+      <span class="n">kernel_size</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">threshold</span><span class="o">.</span><span class="n">xds</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">,</span>
+      <span class="n">gain</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">threshold</span><span class="o">.</span><span class="n">xds</span><span class="o">.</span><span class="n">gain</span><span class="p">,</span>
+      <span class="n">gain_map</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">gain_map</span><span class="p">,</span>
+      <span class="n">mask</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span>
+      <span class="n">n_sigma_b</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">threshold</span><span class="o">.</span><span class="n">xds</span><span class="o">.</span><span class="n">sigma_background</span><span class="p">,</span>
+      <span class="n">n_sigma_s</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">threshold</span><span class="o">.</span><span class="n">xds</span><span class="o">.</span><span class="n">sigma_strong</span><span class="p">,</span>
+      <span class="n">min_count</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">threshold</span><span class="o">.</span><span class="n">xds</span><span class="o">.</span><span class="n">min_local</span><span class="p">,</span>
+      <span class="n">global_threshold</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">threshold</span><span class="o">.</span><span class="n">xds</span><span class="o">.</span><span class="n">global_threshold</span><span class="p">)</span>
+
+<div class="viewcode-block" id="KabschSpotFinderThresholdExt.compute_threshold"><a class="viewcode-back" href="../../../documentation/library_reference/extensions/index.html#dials.extensions.kabsch_spotfinder_threshold_ext.KabschSpotFinderThresholdExt.compute_threshold">[docs]</a>  <span class="k">def</span> <span class="nf">compute_threshold</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Compute the threshold.</span>
+
+<span class="sd">    :param image: The image to process</span>
+<span class="sd">    :param mask: The pixel mask on the image</span>
+<span class="sd">    :returns: A boolean mask showing foreground/background pixels</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_algorithm</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">DIALS</a></h1>
+
+
+
+<p class="blurb">Data Integration for Advanced Light Sources</p>
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/getting_started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../_static/STFC_logo.png" /></a>
+  </div>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

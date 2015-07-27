@@ -1,0 +1,181 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.algorithms.refinement.weighting_strategies &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for dials.algorithms.refinement.weighting_strategies</h1><div class="highlight"><pre>
+<span class="c">#</span>
+<span class="c">#  Copyright (C) (2014) STFC Rutherford Appleton Laboratory, UK.</span>
+<span class="c">#</span>
+<span class="c">#  Author: David Waterman.</span>
+<span class="c">#</span>
+<span class="c">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c">#  included in the root directory of this package.</span>
+<span class="c">#</span>
+
+<span class="sd">&quot;&quot;&quot;Contains classes used to provide weighting schemes as strategies for</span>
+<span class="sd">ReflectionManagers.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+
+<div class="viewcode-block" id="StatisticalWeightingStrategy"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.weighting_strategies.StatisticalWeightingStrategy">[docs]</a><span class="k">class</span> <span class="nc">StatisticalWeightingStrategy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Defines a single method that provides a ReflectionManager with a strategy</span>
+<span class="sd">  for calculating weights for refinement&quot;&quot;&quot;</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="StatisticalWeightingStrategy.calculate_weights"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.weighting_strategies.StatisticalWeightingStrategy.calculate_weights">[docs]</a>  <span class="k">def</span> <span class="nf">calculate_weights</span><span class="p">(</span><span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;set &#39;statistical weights&#39;, that is w(x) = 1/var(x)&quot;&quot;&quot;</span>
+
+    <span class="n">weights</span> <span class="o">=</span> <span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;xyzobs.mm.variance&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">:</span>
+      <span class="n">sel</span> <span class="o">=</span> <span class="n">w</span> <span class="o">&gt;</span> <span class="mf">0.</span>
+      <span class="n">w</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="mf">1.</span><span class="o">/</span><span class="n">w</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">))</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;xyzobs.mm.weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="o">*</span><span class="n">parts</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">reflections</span>
+</div></div>
+<div class="viewcode-block" id="StillsWeightingStrategy"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.weighting_strategies.StillsWeightingStrategy">[docs]</a><span class="k">class</span> <span class="nc">StillsWeightingStrategy</span><span class="p">(</span><span class="n">StatisticalWeightingStrategy</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Defines a single method that provides a ReflectionManager with a strategy</span>
+<span class="sd">  for calculating weights for refinement. This version uses statistical weights</span>
+<span class="sd">  for X and Y and a fixed constant for the delta Psi part, defaulting to 10000&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delpsi_constant</span><span class="o">=</span><span class="mi">10000</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_delpsi_constant</span> <span class="o">=</span> <span class="n">delpsi_constant</span>
+
+<div class="viewcode-block" id="StillsWeightingStrategy.calculate_weights"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.weighting_strategies.StillsWeightingStrategy.calculate_weights">[docs]</a>  <span class="k">def</span> <span class="nf">calculate_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Include weights for DeltaPsi&quot;&quot;&quot;</span>
+
+    <span class="c"># call parent class method to set X and Y weights</span>
+    <span class="n">reflections</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">StillsWeightingStrategy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">calculate_weights</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;delpsical.weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span>
+        <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delpsi_constant</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">reflections</span>
+</div></div>
+<div class="viewcode-block" id="ConstantWeightingStrategy"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.weighting_strategies.ConstantWeightingStrategy">[docs]</a><span class="k">class</span> <span class="nc">ConstantWeightingStrategy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wx</span><span class="p">,</span> <span class="n">wy</span><span class="p">,</span> <span class="n">wz</span><span class="p">,</span> <span class="n">stills</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_wx</span> <span class="o">=</span> <span class="n">wx</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_wy</span> <span class="o">=</span> <span class="n">wy</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_wz</span> <span class="o">=</span> <span class="n">wz</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stills</span> <span class="o">=</span> <span class="n">stills</span>
+
+<div class="viewcode-block" id="ConstantWeightingStrategy.calculate_weights"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.weighting_strategies.ConstantWeightingStrategy.calculate_weights">[docs]</a>  <span class="k">def</span> <span class="nf">calculate_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Set weights to constant terms. If stills, the z weights are</span>
+<span class="sd">    the &#39;delpsical.weights&#39; attribute of the reflection table. Otherwise, use</span>
+<span class="sd">    the usual &#39;xyzobs.mm.weights&#39;&quot;&quot;&quot;</span>
+
+    <span class="n">wx</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wx</span><span class="p">)</span>
+    <span class="n">wy</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wy</span><span class="p">)</span>
+    <span class="n">wz</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wz</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stills</span><span class="p">:</span>
+      <span class="n">null</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+      <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;xyzobs.mm.weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">wx</span><span class="p">,</span> <span class="n">wy</span><span class="p">,</span> <span class="n">null</span><span class="p">)</span>
+      <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;delpsical.weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wz</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;xyzobs.mm.weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">wx</span><span class="p">,</span> <span class="n">wy</span><span class="p">,</span> <span class="n">wz</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">reflections</span>
+</pre></div></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">DIALS</a></h1>
+
+
+
+<p class="blurb">Data Integration for Advanced Light Sources</p>
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/getting_started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
+  </div>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

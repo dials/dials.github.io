@@ -1,0 +1,260 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Getting started &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../index.html" />
+    <link rel="up" title="Tutorials" href="tutorials/index.html" />
+    <link rel="next" title="Processing in Detail" href="tutorials/processing_in_detail_tutorial.html" />
+    <link rel="prev" title="Tutorials" href="tutorials/index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../index.html">
+  <img class="logoheader" alt="DIALS" src="../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="getting-started">
+<h1>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
+<p>The aim of this tutorial is to provide a quick start guide to running DIALS for
+integrating good quality synchrotron X-ray diffraction data. Many caveats apply
+to this:</p>
+<blockquote>
+<div><ul class="simple">
+<li>your mileage may vary etc. as the program is in development</li>
+<li>we don&#8217;t promise that the data are as good as from e.g. XDS</li>
+<li>DIALS only does data processing you will need to use e.g. Aimless for the
+subsequent scaling</li>
+</ul>
+</div></blockquote>
+<p>That said this tutorial illustrates that the program can work and give sensible
+results.</p>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The philosophy behind DIALS is to be explicit in performing the various steps of
+data analysis rather than giving one big tool (though one big tool is available)
+- DIALS is first and foremost a toolkit for doing the data analysis to be used
+within other systems.</p>
+</div>
+<div class="section" id="dials-process">
+<h2>dials.process<a class="headerlink" href="#dials-process" title="Permalink to this headline">¶</a></h2>
+<p>In the simplest case, <tt class="xref doc docutils literal"><span class="pre">dials.process</span></tt>
+<tt class="docutils literal"><span class="pre">/here/are/all/images*.cbf</span></tt> will do sensible processing, with a static model
+of the experiment and sample, and will output a reflection file integrated.mtz
+containing the intensity measurements assuming everything works correctly.
+Some sensible options to explore are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><tt class="samp docutils literal"><span class="pre">scan_varying=true</span></tt> - allow the crystal orientation and unit cell
+constants to vary during the scan</li>
+<li><tt class="samp docutils literal"><span class="pre">mp.nproc=1</span></tt> - only use one processor <a class="footnote-reference" href="#f1" id="id1">[1]</a></li>
+<li><tt class="samp docutils literal"><span class="pre">profile.fitting=False</span></tt> - force summation integration instead of
+the default profile fitting</li>
+<li><tt class="samp docutils literal"><span class="pre">block_size=N</span></tt> - for some N, split the data set into N degree blocks
+for integration, so as not to overload the computer. A sensible default will
+be chosen, but use this to override that choice.</li>
+<li><tt class="samp docutils literal"><span class="pre">-i</span></tt> - pass the images to process through the standard input e.g. from
+<tt class="samp docutils literal"><span class="pre">find</span> <span class="pre">.</span> <span class="pre">-name</span> <span class="pre">*.cbf</span></tt> to avoid issues with limited command-line lengths</li>
+</ul>
+</div></blockquote>
+<p>The workflow (if you do things step by step,) is as
+follows:</p>
+<blockquote>
+<div><ul class="simple">
+<li>import the data - this reads the image headers &amp; makes sense of the data,
+forming sweeps etc.</li>
+<li>find spots - as it says on the tin, can adjust spot size</li>
+<li>index - index these strong spots, can use a variety of methods</li>
+<li>refine - refine the experimental geometry (included in indexing for
+scan-static refinement)</li>
+<li>integrate - actually integrate the data</li>
+<li>export - create MTZ files</li>
+</ul>
+</div></blockquote>
+<p>Some detail of the options for each of these will follow below. How they are
+used can be seen a complete example script, found
+<tt class="xref download docutils literal"><span class="pre">here</span></tt>, which can be run as follows:</p>
+<div class="highlight-python"><div class="highlight"><pre>./tutorial.sh /path/to/data
+</pre></div>
+</div>
+</div>
+<div class="section" id="import">
+<h2>Import<a class="headerlink" href="#import" title="Permalink to this headline">¶</a></h2>
+<p>There are two ways of importing images</p>
+<div class="highlight-none"><div class="highlight"><pre>dials.import /path/to/the/data/*.img
+</pre></div>
+</div>
+<p>or</p>
+<div class="highlight-none"><div class="highlight"><pre>find /path/to/the/data -name *.img | dials.import -i
+</pre></div>
+</div>
+<p>The latter of these is useful when you have a limited number of command-line
+options. This creates datablock.json which is a DIALS description of this data
+set.</p>
+</div>
+<div class="section" id="find-spots">
+<h2>Find Spots<a class="headerlink" href="#find-spots" title="Permalink to this headline">¶</a></h2>
+<p>Most useful parameter here is the minimum spots size. By default it is 6, but
+this can be overridden with min_spot_size=N where N is e.g. 3. This takes
+datablock.json and creates strong.pickle:</p>
+<div class="highlight-none"><div class="highlight"><pre>dials.find_spots min_spot_size=3 datablock.json
+</pre></div>
+</div>
+<p>(for example)</p>
+</div>
+<div class="section" id="index">
+<h2>Index<a class="headerlink" href="#index" title="Permalink to this headline">¶</a></h2>
+<p>The indexing for DIALS offers a substantial number of options - these are
+detailed in the Phil file for dials.index, which is shown when you run the
+program. The most useful options are:</p>
+<div class="highlight-none"><div class="highlight"><pre>unit_cell=a,b,c,al,be,ga
+space_group=P4 (say)
+indexing.method=fft3d (say)
+</pre></div>
+</div>
+<p>The indexing works as</p>
+<div class="highlight-none"><div class="highlight"><pre>dials.index strong.pickle datablock.json [options]
+</pre></div>
+</div>
+<p>and creates an &#8220;experiment&#8221; file experiment.json which details the crystal
+lattices found and indexed.pickle, which is a copy of strong.pickle with Miller
+indices and reflection predictions added.</p>
+<p>If you are unsure of the symmetry and would like to know how different lattices
+look in the refinement, run dials.index not specifying the symmetry and then run
+dials.refine_bravais_settings.</p>
+</div>
+<div class="section" id="refinement">
+<h2>Refinement<a class="headerlink" href="#refinement" title="Permalink to this headline">¶</a></h2>
+<p>The indexing includes refinement - if you do not wish to use a time varying
+crystal model you can go straight to integration. If you do want to use a time
+varying model, you will need to rerun the refinement with this new model as</p>
+<div class="highlight-none"><div class="highlight"><pre>dials.refine experiments.json indexed.pickle scan_varying=true
+</pre></div>
+</div>
+<p>which will generate refined_experiments.json - this you pass on to integration.</p>
+</div>
+<div class="section" id="integration">
+<h2>Integration<a class="headerlink" href="#integration" title="Permalink to this headline">¶</a></h2>
+<p>As may be expected the integration in DIALS offers the greatest range of user
+options, to control how the background is determined (including outlier pixels
+in the background determination) the reflection profile parameters (used to
+define the reflection mask, and by default discovered automatically) and the
+actual algorithm to be used for peak integration e.g. sum3d or fft3d.</p>
+<div class="highlight-none"><div class="highlight"><pre>dials.integrate outlier.algorithm=null refined_experiments.json indexed.pickle
+</pre></div>
+</div>
+<p>This reads the indexed reflections to determine strong reflections for profile
+fitting and integrates the data in refined_experiments.json, using the default
+background determination with no outlier rejection and XDS-style 3D profile
+fitting. These commands are most likely to change and can be viewed by running</p>
+</div>
+<div class="section" id="export">
+<h2>Export<a class="headerlink" href="#export" title="Permalink to this headline">¶</a></h2>
+<p>If you have got this far everything else is easy: export the data as MTZ then
+run pointless and aimless to resort and scale the data viz:</p>
+<div class="highlight-none"><div class="highlight"><pre>dials.export_mtz integrated.pickle refined_experiments.json
+pointless hklin integrated.mtz hklout sorted.mtz
+aimless hklin sorted.mtz hklout scaled.mtz
+</pre></div>
+</div>
+<p>For details on pointless and aimless please refer to the CCP4 documentation.</p>
+<p class="rubric">Footnotes</p>
+<table class="docutils footnote" frame="void" id="f1" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>Currently necessary for data in HDF5 files</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">DIALS</a></h1>
+
+
+
+<p class="blurb">Data Integration for Advanced Light Sources</p>
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Getting started</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../_static/STFC_logo.png" /></a>
+  </div>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

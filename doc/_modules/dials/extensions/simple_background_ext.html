@@ -1,0 +1,265 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.extensions.simple_background_ext &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for dials.extensions.simple_background_ext</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+<span class="c">#</span>
+<span class="c"># simple_background_ext.py</span>
+<span class="c">#</span>
+<span class="c">#  Copyright (C) 2013 Diamond Light Source</span>
+<span class="c">#</span>
+<span class="c">#  Author: James Parkhurst</span>
+<span class="c">#</span>
+<span class="c">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c">#  included in the root directory of this package.</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="kn">from</span> <span class="nn">dials.interfaces</span> <span class="kn">import</span> <span class="n">BackgroundIface</span>
+
+
+<div class="viewcode-block" id="SimpleBackgroundExt"><a class="viewcode-back" href="../../../documentation/library_reference/extensions/index.html#dials.extensions.simple_background_ext.SimpleBackgroundExt">[docs]</a><span class="k">class</span> <span class="nc">SimpleBackgroundExt</span><span class="p">(</span><span class="n">BackgroundIface</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; An extension class implementing XDS background subtraction. &#39;&#39;&#39;</span>
+
+  <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;simple&#39;</span>
+
+  <span class="n">default</span> <span class="o">=</span> <span class="bp">True</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="SimpleBackgroundExt.phil"><a class="viewcode-back" href="../../../documentation/library_reference/extensions/index.html#dials.extensions.simple_background_ext.SimpleBackgroundExt.phil">[docs]</a>  <span class="k">def</span> <span class="nf">phil</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+    <span class="n">phil</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+<span class="s">      outlier</span>
+<span class="s">        .help = &quot;Outlier rejection prior to background fit&quot;</span>
+<span class="s">      {</span>
+<span class="s">        algorithm = null *nsigma truncated normal mosflm tukey</span>
+<span class="s">          .help = &quot;The outlier rejection algorithm.&quot;</span>
+<span class="s">          .type = choice</span>
+
+<span class="s">        nsigma</span>
+<span class="s">          .help = &quot;Parameters for nsigma outlier rejector&quot;</span>
+<span class="s">          .expert_level = 1</span>
+<span class="s">        {</span>
+<span class="s">          lower = 3</span>
+<span class="s">            .help = &quot;Lower n sigma&quot;</span>
+<span class="s">            .type = float</span>
+<span class="s">          upper = 3</span>
+<span class="s">            .help = &quot;Upper n sigma&quot;</span>
+<span class="s">            .type = float</span>
+<span class="s">        }</span>
+
+<span class="s">        truncated</span>
+<span class="s">          .help = &quot;Parameters for truncated outlier rejector&quot;</span>
+<span class="s">          .expert_level = 1</span>
+<span class="s">        {</span>
+<span class="s">          lower = 0.01</span>
+<span class="s">            .help = &quot;Lower bound&quot;</span>
+<span class="s">            .type = float</span>
+<span class="s">          upper = 0.01</span>
+<span class="s">            .help = &quot;Upper bound&quot;</span>
+<span class="s">            .type = float</span>
+<span class="s">        }</span>
+
+<span class="s">        normal</span>
+<span class="s">          .help = &quot;Parameters for normal outlier rejector&quot;</span>
+<span class="s">          .expert_level = 1</span>
+<span class="s">        {</span>
+<span class="s">          min_pixels = 10</span>
+<span class="s">            .help = &quot;The minimum number of pixels to use in calculating the&quot;</span>
+<span class="s">                    &quot;background intensity.&quot;</span>
+<span class="s">            .type = int</span>
+<span class="s">        }</span>
+
+<span class="s">        mosflm</span>
+<span class="s">          .help = &quot;Parameters for mosflm-like outlier rejector. This algorithm&quot;</span>
+<span class="s">                  &quot;is mainly used in conjunction with a linear 2d background.&quot;</span>
+<span class="s">          .expert_level = 1</span>
+<span class="s">        {</span>
+<span class="s">          fraction = 1.0</span>
+<span class="s">            .help = &quot;The fraction of pixels to use in determining the initial&quot;</span>
+<span class="s">                    &quot;plane used for outlier rejection.&quot;</span>
+<span class="s">            .type = float</span>
+
+<span class="s">          n_sigma = 4.0</span>
+<span class="s">            .help = &quot;The number of standard deviations above the threshold plane&quot;</span>
+<span class="s">                    &quot;to use in rejecting outliers from background calculation.&quot;</span>
+<span class="s">            .type = float</span>
+<span class="s">        }</span>
+
+<span class="s">        tukey</span>
+<span class="s">          .help = &quot;Parameters for tukey outlier rejector&quot;</span>
+<span class="s">          .expert_level = 1</span>
+<span class="s">        {</span>
+<span class="s">          lower = 1.5</span>
+<span class="s">            .help = &quot;Lower IQR multiplier&quot;</span>
+<span class="s">            .type = float</span>
+<span class="s">          upper = 1.5</span>
+<span class="s">            .help = &quot;Upper IQR multiplier&quot;</span>
+<span class="s">            .type = float</span>
+<span class="s">        }</span>
+<span class="s">      }</span>
+
+<span class="s">      model</span>
+<span class="s">        .help = &quot;Background model&quot;</span>
+<span class="s">      {</span>
+<span class="s">        algorithm = constant2d *constant3d linear2d linear3d</span>
+<span class="s">          .help = &quot;The choice of background model&quot;</span>
+<span class="s">          .type = choice</span>
+<span class="s">      }</span>
+
+<span class="s">    &#39;&#39;&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">phil</span>
+</div>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the algorithm.</span>
+
+<span class="sd">    :param params: The input parameters</span>
+<span class="sd">    :param experiments: The list of experiments</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.background.simple</span> <span class="kn">import</span> <span class="n">BackgroundAlgorithm</span>
+
+    <span class="c"># Create some default parameters</span>
+    <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phil</span><span class="p">()</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">params</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">background</span><span class="o">.</span><span class="n">simple</span>
+
+    <span class="c"># Create some keyword parameters</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s">&#39;model&#39;</span> <span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">algorithm</span><span class="p">,</span>
+      <span class="s">&#39;outlier&#39;</span> <span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span>
+    <span class="p">}</span>
+
+    <span class="c"># Create all the keyword parameters</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;null&#39;</span><span class="p">:</span>
+      <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;truncated&#39;</span><span class="p">:</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;lower&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">truncated</span><span class="o">.</span><span class="n">lower</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;upper&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">truncated</span><span class="o">.</span><span class="n">upper</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;nsigma&#39;</span><span class="p">:</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;lower&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">nsigma</span><span class="o">.</span><span class="n">lower</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;upper&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">nsigma</span><span class="o">.</span><span class="n">upper</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;normal&#39;</span><span class="p">:</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;min_pixels&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">normal</span><span class="o">.</span><span class="n">min_pixels</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;mosflm&#39;</span><span class="p">:</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;fraction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">mosflm</span><span class="o">.</span><span class="n">fraction</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;n_sigma&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">mosflm</span><span class="o">.</span><span class="n">n_sigma</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="s">&#39;tukey&#39;</span><span class="p">:</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;lower&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">tukey</span><span class="o">.</span><span class="n">lower</span>
+      <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;upper&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">tukey</span><span class="o">.</span><span class="n">upper</span>
+
+    <span class="c"># Create the algorithm</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_algorithm</span> <span class="o">=</span> <span class="n">BackgroundAlgorithm</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SimpleBackgroundExt.compute_background"><a class="viewcode-back" href="../../../documentation/library_reference/extensions/index.html#dials.extensions.simple_background_ext.SimpleBackgroundExt.compute_background">[docs]</a>  <span class="k">def</span> <span class="nf">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Compute the background.</span>
+
+<span class="sd">    :param reflections: The list of reflections</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_algorithm</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">DIALS</a></h1>
+
+
+
+<p class="blurb">Data Integration for Advanced Light Sources</p>
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/getting_started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../_static/STFC_logo.png" /></a>
+  </div>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

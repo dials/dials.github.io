@@ -1,0 +1,895 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.algorithms.refinement.engine &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for dials.algorithms.refinement.engine</h1><div class="highlight"><pre>
+<span class="c">#</span>
+<span class="c">#  Copyright (C) (2013) STFC Rutherford Appleton Laboratory, UK.</span>
+<span class="c">#</span>
+<span class="c">#  Author: David Waterman.</span>
+<span class="c">#</span>
+<span class="c">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c">#  included in the root directory of this package.</span>
+<span class="c">#</span>
+
+<span class="sd">&quot;&quot;&quot;Contains classes for refinement engines. Refinery is the shared interface,</span>
+<span class="sd">LevenbergMarquardtIterations, GaussNewtonIterations, SimpleLBFGS and LBFGScurvs</span>
+<span class="sd">are the current concrete implementations&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span><span class="p">,</span> <span class="n">debug</span>
+
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">lbfgs</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">import</span> <span class="nn">libtbx</span>
+<span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_mp</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="c"># use lstbx classes</span>
+<span class="kn">from</span> <span class="nn">scitbx.lstbx</span> <span class="kn">import</span> <span class="n">normal_eqns</span><span class="p">,</span> <span class="n">normal_eqns_solving</span>
+
+<span class="c"># termination reason strings</span>
+<span class="n">TARGET_ACHIEVED</span> <span class="o">=</span> <span class="s">&quot;RMSD target achieved&quot;</span>
+<span class="n">RMSD_CONVERGED</span> <span class="o">=</span> <span class="s">&quot;RMSD no longer decreasing&quot;</span>
+<span class="n">STEP_TOO_SMALL</span> <span class="o">=</span> <span class="s">&quot;Step too small&quot;</span>
+<span class="n">OBJECTIVE_INCREASE</span> <span class="o">=</span> <span class="s">&quot;Refinement failure: objective increased&quot;</span>
+<span class="n">MAX_ITERATIONS</span> <span class="o">=</span> <span class="s">&quot;Reached maximum number of iterations&quot;</span>
+<span class="n">MAX_TRIAL_ITERATIONS</span> <span class="o">=</span> <span class="s">&quot;Reached maximum number of consecutive unsuccessful trial steps&quot;</span>
+<span class="n">DOF_TOO_LOW</span> <span class="o">=</span> <span class="s">&quot;Not enough degrees of freedom to refine&quot;</span>
+
+<div class="viewcode-block" id="Journal"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Journal">[docs]</a><span class="k">class</span> <span class="nc">Journal</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Container in which to store information about refinement history.</span>
+
+<span class="sd">  This is simply a dict but provides some extra methods for access that</span>
+<span class="sd">  maintain values as columns in a table. Refinery classes will use these methods</span>
+<span class="sd">  while entering data to ensure the table remains consistent. Methods inherited</span>
+<span class="sd">  from dict are not hidden for ease of use of this object when returned to the</span>
+<span class="sd">  user.&quot;&quot;&quot;</span>
+  <span class="n">reason_for_termination</span> <span class="o">=</span> <span class="bp">None</span>
+  <span class="n">_nrows</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="Journal.get_nrows"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Journal.get_nrows">[docs]</a>  <span class="k">def</span> <span class="nf">get_nrows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nrows</span>
+</div>
+<div class="viewcode-block" id="Journal.add_column"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Journal.add_column">[docs]</a>  <span class="k">def</span> <span class="nf">add_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Add a new column named by key&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nrows</span>
+
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="Journal.add_row"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Journal.add_row">[docs]</a>  <span class="k">def</span> <span class="nf">add_row</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Add an element to the end of each of the columns. Fail if any columns</span>
+<span class="sd">    are the wrong length&quot;&quot;&quot;</span>
+
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+      <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nrows</span>
+      <span class="bp">self</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_nrows</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="Journal.del_last_row"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Journal.del_last_row">[docs]</a>  <span class="k">def</span> <span class="nf">del_last_row</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Delete the last element from the each of the columns. Fail if any columns</span>
+<span class="sd">    are the wrong length&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nrows</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+      <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nrows</span>
+      <span class="bp">self</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_nrows</span> <span class="o">-=</span> <span class="mi">1</span>
+
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="Journal.set_last_cell"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Journal.set_last_cell">[docs]</a>  <span class="k">def</span> <span class="nf">set_last_cell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Set last cell in column given by key to value. Fail if the column is the</span>
+<span class="sd">    wrong length&quot;&quot;&quot;</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">])</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nrows</span>
+    <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">return</span>
+</div></div>
+<div class="viewcode-block" id="Refinery"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery">[docs]</a><span class="k">class</span> <span class="nc">Refinery</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Interface for Refinery objects. This should be subclassed and the run</span>
+<span class="sd">  method implemented.&quot;&quot;&quot;</span>
+
+  <span class="c"># NOTES. A Refinery is initialised with a Target function. The target</span>
+  <span class="c"># function already contains a ReflectionManager (which holds the data) so</span>
+  <span class="c"># there&#39;s no need to pass the data in here. In fact the Target</span>
+  <span class="c"># class does the bulk of the work, as it also does the reflection prediction</span>
+  <span class="c"># to get the updated predictions on each cycle. This should make some sense</span>
+  <span class="c"># as the target function is inextricably linked to the space in which</span>
+  <span class="c"># predictions are made (e.g. detector space, phi), so it is not general</span>
+  <span class="c"># enough to sit abstractly above the prediction.</span>
+
+  <span class="c"># This keeps the Refinery simple and able to be focused only on generic</span>
+  <span class="c"># features of managing a refinement run, like reporting results and checking</span>
+  <span class="c"># termination criteria.</span>
+
+  <span class="c"># The prediction values come from a PredictionParameterisation object.</span>
+  <span class="c"># This is also referred to by the Target function, but it makes sense for</span>
+  <span class="c"># Refinery to be able to refer to it directly. So refinery should keep a</span>
+  <span class="c"># separate link to its PredictionParameterisation.</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">log</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span>
+               <span class="n">verbosity</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">track_step</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
+               <span class="n">track_gradient</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">track_parameter_correlation</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
+               <span class="n">track_out_of_sample_rmsd</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
+               <span class="n">max_iterations</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+
+    <span class="c"># reference to PredictionParameterisation and Target objects</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span> <span class="o">=</span> <span class="n">prediction_parameterisation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_target</span> <span class="o">=</span> <span class="n">target</span>
+
+    <span class="c"># initial parameter values</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span><span class="o">.</span><span class="n">get_param_vals</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">old_x</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c"># undefined initial functional and gradients values</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_f</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_g</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c"># filename for an optional log file</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">log</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">=</span> <span class="n">verbosity</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_target_achieved</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span> <span class="o">=</span> <span class="n">max_iterations</span>
+
+    <span class="c"># attributes for journalling functionality, based on lstbx&#39;s</span>
+    <span class="c"># journaled_non_linear_ls class</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="o">=</span> <span class="n">Journal</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;num_reflections&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;objective&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
+    <span class="k">if</span> <span class="n">track_gradient</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;gradient&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;gradient_norm&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
+    <span class="k">if</span> <span class="n">track_parameter_correlation</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">track_step</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;solution&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">track_out_of_sample_rmsd</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;out_of_sample_rmsd&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;solution_norm&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;parameter_vector&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;parameter_vector_norm&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;rmsd&quot;</span><span class="p">)</span>
+
+    <span class="c"># number of processes to use, for engines that support multiprocessing</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">prepare_for_step</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Refinery.get_num_steps"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.get_num_steps">[docs]</a>  <span class="k">def</span> <span class="nf">get_num_steps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">get_nrows</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span>
+</div>
+<div class="viewcode-block" id="Refinery.prepare_for_step"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.prepare_for_step">[docs]</a>  <span class="k">def</span> <span class="nf">prepare_for_step</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Update the parameterisation and prepare the target function&quot;&quot;&quot;</span>
+
+    <span class="c"># set current parameter values</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span><span class="o">.</span><span class="n">set_param_vals</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="c"># do reflection prediction</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="Refinery.update_journal"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.update_journal">[docs]</a>  <span class="k">def</span> <span class="nf">update_journal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Append latest step information to the journal attributes&quot;&quot;&quot;</span>
+
+    <span class="c"># add step quantities to journal</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;num_reflections&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">get_num_matches</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;rmsd&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsds</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;parameter_vector&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span><span class="o">.</span><span class="n">get_param_vals</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;objective&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&quot;gradient&quot;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;gradient&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_g</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">):</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">,</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_packed_corr_mat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="p">))</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&quot;out_of_sample_rmsd&quot;</span><span class="p">):</span>
+      <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">predict_for_free_reflections</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;out_of_sample_rmsd&quot;</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsds_for_reflection_table</span><span class="p">(</span><span class="n">preds</span><span class="p">))</span>
+    <span class="k">return</span>
+</div>
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_packed_corr_mat</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a 1D flex array containing the upper diagonal values of the</span>
+<span class="sd">    correlation matrix calculated between columns of 2D matrix m&quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span> <span class="c"># convert matrices of type scitbx_sparse_ext.matrix</span>
+      <span class="n">m</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">as_dense_matrix</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+      <span class="k">pass</span>
+    <span class="n">ncol</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">all</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">packed_len</span> <span class="o">=</span> <span class="p">(</span><span class="n">ncol</span><span class="o">*</span><span class="p">(</span><span class="n">ncol</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">packed_len</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">col1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ncol</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">col2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">col1</span><span class="p">,</span> <span class="n">ncol</span><span class="p">):</span>
+        <span class="n">tmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">linear_correlation</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">matrix_copy_column</span><span class="p">(</span><span class="n">col1</span><span class="p">),</span>
+                                     <span class="n">m</span><span class="o">.</span><span class="n">matrix_copy_column</span><span class="p">(</span><span class="n">col2</span><span class="p">))</span><span class="o">.</span><span class="n">coefficient</span><span class="p">()</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">tmp</span>
+
+<div class="viewcode-block" id="Refinery.get_correlation_matrix_for_step"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.get_correlation_matrix_for_step">[docs]</a>  <span class="k">def</span> <span class="nf">get_correlation_matrix_for_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decompress and return the full 2D correlation matrix between columns of</span>
+<span class="sd">    the Jacobian that was stored in the journal at the given step number. If</span>
+<span class="sd">    not available, return None&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">packed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">][</span><span class="n">step</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">None</span>
+    <span class="k">if</span> <span class="n">packed</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
+    <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">corr_mat</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">nparam</span><span class="p">,</span> <span class="n">nparam</span><span class="p">))</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparam</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">nparam</span><span class="p">):</span>
+        <span class="n">corr_mat</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">packed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">corr_mat</span><span class="o">.</span><span class="n">matrix_copy_upper_to_lower_triangle_in_place</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">corr_mat</span>
+</div>
+<div class="viewcode-block" id="Refinery.test_for_termination"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.test_for_termination">[docs]</a>  <span class="k">def</span> <span class="nf">test_for_termination</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return True if refinement should be terminated&quot;&quot;&quot;</span>
+
+    <span class="c"># Basic version delegate to the Target class. Derived classes may</span>
+    <span class="c"># implement other termination criteria</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_target_achieved</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">achieved</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target_achieved</span>
+</div>
+<div class="viewcode-block" id="Refinery.test_rmsd_convergence"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.test_rmsd_convergence">[docs]</a>  <span class="k">def</span> <span class="nf">test_rmsd_convergence</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Test for convergence of RMSDs&quot;&quot;&quot;</span>
+
+    <span class="c"># http://en.wikipedia.org/wiki/</span>
+    <span class="c"># Non-linear_least_squares#Convergence_criteria</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">r1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;rmsd&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+      <span class="n">r2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;rmsd&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="nb">abs</span><span class="p">((</span><span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mf">0.0001</span> <span class="k">if</span> <span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="bp">True</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">tests</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Refinery.test_objective_increasing_but_not_nref"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.test_objective_increasing_but_not_nref">[docs]</a>  <span class="k">def</span> <span class="nf">test_objective_increasing_but_not_nref</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Test for an increase in the objective value between steps. This</span>
+<span class="sd">    could be caused simply by the number of matches between observations</span>
+<span class="sd">    and predictions increasing. However, if the number of matches stayed</span>
+<span class="sd">    the same or reduced then this is a bad sign.&quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">l1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;objective&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+      <span class="n">l2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;objective&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+      <span class="n">n1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;num_reflections&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+      <span class="n">n2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;num_reflections&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">return</span> <span class="n">l1</span> <span class="o">&gt;</span> <span class="n">l2</span> <span class="ow">and</span> <span class="n">n1</span> <span class="o">&lt;=</span> <span class="n">n2</span>
+</div>
+<div class="viewcode-block" id="Refinery.set_nproc"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.set_nproc">[docs]</a>  <span class="k">def</span> <span class="nf">set_nproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nproc</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;to be implemented only by derived classes that support multiprocessing&quot;&quot;&quot;</span>
+
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="n">nproc</span>
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="Refinery.run"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    To be implemented by derived class. It is expected that each step of</span>
+<span class="sd">    refinement be preceeded by a call to prepare_for_step and followed by</span>
+<span class="sd">    calls to update_journal and test_for_termination (in that order).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># Specify a minimizer and its parameters, and run</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+</div></div>
+<div class="viewcode-block" id="AdaptLbfgs"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLbfgs">[docs]</a><span class="k">class</span> <span class="nc">AdaptLbfgs</span><span class="p">(</span><span class="n">Refinery</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adapt Refinery for L-BFGS minimiser&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+    <span class="n">Refinery</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_termination_params</span> <span class="o">=</span> <span class="n">lbfgs</span><span class="o">.</span><span class="n">termination_parameters</span><span class="p">(</span>
+        <span class="n">max_iterations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span><span class="p">)</span>
+
+    <span class="kn">import</span> <span class="nn">cStringIO</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_log_string</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span>
+
+    <span class="k">return</span>
+
+<div class="viewcode-block" id="AdaptLbfgs.compute_functional_and_gradients"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLbfgs.compute_functional_and_gradients">[docs]</a>  <span class="k">def</span> <span class="nf">compute_functional_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">L</span><span class="p">,</span> <span class="n">dL_dp</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_functional_gradients_and_curvatures</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_f</span> <span class="o">=</span> <span class="n">L</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_g</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">dL_dp</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_g</span>
+</div>
+<div class="viewcode-block" id="AdaptLbfgs.compute_functional_gradients_and_curvatures"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLbfgs.compute_functional_gradients_and_curvatures">[docs]</a>  <span class="k">def</span> <span class="nf">compute_functional_gradients_and_curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">prepare_for_step</span><span class="p">()</span>
+
+    <span class="n">blocks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">split_matches_into_blocks</span><span class="p">(</span><span class="n">nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="n">task_results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
+        <span class="n">func</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">compute_functional_gradients_and_curvatures</span><span class="p">,</span>
+        <span class="n">iterable</span><span class="o">=</span><span class="n">blocks</span><span class="p">,</span>
+        <span class="n">processes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">,</span>
+        <span class="n">method</span><span class="o">=</span><span class="s">&quot;multiprocessing&quot;</span><span class="p">,</span>
+        <span class="c">#preserve_exception_message=True</span>
+        <span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">task_results</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span> \
+        <span class="n">compute_functional_gradients_and_curvatures</span><span class="p">(</span><span class="n">block</span><span class="p">)</span> <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">blocks</span><span class="p">]</span>
+
+    <span class="c"># reduce blockwise results</span>
+    <span class="n">flist</span><span class="p">,</span> <span class="n">glist</span><span class="p">,</span> <span class="n">clist</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">task_results</span><span class="p">)</span>
+    <span class="n">glist</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">glist</span><span class="p">)</span>
+    <span class="n">clist</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">clist</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">flist</span><span class="p">),</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">glist</span><span class="p">],</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">clist</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="AdaptLbfgs.callback_after_step"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLbfgs.callback_after_step">[docs]</a>  <span class="k">def</span> <span class="nf">callback_after_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minimizer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Do journalling, evaluate rmsds and return True if the target is</span>
+<span class="sd">    reached to terminate the refinement.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_journal</span><span class="p">()</span>
+    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Step </span><span class="si">%d</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">get_nrows</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_for_termination</span><span class="p">():</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">TARGET_ACHIEVED</span>
+      <span class="k">return</span> <span class="bp">True</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_rmsd_convergence</span><span class="p">():</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">RMSD_CONVERGED</span>
+      <span class="k">return</span> <span class="bp">True</span>
+
+    <span class="k">return</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="AdaptLbfgs.set_nproc"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLbfgs.set_nproc">[docs]</a>  <span class="k">def</span> <span class="nf">set_nproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nproc</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="n">nproc</span>
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="AdaptLbfgs.run_lbfgs"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLbfgs.run_lbfgs">[docs]</a>  <span class="k">def</span> <span class="nf">run_lbfgs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">curvatures</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Run the minimiser, keeping track of its log.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">ref_log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log_string</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">curvatures</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">diag_mode</span> <span class="o">=</span> <span class="s">&quot;always&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">minimizer</span> <span class="o">=</span> <span class="n">lbfgs</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">target_evaluator</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+        <span class="n">termination_params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_termination_params</span><span class="p">,</span>
+        <span class="n">log</span><span class="o">=</span><span class="n">ref_log</span><span class="p">)</span>
+
+    <span class="n">log</span> <span class="o">=</span> <span class="n">ref_log</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">:</span>
+      <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">,</span> <span class="s">&quot;a&quot;</span><span class="p">)</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">log</span><span class="p">)</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">ref_log</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s">&quot;lbfgs minimizer stop: &quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pos</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">msg</span> <span class="o">=</span> <span class="n">log</span><span class="p">[</span><span class="n">pos</span><span class="p">:]</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">+=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">+=</span> <span class="n">msg</span>
+      <span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">msg</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">minimizer</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">minimizer</span><span class="o">.</span><span class="n">error</span>
+
+    <span class="k">return</span>
+</div></div>
+<div class="viewcode-block" id="SimpleLBFGS"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.SimpleLBFGS">[docs]</a><span class="k">class</span> <span class="nc">SimpleLBFGS</span><span class="p">(</span><span class="n">AdaptLbfgs</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Refinery implementation, using cctbx LBFGS with basic settings&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SimpleLBFGS.run"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.SimpleLBFGS.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_lbfgs</span><span class="p">(</span><span class="n">curvatures</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="LBFGScurvs"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.LBFGScurvs">[docs]</a><span class="k">class</span> <span class="nc">LBFGScurvs</span><span class="p">(</span><span class="n">AdaptLbfgs</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Refinery implementation using cctbx LBFGS with curvatures&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LBFGScurvs.run"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.LBFGScurvs.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_lbfgs</span><span class="p">(</span><span class="n">curvatures</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="LBFGScurvs.compute_functional_gradients_diag"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.LBFGScurvs.compute_functional_gradients_diag">[docs]</a>  <span class="k">def</span> <span class="nf">compute_functional_gradients_diag</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="n">L</span><span class="p">,</span> <span class="n">dL_dp</span><span class="p">,</span> <span class="n">curvs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_functional_gradients_and_curvatures</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_f</span> <span class="o">=</span> <span class="n">L</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_g</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">dL_dp</span><span class="p">)</span>
+
+    <span class="c"># Curvatures of zero will cause a crash, because their inverse is taken.</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">([</span><span class="n">c</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">curvs</span><span class="p">])</span>
+
+    <span class="n">diags</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">/</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">curvs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+      <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;  curv: &quot;</span> <span class="o">+</span>  <span class="s">&quot;</span><span class="si">%.5f</span><span class="s"> &quot;</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">curvs</span><span class="p">))</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="o">*</span><span class="n">curvs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_g</span><span class="p">,</span> <span class="n">diags</span>
+
+</div></div>
+<div class="viewcode-block" id="AdaptLstbx"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx">[docs]</a><span class="k">class</span> <span class="nc">AdaptLstbx</span><span class="p">(</span>
+    <span class="n">Refinery</span><span class="p">,</span>
+    <span class="n">normal_eqns</span><span class="o">.</span><span class="n">non_linear_ls</span><span class="p">,</span>
+    <span class="n">normal_eqns</span><span class="o">.</span><span class="n">non_linear_ls_mixin</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adapt Refinery for lstbx&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">verbosity</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">track_step</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">track_gradient</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
+               <span class="n">track_parameter_correlation</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
+               <span class="n">track_out_of_sample_rmsd</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">max_iterations</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+
+    <span class="n">Refinery</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span>
+             <span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span> <span class="n">track_step</span><span class="o">=</span><span class="n">track_step</span><span class="p">,</span>
+             <span class="n">track_gradient</span><span class="o">=</span><span class="n">track_gradient</span><span class="p">,</span>
+             <span class="n">track_parameter_correlation</span><span class="o">=</span><span class="n">track_parameter_correlation</span><span class="p">,</span>
+             <span class="n">track_out_of_sample_rmsd</span><span class="o">=</span><span class="n">track_out_of_sample_rmsd</span><span class="p">,</span>
+             <span class="n">max_iterations</span><span class="o">=</span><span class="n">max_iterations</span><span class="p">)</span>
+
+    <span class="c"># required for restart to work (do I need that method?)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">x_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+
+    <span class="n">normal_eqns</span><span class="o">.</span><span class="n">non_linear_ls</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_parameters</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span><span class="p">))</span>
+
+<div class="viewcode-block" id="AdaptLstbx.set_nproc"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx.set_nproc">[docs]</a>  <span class="k">def</span> <span class="nf">set_nproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nproc</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="n">nproc</span>
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="AdaptLstbx.restart"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx.restart">[docs]</a>  <span class="k">def</span> <span class="nf">restart</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x_0</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">old_x</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="AdaptLstbx.parameter_vector_norm"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx.parameter_vector_norm">[docs]</a>  <span class="k">def</span> <span class="nf">parameter_vector_norm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">norm</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AdaptLstbx.build_up"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx.build_up">[docs]</a>  <span class="k">def</span> <span class="nf">build_up</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objective_only</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+
+    <span class="c"># code here to calculate the residuals. Rely on the target class</span>
+    <span class="c"># for this</span>
+
+    <span class="c"># I need to use the weights. They are the variances of the</span>
+    <span class="c"># observations... See http://en.wikipedia.org/wiki/Non-linear_least_squares</span>
+    <span class="c"># at &#39;diagonal weight matrix&#39;</span>
+
+    <span class="c"># set current parameter values</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">prepare_for_step</span><span class="p">()</span>
+
+    <span class="c"># Reset the state to construction time, i.e. no equations accumulated</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">objective_only</span><span class="p">:</span>
+      <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">compute_residuals</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">add_residuals</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">blocks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">split_matches_into_blocks</span><span class="p">(</span><span class="n">nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">)</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+
+        <span class="c"># ensure the jacobian is not tracked</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># processing functions</span>
+        <span class="k">def</span> <span class="nf">task_wrapper</span><span class="p">(</span><span class="n">block</span><span class="p">):</span>
+          <span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">compute_residuals_and_gradients</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+          <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">residuals</span><span class="o">=</span><span class="n">residuals</span><span class="p">,</span>
+                      <span class="n">jacobian</span><span class="o">=</span><span class="n">jacobian</span><span class="p">,</span>
+                      <span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">callback_wrapper</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">add_equations</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s">&#39;residuals&#39;</span><span class="p">],</span>
+                             <span class="n">result</span><span class="p">[</span><span class="s">&#39;jacobian&#39;</span><span class="p">],</span>
+                             <span class="n">result</span><span class="p">[</span><span class="s">&#39;weights&#39;</span><span class="p">])</span>
+          <span class="c"># no longer need the result</span>
+          <span class="n">result</span><span class="p">[</span><span class="s">&#39;residuals&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+          <span class="n">result</span><span class="p">[</span><span class="s">&#39;jacobian&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+          <span class="n">result</span><span class="p">[</span><span class="s">&#39;weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+          <span class="k">return</span>
+
+        <span class="n">task_results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
+          <span class="n">func</span><span class="o">=</span><span class="n">task_wrapper</span><span class="p">,</span>
+          <span class="n">iterable</span><span class="o">=</span><span class="n">blocks</span><span class="p">,</span>
+          <span class="n">processes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">,</span>
+          <span class="n">callback</span><span class="o">=</span><span class="n">callback_wrapper</span><span class="p">,</span>
+          <span class="n">method</span><span class="o">=</span><span class="s">&quot;multiprocessing&quot;</span><span class="p">,</span>
+          <span class="c">#preserve_exception_message=True</span>
+          <span class="p">)</span>
+
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">blocks</span><span class="p">:</span>
+          <span class="n">residuals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">compute_residuals_and_gradients</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">add_equations</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="AdaptLstbx.step_forward"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx.step_forward">[docs]</a>  <span class="k">def</span> <span class="nf">step_forward</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">old_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AdaptLstbx.step_backward"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx.step_backward">[docs]</a>  <span class="k">def</span> <span class="nf">step_backward</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_x</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_x</span><span class="p">,</span> <span class="bp">None</span>
+      <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="AdaptLstbx.finalise"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx.finalise">[docs]</a>  <span class="k">def</span> <span class="nf">finalise</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;perform various post-run tasks&quot;&quot;&quot;</span>
+
+    <span class="c"># it is possible to get here with zero steps taken by the minimiser. For</span>
+    <span class="c"># example by failing for the MAX_TRIAL_ITERATIONS reason before any forward</span>
+    <span class="c"># steps are taken with the LevMar engine. If so the below is invalid,</span>
+    <span class="c"># so return early</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">get_nrows</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="c"># invert normal matrix from N^-1 = (U^-1)(U^-1)^T</span>
+    <span class="n">cf_inv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf</span><span class="o">.</span><span class="n">matrix_packed_u_as_upper_triangle</span><span class="p">()</span><span class="o">.</span>\
+        <span class="n">matrix_inversion</span><span class="p">()</span>
+    <span class="n">nm_inv</span> <span class="o">=</span> <span class="n">cf_inv</span><span class="o">.</span><span class="n">matrix_multiply_transpose</span><span class="p">(</span><span class="n">cf_inv</span><span class="p">)</span>
+
+    <span class="c"># keep the estimated parameter variance-covariance matrix</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">parameter_var_cov</span> <span class="o">=</span> \
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;reduced_chi_squared&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">nm_inv</span>
+    <span class="c"># send this back to the models to calculate their uncertainties</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span><span class="o">.</span><span class="n">calculate_model_state_uncertainties</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">parameter_var_cov</span><span class="p">)</span>
+
+    <span class="c"># send parameter variances back to the parameter classes</span>
+    <span class="c"># themselves, for reporting purposes and for building restraints</span>
+    <span class="c"># based on existing parameterisations.</span>
+    <span class="n">s2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter_var_cov</span><span class="o">.</span><span class="n">matrix_diagonal</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">s2</span><span class="o">.</span><span class="n">all_ge</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">s2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span><span class="o">.</span><span class="n">set_param_esds</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+    <span class="k">return</span>
+</div>
+  <span class="k">def</span> <span class="nf">_print_normal_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Print the full normal matrix at the current step. For debugging only&quot;&quot;&quot;</span>
+    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;The normal matrix for the current step is:&quot;</span><span class="p">)</span>
+    <span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">normal_matrix_packed_u</span><span class="p">()</span><span class="o">.</span>\
+          <span class="n">matrix_packed_u_as_symmetric</span><span class="p">()</span><span class="o">.</span>\
+          <span class="n">as_scitbx_matrix</span><span class="p">()</span><span class="o">.</span><span class="n">matlab_form</span><span class="p">(</span><span class="n">format</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+          <span class="n">one_row_per_line</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GaussNewtonIterations"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.GaussNewtonIterations">[docs]</a><span class="k">class</span> <span class="nc">GaussNewtonIterations</span><span class="p">(</span><span class="n">AdaptLstbx</span><span class="p">,</span> <span class="n">normal_eqns_solving</span><span class="o">.</span><span class="n">iterations</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Refinery implementation, using lstbx Gauss Newton iterations&quot;&quot;&quot;</span>
+
+  <span class="c"># defaults that may be overridden</span>
+  <span class="n">gradient_threshold</span> <span class="o">=</span> <span class="mf">1.e-10</span>
+  <span class="n">step_threshold</span> <span class="o">=</span> <span class="bp">None</span>
+  <span class="n">damping_value</span> <span class="o">=</span> <span class="mf">0.0007</span>
+  <span class="n">max_shift_over_esd</span> <span class="o">=</span> <span class="mi">15</span>
+  <span class="n">convergence_as_shift_over_esd</span> <span class="o">=</span> <span class="mf">1e-5</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">track_step</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">track_gradient</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">track_parameter_correlation</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">track_out_of_sample_rmsd</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">max_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+
+    <span class="n">AdaptLstbx</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span>
+             <span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span> <span class="n">track_step</span><span class="o">=</span><span class="n">track_step</span><span class="p">,</span>
+             <span class="n">track_gradient</span><span class="o">=</span><span class="n">track_gradient</span><span class="p">,</span>
+             <span class="n">track_parameter_correlation</span><span class="o">=</span><span class="n">track_parameter_correlation</span><span class="p">,</span>
+             <span class="n">track_out_of_sample_rmsd</span><span class="o">=</span><span class="n">track_out_of_sample_rmsd</span><span class="p">,</span>
+             <span class="n">max_iterations</span><span class="o">=</span><span class="n">max_iterations</span><span class="p">)</span>
+
+    <span class="c"># add an attribute to the journal</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;reduced_chi_squared&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
+
+    <span class="c"># adopt any overrides of the defaults above</span>
+    <span class="n">libtbx</span><span class="o">.</span><span class="n">adopt_optional_init_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwds</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GaussNewtonIterations.run"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.GaussNewtonIterations.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c"># prepare for first step</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">build_up</span><span class="p">()</span>
+
+    <span class="c"># return early if refinement is not possible</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dof</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">DOF_TOO_LOW</span>
+      <span class="k">return</span>
+
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+
+      <span class="c"># set functional and gradients for the step (to add to the history)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">objective</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_g</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">opposite_of_gradient</span><span class="p">()</span>
+
+      <span class="c"># cache some items for the journal prior to solve</span>
+      <span class="n">pvn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter_vector_norm</span><span class="p">()</span>
+      <span class="n">gn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opposite_of_gradient</span><span class="p">()</span><span class="o">.</span><span class="n">norm_inf</span><span class="p">()</span>
+
+      <span class="c"># debugging</span>
+      <span class="c">#if self._verbosity &gt; 3: self._print_normal_matrix()</span>
+
+      <span class="c"># solve the normal equations</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+
+      <span class="c"># standard journalling</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">update_journal</span><span class="p">()</span>
+      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Step </span><span class="si">%d</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">get_nrows</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+      <span class="c"># add cached items to the journal</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;parameter_vector_norm&quot;</span><span class="p">,</span> <span class="n">pvn</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;gradient_norm&quot;</span><span class="p">,</span> <span class="n">gn</span><span class="p">)</span>
+
+      <span class="c"># extra journalling post solve</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&quot;solution&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;solution&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">actual</span><span class="o">.</span><span class="n">step</span><span class="p">()</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">())</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;solution_norm&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">()</span><span class="o">.</span><span class="n">norm</span><span class="p">())</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;reduced_chi_squared&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chi_sq</span><span class="p">())</span>
+
+      <span class="c"># test termination criteria</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_for_termination</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">TARGET_ACHIEVED</span>
+        <span class="k">break</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_rmsd_convergence</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">RMSD_CONVERGED</span>
+        <span class="k">break</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">had_too_small_a_step</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">STEP_TOO_SMALL</span>
+        <span class="k">break</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_objective_increasing_but_not_nref</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">OBJECTIVE_INCREASE</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_backward</span><span class="p">():</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">+=</span> <span class="s">&quot;. Parameters set back one step&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prepare_for_step</span><span class="p">()</span>
+        <span class="k">break</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">MAX_ITERATIONS</span>
+        <span class="k">break</span>
+
+      <span class="c"># prepare for next step</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">step_forward</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">build_up</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">cf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_equations</span><span class="p">()</span><span class="o">.</span><span class="n">cholesky_factor_packed_u</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">finalise</span><span class="p">()</span>
+
+    <span class="k">return</span>
+
+</div></div>
+<div class="viewcode-block" id="LevenbergMarquardtIterations"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.LevenbergMarquardtIterations">[docs]</a><span class="k">class</span> <span class="nc">LevenbergMarquardtIterations</span><span class="p">(</span><span class="n">GaussNewtonIterations</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Refinery implementation, employing lstbx Levenberg Marquadt</span>
+<span class="sd">  iterations&quot;&quot;&quot;</span>
+
+  <span class="n">tau</span> <span class="o">=</span> <span class="mf">1e-3</span>
+
+<div class="viewcode-block" id="LevenbergMarquardtIterations.mu"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.LevenbergMarquardtIterations.mu">[docs]</a>  <span class="k">class</span> <span class="nc">mu</span><span class="p">(</span><span class="n">libtbx</span><span class="o">.</span><span class="n">property</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">fget</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mu</span>
+    <span class="k">def</span> <span class="nf">fset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_mu</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="LevenbergMarquardtIterations.run"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.LevenbergMarquardtIterations.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="c"># add an attribute to the journal</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;mu&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;nu&quot;</span><span class="p">)</span>
+
+    <span class="c">#FIXME need a much neater way of doing this stuff through</span>
+    <span class="c">#inheritance</span>
+    <span class="c"># set max iterations if not already.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span> <span class="o">=</span> <span class="mi">20</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">nu</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">build_up</span><span class="p">()</span>
+
+    <span class="c"># return early if refinement is not possible</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dof</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">DOF_TOO_LOW</span>
+      <span class="k">return</span>
+
+    <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">normal_matrix_packed_u</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau</span><span class="o">*</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">matrix_packed_u_diagonal</span><span class="p">())</span>
+
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+
+      <span class="c"># set functional and gradients for the step</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">objective</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_g</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">opposite_of_gradient</span><span class="p">()</span>
+
+      <span class="c"># cache some items for the journal prior to solve</span>
+      <span class="n">pvn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter_vector_norm</span><span class="p">()</span>
+      <span class="n">gn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opposite_of_gradient</span><span class="p">()</span><span class="o">.</span><span class="n">norm_inf</span><span class="p">()</span>
+
+      <span class="c"># debugging</span>
+      <span class="c">#if self._verbosity &gt; 3: self._print_normal_matrix()</span>
+
+      <span class="n">a</span><span class="o">.</span><span class="n">matrix_packed_u_diagonal_add_in_place</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">)</span>
+
+      <span class="c"># solve the normal equations</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+
+      <span class="c"># keep the cholesky factor for ESD calculation if we end this step. Doing</span>
+      <span class="c"># it here ensures the normal equations are solved (cholesky_factor_packed_u</span>
+      <span class="c"># can only be called if that is the case)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">cf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_equations</span><span class="p">()</span><span class="o">.</span><span class="n">cholesky_factor_packed_u</span><span class="p">()</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+
+      <span class="c"># standard journalling</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">update_journal</span><span class="p">()</span>
+      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Step </span><span class="si">%d</span><span class="s">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">get_nrows</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+      <span class="c"># add cached items to the journal</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;parameter_vector_norm&quot;</span><span class="p">,</span> <span class="n">pvn</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;gradient_norm&quot;</span><span class="p">,</span> <span class="n">gn</span><span class="p">)</span>
+
+      <span class="c"># extra journalling post solve</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;mu&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;nu&quot;</span><span class="p">,</span> <span class="n">nu</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&quot;solution&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;solution&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">actual</span><span class="o">.</span><span class="n">step</span><span class="p">()</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">())</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;solution_norm&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">()</span><span class="o">.</span><span class="n">norm</span><span class="p">())</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;reduced_chi_squared&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chi_sq</span><span class="p">())</span>
+
+      <span class="c"># test termination criteria before taking the next forward step</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">had_too_small_a_step</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">STEP_TOO_SMALL</span>
+        <span class="k">break</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_for_termination</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">TARGET_ACHIEVED</span>
+        <span class="k">break</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_rmsd_convergence</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">RMSD_CONVERGED</span>
+        <span class="k">break</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">MAX_ITERATIONS</span>
+        <span class="k">break</span>
+
+      <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+      <span class="n">expected_decrease</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">h</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">*</span><span class="n">h</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_g</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">step_forward</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">n_iterations</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">build_up</span><span class="p">(</span><span class="n">objective_only</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+      <span class="n">objective_new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">objective</span><span class="p">()</span>
+      <span class="n">actual_decrease</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f</span> <span class="o">-</span> <span class="n">objective_new</span>
+      <span class="n">rho</span> <span class="o">=</span> <span class="n">actual_decrease</span><span class="o">/</span><span class="n">expected_decrease</span>
+      <span class="k">if</span> <span class="n">rho</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="o">*=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">rho</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">nu</span> <span class="o">=</span> <span class="mi">2</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step_backward</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">del_last_row</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">nu</span> <span class="o">&gt;=</span> <span class="mi">8192</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">reason_for_termination</span> <span class="o">=</span> <span class="n">MAX_TRIAL_ITERATIONS</span>
+          <span class="k">break</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="o">*=</span> <span class="n">nu</span>
+        <span class="n">nu</span> <span class="o">*=</span> <span class="mi">2</span>
+
+      <span class="c"># prepare for next step</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">build_up</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">finalise</span><span class="p">()</span>
+
+    <span class="k">return</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">DIALS</a></h1>
+
+
+
+<p class="blurb">Data Integration for Advanced Light Sources</p>
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/getting_started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
+  </div>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
