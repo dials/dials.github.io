@@ -206,11 +206,10 @@
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span>
                      <span class="n">experiments</span><span class="p">,</span>
                      <span class="n">nref_per_degree</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                     <span class="n">min_num_obs</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
                      <span class="n">max_sample_size</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                      <span class="n">min_sample_size</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                      <span class="n">close_to_spindle_cutoff</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
-                     <span class="n">iqr_multiplier</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span>
+                     <span class="n">outlier_detector</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                      <span class="n">weighting_strategy_override</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                      <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
 
@@ -227,20 +226,16 @@
     <span class="c"># keep track of the original indices of the reflections</span>
     <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;iobs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
 
-    <span class="c"># set up the reflection inclusion cutoffs</span>
+    <span class="c"># set up the reflection inclusion criteria</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_close_to_spindle_cutoff</span> <span class="o">=</span> <span class="n">close_to_spindle_cutoff</span> <span class="c">#too close to spindle</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="o">=</span> <span class="n">iqr_multiplier</span> <span class="c">#outlier rejection</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span> <span class="o">=</span> <span class="n">outlier_detector</span> <span class="c">#for outlier rejection</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_nref_per_degree</span> <span class="o">=</span> <span class="n">nref_per_degree</span> <span class="c">#random subsets</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_max_sample_size</span> <span class="o">=</span> <span class="n">max_sample_size</span> <span class="c">#sample size ceiling</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_min_sample_size</span> <span class="o">=</span> <span class="n">min_sample_size</span> <span class="c">#sample size floor</span>
 
-    <span class="c"># exclude reflections that fail some inclusion criteria (currently just</span>
-    <span class="c"># close to spindle)</span>
+    <span class="c"># exclude reflections that fail some inclusion criteria</span>
     <span class="n">refs_to_keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id_refs_to_keep</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_accepted_refs_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">refs_to_keep</span><span class="p">)</span>
-
-    <span class="c"># keep minimum number of observations per experiment to allow as working set</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_min_num_obs</span> <span class="o">=</span> <span class="n">min_num_obs</span>
 
     <span class="c"># set entering flags for all reflections</span>
     <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;entering&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">calculate_entering_flags</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span>
@@ -257,9 +252,13 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span> <span class="o">=</span> <span class="n">reflections</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">refs_to_keep</span><span class="p">))</span>
 
-    <span class="c"># fail if there are too few reflections in the manager (the check also needs</span>
-    <span class="c"># to be repeated after outlier rejection and subsetting)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_check_too_few</span><span class="p">()</span>
+    <span class="c"># remove unwanted columns from the managed reflections</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">,</span> <span class="s">&#39;iobs&#39;</span><span class="p">,</span> <span class="s">&#39;miller_index&#39;</span><span class="p">,</span> <span class="s">&#39;panel&#39;</span><span class="p">,</span> <span class="s">&#39;s1&#39;</span><span class="p">,</span> <span class="s">&#39;xyzcal.mm&#39;</span><span class="p">,</span>
+            <span class="s">&#39;xyzobs.mm.value&#39;</span><span class="p">,</span> <span class="s">&#39;xyzobs.mm.variance&#39;</span><span class="p">,</span> <span class="s">&#39;xyzobs.px.value&#39;</span><span class="p">,</span>
+            <span class="s">&#39;entering&#39;</span><span class="p">,</span> <span class="s">&#39;flags&#39;</span><span class="p">,</span> <span class="s">&#39;block&#39;</span><span class="p">,</span> <span class="s">&#39;block_centre&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">:</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
 
     <span class="c"># set weights for all kept reflections</span>
     <span class="k">if</span> <span class="n">weighting_strategy_override</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
@@ -280,8 +279,11 @@
     <span class="c"># print summary before outlier rejection</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">print_stats_on_matches</span><span class="p">()</span>
 
-    <span class="c"># flag potential outliers</span>
-    <span class="n">rejection_occurred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flag_outliers</span><span class="p">()</span>
+    <span class="c"># outlier rejection if requested</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="n">rejection_occurred</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">rejection_occurred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">)</span>
 
     <span class="c"># delete all reflections from the manager that do not have a prediction</span>
     <span class="c"># or were flagged as outliers</span>
@@ -292,7 +294,6 @@
     <span class="n">has_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
     <span class="n">inlier</span> <span class="o">=</span> <span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">centroid_outlier</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">has_pred</span> <span class="o">&amp;</span> <span class="n">inlier</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_check_too_few</span><span class="p">()</span>
 
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%d</span><span class="s"> reflections remain in the manager&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">))</span>
 
@@ -301,25 +302,11 @@
 
     <span class="c"># form working and free subsets</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_create_working_set</span><span class="p">()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_sample_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">)</span>
-
-    <span class="bp">self</span><span class="o">.</span><span class="n">_check_too_few</span><span class="p">()</span>
 
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Working set size = </span><span class="si">%d</span><span class="s"> observations&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sample_size</span><span class="p">())</span>
 
     <span class="k">return</span>
 </div>
-  <span class="k">def</span> <span class="nf">_check_too_few</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="c"># fail if any of the experiments has too few reflections</span>
-    <span class="k">for</span> <span class="n">iexp</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">)):</span>
-      <span class="n">nref</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">nref</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_num_obs</span><span class="p">:</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;Remaining number of reflections = {0}, for experiment {1}, &#39;</span> <span class="o">+</span> \
-               <span class="s">&#39;which is below the configured limit for this reflection &#39;</span> <span class="o">+</span> \
-               <span class="s">&#39;manager&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">iexp</span><span class="p">)</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-    <span class="k">return</span>
-
   <span class="k">def</span> <span class="nf">_calculate_frame_numbers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;calculate observed frame numbers for reflections, if not already</span>
 <span class="sd">    set&quot;&quot;&quot;</span>
@@ -346,16 +333,17 @@
   <span class="k">def</span> <span class="nf">_id_refs_to_keep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obs_data</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Create a selection of observations that pass certain conditions.</span>
 
-<span class="sd">    This step includes rejection of reflections too close to the spindle, and</span>
-<span class="sd">    rejection of the (0,0,0) Miller index. Outlier rejection is done later.&quot;&quot;&quot;</span>
+<span class="sd">    This step includes rejection of reflections too close to the spindle,</span>
+<span class="sd">    reflections measured outside the scan range and rejection of the (0,0,0)</span>
+<span class="sd">    Miller index. Outlier rejection is done later.&quot;&quot;&quot;</span>
 
     <span class="c"># first exclude reflections with miller index set to 0,0,0</span>
     <span class="n">sel</span> <span class="o">=</span> <span class="n">obs_data</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
     <span class="n">inc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">obs_data</span><span class="p">))</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
     <span class="n">obs_data</span> <span class="o">=</span> <span class="n">obs_data</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
 
-    <span class="c"># Default to True to pass test if there is no rotation axis for a particular</span>
-    <span class="c"># experiment</span>
+    <span class="c"># Default to True to pass the following test if there is no rotation axis</span>
+    <span class="c"># for a particular experiment</span>
     <span class="n">to_keep</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">inc</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
 
     <span class="k">for</span> <span class="n">iexp</span><span class="p">,</span> <span class="n">exp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">):</span>
@@ -364,26 +352,27 @@
       <span class="n">sel</span> <span class="o">=</span> <span class="n">obs_data</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span>
       <span class="n">s0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s0vecs</span><span class="p">[</span><span class="n">iexp</span><span class="p">]</span>
       <span class="n">s1</span> <span class="o">=</span> <span class="n">obs_data</span><span class="p">[</span><span class="s">&#39;s1&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-      <span class="n">to_update</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inclusion_test</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">s0</span><span class="p">)</span>
+      <span class="n">phi</span> <span class="o">=</span> <span class="n">obs_data</span><span class="p">[</span><span class="s">&#39;xyzobs.mm.value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+      <span class="c"># first test: reject reflections for which the parallelepiped formed</span>
+      <span class="c"># between the gonio axis, s0 and s1 has a volume of less than the cutoff.</span>
+      <span class="c"># Those reflections are by definition closer to the spindle-beam</span>
+      <span class="c"># plane and for low values of the cutoff are troublesome to</span>
+      <span class="c"># integrate anyway.</span>
+      <span class="n">p_vol</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">s0</span><span class="p">))</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">axis</span><span class="p">))</span>
+      <span class="n">passed1</span> <span class="o">=</span> <span class="n">p_vol</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_close_to_spindle_cutoff</span>
+
+      <span class="c"># second test: reject reflections that lie outside the scan range</span>
+      <span class="n">phi_min</span><span class="p">,</span> <span class="n">phi_max</span> <span class="o">=</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+      <span class="n">passed2</span> <span class="o">=</span> <span class="p">(</span><span class="n">phi</span> <span class="o">&gt;=</span> <span class="n">phi_min</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">phi</span> <span class="o">&lt;=</span> <span class="n">phi_max</span><span class="p">)</span>
+
+      <span class="c"># combine tests</span>
+      <span class="n">to_update</span> <span class="o">=</span> <span class="n">passed1</span> <span class="o">&amp;</span> <span class="n">passed2</span>
       <span class="n">to_keep</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="n">to_update</span><span class="p">)</span>
 
     <span class="n">inc</span> <span class="o">=</span> <span class="n">inc</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">to_keep</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">inc</span>
-
-  <span class="k">def</span> <span class="nf">_inclusion_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">s0</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Test scattering vector s1 for inclusion&quot;&quot;&quot;</span>
-
-    <span class="c"># reject reflections for which the parallelepiped formed between</span>
-    <span class="c"># the gonio axis, s0 and s1 has a volume of less than the cutoff.</span>
-    <span class="c"># Those reflections are by definition closer to the spindle-beam</span>
-    <span class="c"># plane and for low values of the cutoff are troublesome to</span>
-    <span class="c"># integrate anyway.</span>
-
-    <span class="n">p_vol</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">s0</span><span class="p">))</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">axis</span><span class="p">))</span>
-    <span class="n">test</span> <span class="o">=</span> <span class="n">p_vol</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_close_to_spindle_cutoff</span>
-
-    <span class="k">return</span> <span class="n">test</span>
 
   <span class="k">def</span> <span class="nf">_create_working_set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Make a subset of the indices of reflections to use in refinement&quot;&quot;&quot;</span>
@@ -434,7 +423,7 @@
     <span class="sd">&quot;&quot;&quot;Return the number of observations in the working set to be</span>
 <span class="sd">    used for refinement&quot;&quot;&quot;</span>
 
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sample_size</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">)</span>
 </div>
   <span class="k">def</span> <span class="nf">_sort_obs_by_residual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obs</span><span class="p">,</span> <span class="n">angular</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;For diagnostic purposes, sort the obs-pred matches so that the</span>
@@ -476,6 +465,7 @@
     <span class="sd">&quot;&quot;&quot;Print some basic statistics on the matches&quot;&quot;&quot;</span>
 
     <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
+    <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
 
     <span class="kn">from</span> <span class="nn">libtbx.table_utils</span> <span class="kn">import</span> <span class="n">simple_table</span>
     <span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="kn">import</span> <span class="n">five_number_summary</span>
@@ -484,7 +474,9 @@
     <span class="n">phi_resid</span> <span class="o">=</span> <span class="n">l</span><span class="p">[</span><span class="s">&#39;phi_resid&#39;</span><span class="p">]</span>
     <span class="n">w_x</span><span class="p">,</span> <span class="n">w_y</span><span class="p">,</span> <span class="n">w_phi</span> <span class="o">=</span> <span class="n">l</span><span class="p">[</span><span class="s">&#39;xyzobs.mm.weights&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
 
-    <span class="n">info</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Summary statistics for observations matched to predictions:&quot;</span><span class="p">)</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">Summary statistics for {0} observations&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nref</span><span class="p">)</span> <span class="o">+</span>\
+          <span class="s">&quot; matched to predictions:&quot;</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;&quot;</span><span class="p">,</span> <span class="s">&quot;Min&quot;</span><span class="p">,</span> <span class="s">&quot;Q1&quot;</span><span class="p">,</span> <span class="s">&quot;Med&quot;</span><span class="p">,</span> <span class="s">&quot;Q3&quot;</span><span class="p">,</span> <span class="s">&quot;Max&quot;</span><span class="p">]</span>
     <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">x_resid</span><span class="p">)</span>
@@ -503,7 +495,7 @@
     <span class="n">info</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">nref</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">:</span>
       <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Fewer than 20 reflections matched!&quot;</span><span class="p">)</span>
       <span class="k">return</span>
 
@@ -549,76 +541,6 @@
 
     <span class="k">return</span>
 </div>
-  <span class="k">def</span> <span class="nf">_flag_outliers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Set the centroid outlier flag on matches with extreme (outlying) residuals.</span>
-
-<span class="sd">    Outlier detection finds values more than _iqr_multiplier times the</span>
-<span class="sd">    interquartile range from the quartiles. When x=1.5, this is Tukey&#39;s rule.</span>
-
-<span class="sd">    Return boolean whether rejection was performed or not&quot;&quot;&quot;</span>
-
-    <span class="c"># return early if outlier rejection is disabled</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
-
-    <span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="kn">import</span> <span class="n">five_number_summary</span>
-    <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
-    <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-    <span class="n">all_imatches</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
-
-    <span class="n">max_panel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">])</span>
-
-    <span class="n">nreject</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="k">for</span> <span class="n">pnl</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_panel</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-      <span class="n">sub_sel</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">pnl</span>
-      <span class="n">sub_matches</span> <span class="o">=</span> <span class="n">matches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sub_sel</span><span class="p">)</span>
-      <span class="n">sub_imatches</span> <span class="o">=</span> <span class="n">all_imatches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sub_sel</span><span class="p">)</span>
-
-      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_matches</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_num_obs</span><span class="p">:</span>
-        <span class="n">x_resid</span> <span class="o">=</span> <span class="n">sub_matches</span><span class="p">[</span><span class="s">&#39;x_resid&#39;</span><span class="p">]</span>
-        <span class="n">y_resid</span> <span class="o">=</span> <span class="n">sub_matches</span><span class="p">[</span><span class="s">&#39;y_resid&#39;</span><span class="p">]</span>
-        <span class="n">phi_resid</span> <span class="o">=</span> <span class="n">sub_matches</span><span class="p">[</span><span class="s">&#39;phi_resid&#39;</span><span class="p">]</span>
-
-        <span class="n">min_x</span><span class="p">,</span> <span class="n">q1_x</span><span class="p">,</span> <span class="n">med_x</span><span class="p">,</span> <span class="n">q3_x</span><span class="p">,</span> <span class="n">max_x</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">x_resid</span><span class="p">)</span>
-        <span class="n">min_y</span><span class="p">,</span> <span class="n">q1_y</span><span class="p">,</span> <span class="n">med_y</span><span class="p">,</span> <span class="n">q3_y</span><span class="p">,</span> <span class="n">max_y</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">y_resid</span><span class="p">)</span>
-        <span class="n">min_phi</span><span class="p">,</span> <span class="n">q1_phi</span><span class="p">,</span> <span class="n">med_phi</span><span class="p">,</span> <span class="n">q3_phi</span><span class="p">,</span> <span class="n">max_phi</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">phi_resid</span><span class="p">)</span>
-
-        <span class="n">iqr_x</span> <span class="o">=</span> <span class="n">q3_x</span> <span class="o">-</span> <span class="n">q1_x</span>
-        <span class="n">iqr_y</span> <span class="o">=</span> <span class="n">q3_y</span> <span class="o">-</span> <span class="n">q1_y</span>
-        <span class="n">iqr_phi</span> <span class="o">=</span> <span class="n">q3_phi</span> <span class="o">-</span> <span class="n">q1_phi</span>
-
-        <span class="n">cut_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="o">*</span> <span class="n">iqr_x</span>
-        <span class="n">cut_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="o">*</span> <span class="n">iqr_y</span>
-        <span class="n">cut_phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="o">*</span> <span class="n">iqr_phi</span>
-
-        <span class="c"># accumulate a selection of outliers for this panel</span>
-        <span class="n">sel_out</span> <span class="o">=</span> <span class="n">x_resid</span> <span class="o">&gt;</span> <span class="n">q3_x</span> <span class="o">+</span> <span class="n">cut_x</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">x_resid</span> <span class="o">&lt;</span> <span class="n">q1_x</span> <span class="o">-</span> <span class="n">cut_x</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">y_resid</span> <span class="o">&gt;</span> <span class="n">q3_y</span> <span class="o">+</span> <span class="n">cut_y</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">y_resid</span> <span class="o">&lt;</span> <span class="n">q1_y</span> <span class="o">-</span> <span class="n">cut_y</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">phi_resid</span> <span class="o">&gt;</span> <span class="n">q3_phi</span> <span class="o">+</span> <span class="n">cut_phi</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">phi_resid</span> <span class="o">&lt;</span> <span class="n">q1_phi</span> <span class="o">-</span> <span class="n">cut_phi</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-
-        <span class="c"># get positions of outliers from the original matches</span>
-        <span class="n">ioutliers</span> <span class="o">=</span> <span class="n">sub_imatches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_out</span><span class="p">)</span>
-      <span class="k">else</span><span class="p">:</span>
-        <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Only </span><span class="si">%d</span><span class="s"> reflections on panel </span><span class="si">%d</span><span class="s">. All of these flagged &quot;</span> <span class="o">+</span> \
-              <span class="s">&quot;as possible outliers.&quot;</span><span class="p">,</span>
-          <span class="nb">len</span><span class="p">(</span><span class="n">sub_matches</span><span class="p">),</span> <span class="n">pnl</span><span class="p">)</span>
-        <span class="n">ioutliers</span> <span class="o">=</span> <span class="n">sub_imatches</span>
-
-      <span class="c"># set those reflections as outliers</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">ioutliers</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">centroid_outlier</span><span class="p">)</span>
-
-      <span class="n">nreject</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ioutliers</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">nreject</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
-
-    <span class="n">info</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%d</span><span class="s"> reflections have been flagged as outliers&quot;</span><span class="p">,</span> <span class="n">nreject</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="bp">True</span>
-
-
 <div class="viewcode-block" id="ReflectionManager.reset_accepted_reflections"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.reflection_manager.ReflectionManager.reset_accepted_reflections">[docs]</a>  <span class="k">def</span> <span class="nf">reset_accepted_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Reset use flags for all observations in preparation for a new set of</span>
 <span class="sd">    predictions&quot;&quot;&quot;</span>
@@ -634,7 +556,13 @@
     <span class="sd">&quot;&quot;&quot;Get the list of managed observations&quot;&quot;&quot;</span>
 
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span>
+</div>
+<div class="viewcode-block" id="ReflectionManager.filter_obs"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.reflection_manager.ReflectionManager.filter_obs">[docs]</a>  <span class="k">def</span> <span class="nf">filter_obs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sel</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Perform a flex array selection on the managed observations, so that</span>
+<span class="sd">    external classes can filter according to criteria not available here&#39;&#39;&#39;</span>
 
+    <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span>
 </div></div>
 <div class="viewcode-block" id="StillsReflectionManager"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.reflection_manager.StillsReflectionManager">[docs]</a><span class="k">class</span> <span class="nc">StillsReflectionManager</span><span class="p">(</span><span class="n">ReflectionManager</span><span class="p">):</span>
   <span class="sd">&quot;&quot;&quot;Overloads for a Reflection Manager that does not exclude</span>
@@ -647,6 +575,7 @@
     <span class="sd">&quot;&quot;&quot;Print some basic statistics on the matches&quot;&quot;&quot;</span>
 
     <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
+    <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
 
     <span class="kn">from</span> <span class="nn">libtbx.table_utils</span> <span class="kn">import</span> <span class="n">simple_table</span>
     <span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="kn">import</span> <span class="n">five_number_summary</span>
@@ -656,7 +585,9 @@
     <span class="n">w_x</span><span class="p">,</span> <span class="n">w_y</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">l</span><span class="p">[</span><span class="s">&#39;xyzobs.mm.weights&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
     <span class="n">w_delpsi</span> <span class="o">=</span> <span class="n">l</span><span class="p">[</span><span class="s">&#39;delpsical.weights&#39;</span><span class="p">]</span>
 
-    <span class="n">info</span><span class="p">(</span><span class="s">&quot;Summary statistics for observations matched to predictions:&quot;</span><span class="p">)</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">Summary statistics for {0} observations&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nref</span><span class="p">)</span> <span class="o">+</span>\
+          <span class="s">&quot; matched to predictions:&quot;</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;&quot;</span><span class="p">,</span> <span class="s">&quot;Min&quot;</span><span class="p">,</span> <span class="s">&quot;Q1&quot;</span><span class="p">,</span> <span class="s">&quot;Med&quot;</span><span class="p">,</span> <span class="s">&quot;Q3&quot;</span><span class="p">,</span> <span class="s">&quot;Max&quot;</span><span class="p">]</span>
     <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">x_resid</span><span class="p">)</span>
@@ -674,7 +605,7 @@
     <span class="n">st</span> <span class="o">=</span> <span class="n">simple_table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
     <span class="n">info</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
 
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">nref</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">:</span>
       <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Fewer than 20 reflections matched!&quot;</span><span class="p">)</span>
       <span class="k">return</span>
 
@@ -691,77 +622,8 @@
       <span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
 
-    <span class="k">return</span>
-</div>
-  <span class="k">def</span> <span class="nf">_flag_outliers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Set the centroid outlier flag on matches with extreme (outlying) residuals.</span>
-
-<span class="sd">    Outlier detection finds values more than _iqr_multiplier times the</span>
-<span class="sd">    interquartile range from the quartiles. When x=1.5, this is Tukey&#39;s rule.</span>
-
-<span class="sd">    Return boolean whether rejection was performed or not&quot;&quot;&quot;</span>
-
-    <span class="c"># return early if outlier rejection is disabled</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
-
-    <span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="kn">import</span> <span class="n">five_number_summary</span>
-    <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
-    <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-    <span class="n">all_imatches</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
-
-    <span class="n">max_panel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">])</span>
-
-    <span class="n">nreject</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="k">for</span> <span class="n">pnl</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_panel</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-      <span class="n">sub_sel</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">pnl</span>
-      <span class="n">sub_matches</span> <span class="o">=</span> <span class="n">matches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sub_sel</span><span class="p">)</span>
-      <span class="n">sub_imatches</span> <span class="o">=</span> <span class="n">all_imatches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sub_sel</span><span class="p">)</span>
-
-      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_matches</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_num_obs</span><span class="p">:</span>
-        <span class="n">x_resid</span> <span class="o">=</span> <span class="n">sub_matches</span><span class="p">[</span><span class="s">&#39;x_resid&#39;</span><span class="p">]</span>
-        <span class="n">y_resid</span> <span class="o">=</span> <span class="n">sub_matches</span><span class="p">[</span><span class="s">&#39;y_resid&#39;</span><span class="p">]</span>
-        <span class="n">delpsi</span> <span class="o">=</span> <span class="n">sub_matches</span><span class="p">[</span><span class="s">&#39;delpsical.rad&#39;</span><span class="p">]</span>
-
-        <span class="n">min_x</span><span class="p">,</span> <span class="n">q1_x</span><span class="p">,</span> <span class="n">med_x</span><span class="p">,</span> <span class="n">q3_x</span><span class="p">,</span> <span class="n">max_x</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">x_resid</span><span class="p">)</span>
-        <span class="n">min_y</span><span class="p">,</span> <span class="n">q1_y</span><span class="p">,</span> <span class="n">med_y</span><span class="p">,</span> <span class="n">q3_y</span><span class="p">,</span> <span class="n">max_y</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">y_resid</span><span class="p">)</span>
-        <span class="n">min_p</span><span class="p">,</span> <span class="n">q1_p</span><span class="p">,</span> <span class="n">med_p</span><span class="p">,</span> <span class="n">q3_p</span><span class="p">,</span> <span class="n">max_p</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">delpsi</span><span class="p">)</span>
-
-        <span class="n">iqr_x</span> <span class="o">=</span> <span class="n">q3_x</span> <span class="o">-</span> <span class="n">q1_x</span>
-        <span class="n">iqr_y</span> <span class="o">=</span> <span class="n">q3_y</span> <span class="o">-</span> <span class="n">q1_y</span>
-        <span class="n">iqr_p</span> <span class="o">=</span> <span class="n">q3_p</span> <span class="o">-</span> <span class="n">q1_p</span>
-
-        <span class="n">cut_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="o">*</span> <span class="n">iqr_x</span>
-        <span class="n">cut_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="o">*</span> <span class="n">iqr_y</span>
-        <span class="n">cut_p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iqr_multiplier</span> <span class="o">*</span> <span class="n">iqr_p</span>
-
-        <span class="c"># accumulate a selection of outliers for this panel</span>
-        <span class="n">sel_out</span> <span class="o">=</span> <span class="n">x_resid</span> <span class="o">&gt;</span> <span class="n">q3_x</span> <span class="o">+</span> <span class="n">cut_x</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">x_resid</span> <span class="o">&lt;</span> <span class="n">q1_x</span> <span class="o">-</span> <span class="n">cut_x</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">y_resid</span> <span class="o">&gt;</span> <span class="n">q3_y</span> <span class="o">+</span> <span class="n">cut_y</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">y_resid</span> <span class="o">&lt;</span> <span class="n">q1_y</span> <span class="o">-</span> <span class="n">cut_y</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">delpsi</span> <span class="o">&gt;</span> <span class="n">q3_p</span> <span class="o">+</span> <span class="n">cut_p</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-        <span class="n">sel_out</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">delpsi</span> <span class="o">&lt;</span> <span class="n">q1_p</span> <span class="o">-</span> <span class="n">cut_p</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-
-        <span class="c"># get positions of outliers from the original matches</span>
-        <span class="n">ioutliers</span> <span class="o">=</span> <span class="n">sub_imatches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_out</span><span class="p">)</span>
-      <span class="k">else</span><span class="p">:</span>
-        <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Only </span><span class="si">%d</span><span class="s"> reflections on panel </span><span class="si">%d</span><span class="s">. All of these flagged &quot;</span> <span class="o">+</span> \
-              <span class="s">&quot;as possible outliers.&quot;</span><span class="p">,</span>
-          <span class="nb">len</span><span class="p">(</span><span class="n">sub_matches</span><span class="p">),</span> <span class="n">pnl</span><span class="p">)</span>
-        <span class="n">ioutliers</span> <span class="o">=</span> <span class="n">sub_imatches</span>
-
-      <span class="c"># set those reflections as outliers</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">ioutliers</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">centroid_outlier</span><span class="p">)</span>
-
-      <span class="n">nreject</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ioutliers</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">nreject</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="bp">False</span>
-
-    <span class="n">info</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%d</span><span class="s"> reflections have been flagged as outliers&quot;</span> <span class="o">%</span> <span class="n">nreject</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="bp">True</span>
-</pre></div></div>
+    <span class="k">return</span></div></div>
+</pre></div>
 
           </div>
         </div>

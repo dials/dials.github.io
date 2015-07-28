@@ -88,7 +88,7 @@ dials.integrate experiments.json predicted=predicted.pickle reference=indexed.pi
 <h2>Basic parameters<a class="headerlink" href="#basic-parameters" title="Permalink to this headline">¶</a></h2>
 <pre class="literal-block">
 output {
-  profile_model = 'profile_model.phil'
+  experiments = 'integrated_experiments.json'
   reflections = 'integrated.pickle'
   phil = 'dials.integrate.phil'
   log = 'dials.integrate.log'
@@ -105,8 +105,6 @@ integration {
   }
   lookup {
     mask = None
-    gain_map = None
-    dark_map = None
   }
   block {
     size = auto
@@ -119,6 +117,7 @@ integration {
     during = modelling *integration
     output = False
     select = None
+    split_experiments = True
   }
   profile {
     fitting = True
@@ -141,6 +140,9 @@ integration {
       robust {
         tuning_constant = 1.345
       }
+      model {
+        algorithm = constant2d *constant3d loglinear2d loglinear3d
+      }
     }
   }
   centroid {
@@ -155,18 +157,7 @@ profile {
     filter {
       min_zeta = 0.05
     }
-    model {
-      has_profile_fitting = True
-      n_sigma = 3
-      sigma_b = 0
-      sigma_m = 0
-    }
-    scan_varying_model {
-      n_sigma = 3
-      sigma_b = None
-      sigma_m = None
-    }
-    modelling {
+    fitting {
       scan_step = 5
       grid_size = 5
       threshold = 0.02
@@ -180,18 +171,7 @@ profile {
     filter {
       min_zeta = 0.05
     }
-    model {
-      has_profile_fitting = True
-      n_sigma = 3
-      sigma_b = 0
-      sigma_m = 0
-    }
-    scan_varying_model {
-      n_sigma = 3
-      sigma_b = None
-      sigma_m = None
-    }
-    modelling {
+    fitting {
       scan_step = 5
       grid_size = 5
       threshold = 0.02
@@ -201,8 +181,8 @@ profile {
   }
 }
 prediction {
-  dmin = None
-  dmax = None
+  d_min = None
+  d_max = None
   margin = 1
   force_static = False
 }
@@ -213,8 +193,8 @@ prediction {
 <h2>Full parameter definitions<a class="headerlink" href="#full-parameter-definitions" title="Permalink to this headline">¶</a></h2>
 <pre class="literal-block">
 output {
-  profile_model = 'profile_model.phil'
-    .help = &quot;The profile parameters output filename&quot;
+  experiments = 'integrated_experiments.json'
+    .help = &quot;The experiments output filename&quot;
     .type = str
   reflections = 'integrated.pickle'
     .help = &quot;The integrated output filename&quot;
@@ -278,12 +258,6 @@ integration {
     mask = None
       .help = &quot;The path to the mask file.&quot;
       .type = str
-    gain_map = None
-      .help = &quot;The path to the gain file.&quot;
-      .type = str
-    dark_map = None
-      .help = &quot;The path to the dark current file.&quot;
-      .type = str
   }
   block {
     size = auto
@@ -323,6 +297,9 @@ integration {
               &quot;columns are defined if the necessary data is there: &quot;
               &quot;intensity.sum.i_over_sigma  intensity.prf.i_over_sigma&quot;
       .type = reflection_table_selector
+    split_experiments = True
+      .help = &quot;Split shoeboxes into different files&quot;
+      .type = bool
   }
   profile {
     fitting = True
@@ -375,7 +352,8 @@ integration {
     }
   }
   background
-    .help = &quot;Interface for background algorithms.&quot;
+    .help = &quot;  I n t e r f a c e   f o r   b a c k g r o u n d   a l g o r i t&quot;
+            &quot;h m s .  &quot;
   {
     algorithm = *simple null glm
       .help = &quot;The choice of algorithm&quot;
@@ -463,10 +441,16 @@ integration {
           .help = &quot;The tuning constant for robust estimation&quot;
           .type = float
       }
+      model {
+        algorithm = constant2d *constant3d loglinear2d loglinear3d
+          .help = &quot;The background model to fit&quot;
+          .type = choice
+      }
     }
   }
   centroid
-    .help = &quot;Interface for centroid algorithms.&quot;
+    .help = &quot;  I n t e r f a c e   f o r   c e n t r o i d   a l g o r i t h m&quot;
+            &quot;s .  &quot;
   {
     algorithm = *simple
       .help = &quot;The choice of algorithm&quot;
@@ -474,7 +458,11 @@ integration {
   }
 }
 profile
-  .help = &quot;The interface definition for a generating a list of profile models.&quot;
+  .help = &quot;
+     T h e   i n t e r f a c e   d e f i n i t i o n   f o r   a  &quot;
+          &quot;p r o f i l e   m o d e l . 
+ 
+    &quot;
 {
   algorithm = gaussian_rs *gaussian_rs
     .help = &quot;The choice of algorithm&quot;
@@ -494,37 +482,7 @@ profile
         .help = &quot;Filter reflections by min zeta&quot;
         .type = float
     }
-    model
-      .multiple = True
-    {
-      has_profile_fitting = True
-        .type = bool
-      n_sigma = 3
-        .help = &quot;The number of standard deviations of the beam divergence and&quot;
-                &quot;the mosaicity to use for the bounding box size.&quot;
-        .type = float
-      sigma_b = 0
-        .help = &quot;The E.S.D. of the beam divergence&quot;
-        .type = float
-      sigma_m = 0
-        .help = &quot;The E.S.D. of the reflecting range&quot;
-        .type = float
-    }
-    scan_varying_model
-      .multiple = True
-    {
-      n_sigma = 3
-        .help = &quot;The number of standard deviations of the beam divergence and&quot;
-                &quot;the mosaicity to use for the bounding box size.&quot;
-        .type = float
-      sigma_b = None
-        .help = &quot;The E.S.D. of the beam divergence&quot;
-        .type = floats
-      sigma_m = None
-        .help = &quot;The E.S.D. of the reflecting range&quot;
-        .type = floats
-    }
-    modelling {
+    fitting {
       scan_step = 5
         .help = &quot;Space between profiles in degrees&quot;
         .type = float
@@ -557,37 +515,7 @@ profile
         .help = &quot;Filter reflections by min zeta&quot;
         .type = float
     }
-    model
-      .multiple = True
-    {
-      has_profile_fitting = True
-        .type = bool
-      n_sigma = 3
-        .help = &quot;The number of standard deviations of the beam divergence and&quot;
-                &quot;the mosaicity to use for the bounding box size.&quot;
-        .type = float
-      sigma_b = 0
-        .help = &quot;The E.S.D. of the beam divergence&quot;
-        .type = float
-      sigma_m = 0
-        .help = &quot;The E.S.D. of the reflecting range&quot;
-        .type = float
-    }
-    scan_varying_model
-      .multiple = True
-    {
-      n_sigma = 3
-        .help = &quot;The number of standard deviations of the beam divergence and&quot;
-                &quot;the mosaicity to use for the bounding box size.&quot;
-        .type = float
-      sigma_b = None
-        .help = &quot;The E.S.D. of the beam divergence&quot;
-        .type = floats
-      sigma_m = None
-        .help = &quot;The E.S.D. of the reflecting range&quot;
-        .type = floats
-    }
-    modelling {
+    fitting {
       scan_step = 5
         .help = &quot;Space between profiles in degrees&quot;
         .type = float
@@ -607,10 +535,10 @@ profile
   }
 }
 prediction {
-  dmin = None
+  d_min = None
     .help = &quot;The maximum resolution limit&quot;
     .type = float
-  dmax = None
+  d_max = None
     .help = &quot;The minimum resolution limit&quot;
     .type = float
   margin = 1

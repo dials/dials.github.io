@@ -77,6 +77,10 @@
 <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
 
+<span class="c"># Include the outlier_detection phil scope as a string to avoid problems</span>
+<span class="c"># with the include scope directive</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.outlier_detection.outlier_base</span> \
+  <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">outlier_phil_str</span>
 <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
 
 <span class="s">refinement</span>
@@ -99,6 +103,37 @@
 <span class="s">  parameterisation</span>
 <span class="s">    .help = &quot;Parameters to control the parameterisation of experimental models&quot;</span>
 <span class="s">  {</span>
+
+<span class="s">    auto_reduction</span>
+<span class="s">      .help = &quot;determine behaviour when there are too few reflections to&quot;</span>
+<span class="s">              &quot;reasonably produce a full parameterisation of the experiment list&quot;</span>
+<span class="s">    {</span>
+<span class="s">      min_nref_per_parameter = 5</span>
+<span class="s">        .help = &quot;the smallest number of reflections per parameter for a&quot;</span>
+<span class="s">                &quot;model parameterisation below which the parameterisation will&quot;</span>
+<span class="s">                &quot;not be made in full, but the action described below will be&quot;</span>
+<span class="s">                &quot;triggered.&quot;</span>
+<span class="s">        .type = int(value_min=1)</span>
+
+<span class="s">      action = *fail fix remove</span>
+<span class="s">        .help = &quot;action to take if there are too few reflections across the&quot;</span>
+<span class="s">                &quot;experiments related to a particular model parameterisation.&quot;</span>
+<span class="s">                &quot;If fail, an exception will be raised and refinement will not&quot;</span>
+<span class="s">                &quot;proceed. If fix, refinement will continue but with the&quot;</span>
+<span class="s">                &quot;parameters relating to that model remaining fixed at their&quot;</span>
+<span class="s">                &quot;initial values. If remove, parameters relating to that model&quot;</span>
+<span class="s">                &quot;will be fixed, and in addition all reflections related to&quot;</span>
+<span class="s">                &quot;that parameterisation will be removed. This will therefore&quot;</span>
+<span class="s">                &quot;remove this reflections from other parameterisations of the&quot;</span>
+<span class="s">                &quot;global model too. For example, if a crystal model could not&quot;</span>
+<span class="s">                &quot;be parameterised it will be excised completely and not&quot;</span>
+<span class="s">                &quot;contribute to the joint refinement of the detector and beam.&quot;</span>
+<span class="s">                &quot;In the fix mode, reflections emanating from that crystal will&quot;</span>
+<span class="s">                &quot;still form residuals and will contribute to detector and beam&quot;</span>
+<span class="s">                &quot;refinement.&quot;</span>
+<span class="s">        .type = choice</span>
+<span class="s">    }</span>
+
 <span class="s">    beam</span>
 <span class="s">      .help = &quot;beam parameters&quot;</span>
 <span class="s">    {</span>
@@ -282,7 +317,7 @@
 <span class="s">    .help = &quot;Parameters used by the reflection manager&quot;</span>
 <span class="s">  {</span>
 
-<span class="s">    reflections_per_degree = 50</span>
+<span class="s">    reflections_per_degree = 100</span>
 <span class="s">      .help = &quot;The number of centroids per degree of the sweep to use in&quot;</span>
 <span class="s">              &quot;refinement.&quot;</span>
 <span class="s">      .type = float(value_min=0.)</span>
@@ -309,15 +344,6 @@
 <span class="s">      .type = int</span>
 <span class="s">      .expert_level = 1</span>
 
-<span class="s">    minimum_number_of_reflections = 20</span>
-<span class="s">      .help = &quot;The minimum number of input observations per experiment below&quot;</span>
-<span class="s">              &quot;which a reflection manager will not be constructed. This number&quot;</span>
-<span class="s">              &quot;is also used to determine the minimum number of reflections per&quot;</span>
-<span class="s">              &quot;panel to allow perform outlier rejection to be performed. Below&quot;</span>
-<span class="s">              &quot;this, all reflections on the panel are rejected as potential&quot;</span>
-<span class="s">              &quot;outliers&quot;</span>
-<span class="s">      .type = int(value_min=0)</span>
-
 <span class="s">    close_to_spindle_cutoff = 0.05</span>
 <span class="s">      .help = &quot;The inclusion criterion currently uses the volume of the&quot;</span>
 <span class="s">              &quot;parallelepiped formed by the spindle axis, the incident&quot;</span>
@@ -327,24 +353,6 @@
 <span class="s">              &quot;to the rotation axis.&quot;</span>
 <span class="s">      .type = float(value_min = 0)</span>
 <span class="s">      .expert_level = 1</span>
-
-<span class="s">    outlier</span>
-<span class="s">      .help = &quot;Outlier rejection after initial reflection prediction.&quot;</span>
-<span class="s">    {</span>
-<span class="s">      algorithm = *null tukey</span>
-<span class="s">        .help = &quot;Outlier rejection algorithm&quot;</span>
-<span class="s">        .type = choice</span>
-
-<span class="s">      tukey</span>
-<span class="s">        .help = &quot;Options for the tukey outlier rejector&quot;</span>
-<span class="s">        .expert_level = 1</span>
-<span class="s">      {</span>
-<span class="s">        iqr_multiplier = 1.5</span>
-<span class="s">          .help = &quot;The IQR multiplier used to detect outliers. A value of 1.5&quot;</span>
-<span class="s">                  &quot;gives Tukey&#39;s rule for outlier detection&quot;</span>
-<span class="s">          .type = float(value_min = 0.)</span>
-<span class="s">      }</span>
-<span class="s">    }</span>
 
 <span class="s">    block_width = 1.0</span>
 <span class="s">      .help = &quot;Width of a reflection &#39;block&#39; (in degrees) determining how fine-&quot;</span>
@@ -374,10 +382,16 @@
 <span class="s">                &quot;unit weighting.&quot;</span>
 <span class="s">        .type = floats(size = 3, value_min = 0)</span>
 <span class="s">    }</span>
+
+<span class="s">    # Does not work:</span>
+<span class="s">    #</span>
+<span class="s">    # include scope dials.algorithms.refinement.outlier_detection.phil_scope</span>
+<span class="s">    #</span>
+<span class="s">    # instead just paste the string in directly here.</span>
+<span class="s">    </span><span class="si">%s</span><span class="s"></span>
 <span class="s">  }</span>
 <span class="s">}</span>
-
-<span class="s">&#39;&#39;&#39;</span><span class="p">)</span>
+<span class="s">&#39;&#39;&#39;</span><span class="o">%</span><span class="n">outlier_phil_str</span><span class="p">,</span> <span class="n">process_includes</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 
 <div class="viewcode-block" id="RefinerFactory"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory">[docs]</a><span class="k">class</span> <span class="nc">RefinerFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
   <span class="sd">&quot;&quot;&quot;Factory class to create refiners&quot;&quot;&quot;</span>
@@ -629,15 +643,6 @@
     <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">exps_are_stills</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">exps_are_stills</span><span class="p">)</span>
     <span class="n">do_stills</span> <span class="o">=</span> <span class="n">exps_are_stills</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-    <span class="c"># create parameterisations</span>
-    <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span> <span class="o">=</span> \
-            <span class="n">cls</span><span class="o">.</span><span class="n">config_parameterisation</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span>
-
-    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Prediction equation parameterisation built&quot;</span><span class="p">)</span>
-    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Parameter order : name mapping&quot;</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pred_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">()):</span>
-      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Parameter </span><span class="si">%03d</span><span class="s"> : </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
-
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Building reflection manager&quot;</span><span class="p">)</span>
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Input reflection list size = </span><span class="si">%d</span><span class="s"> observations&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
 
@@ -651,12 +656,27 @@
       <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Working set size = </span><span class="si">%d</span><span class="s"> observations&quot;</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">)</span>
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Reflection manager built</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
 
+    <span class="c"># configure use of sparse data types</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_sparse</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
+
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Building target function&quot;</span><span class="p">)</span>
 
     <span class="c"># create target function</span>
-    <span class="n">target</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_target</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_target</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span>
 
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Target function built&quot;</span><span class="p">)</span>
+
+    <span class="c"># create parameterisations</span>
+    <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span> <span class="o">=</span> \
+            <span class="n">cls</span><span class="o">.</span><span class="n">config_parameterisation</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span>
+
+    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Prediction equation parameterisation built&quot;</span><span class="p">)</span>
+    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Parameter order : name mapping&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pred_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">()):</span>
+      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Parameter </span><span class="si">%03d</span><span class="s"> : </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+    <span class="c"># Set the prediction equation parameterisation in the target object</span>
+    <span class="n">target</span><span class="o">.</span><span class="n">set_prediction_parameterisation</span><span class="p">(</span><span class="n">pred_param</span><span class="p">)</span>
 
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Building refinement engine&quot;</span><span class="p">)</span>
 
@@ -671,24 +691,8 @@
                     <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">)</span>
 
   <span class="nd">@staticmethod</span>
-<div class="viewcode-block" id="RefinerFactory.config_parameterisation"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_parameterisation">[docs]</a>  <span class="k">def</span> <span class="nf">config_parameterisation</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Given a set of parameters, create a parameterisation from a set of</span>
-<span class="sd">    experimental models.</span>
-
-<span class="sd">    Params:</span>
-<span class="sd">        params The input parameters</span>
-<span class="sd">        experiments An ExperimentList object</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        A tuple of the prediction equation parameterisation and the</span>
-<span class="sd">        parameter reporter.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="c"># Shorten parameter paths</span>
-    <span class="n">beam_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">beam</span>
-    <span class="n">crystal_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span>
-    <span class="n">detector_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">detector</span>
-
+<div class="viewcode-block" id="RefinerFactory.config_sparse"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_sparse">[docs]</a>  <span class="k">def</span> <span class="nf">config_sparse</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Configure whether to use sparse datatypes&quot;&quot;&quot;</span>
     <span class="c"># Automatic selection for sparse parameter</span>
     <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">==</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
       <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
@@ -705,10 +709,34 @@
           <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">))</span>
         <span class="n">warning</span><span class="p">(</span><span class="s">&quot;Resetting sparse=False&quot;</span><span class="p">)</span>
         <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="bp">False</span>
-    <span class="n">sparse</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span>
+    <span class="k">return</span> <span class="n">params</span>
+</div>
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="RefinerFactory.config_parameterisation"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_parameterisation">[docs]</a>  <span class="k">def</span> <span class="nf">config_parameterisation</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given a set of parameters, create a parameterisation from a set of</span>
+<span class="sd">    experimental models.</span>
 
-    <span class="c"># Shorten paths</span>
+<span class="sd">    Params:</span>
+<span class="sd">        params The input parameters</span>
+<span class="sd">        experiments An ExperimentList object</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A tuple of the prediction equation parameterisation and the</span>
+<span class="sd">        parameter reporter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># Shorten parameter paths</span>
+    <span class="n">beam_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">beam</span>
+    <span class="n">crystal_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span>
+    <span class="n">detector_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">detector</span>
+    <span class="n">sparse</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span>
+    <span class="n">auto_reduction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">auto_reduction</span>
+
+    <span class="c"># Shorten module paths</span>
     <span class="kn">import</span> <span class="nn">dials.algorithms.refinement.parameterisation</span> <span class="kn">as</span> <span class="nn">par</span>
+
+    <span class="c"># Get the working set of reflections</span>
+    <span class="n">reflections</span> <span class="o">=</span> <span class="n">refman</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
 
     <span class="c"># Parameterise unique Beams</span>
     <span class="n">beam_params</span> <span class="o">=</span> <span class="p">[]</span>
@@ -877,6 +905,225 @@
       <span class="k">if</span> <span class="n">det_param</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">det_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">det_param</span><span class="p">)</span>
 
+    <span class="c"># Parameter auto reduction options</span>
+    <span class="k">def</span> <span class="nf">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+      <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
+      <span class="c"># Do we have enough reflections to support this parameterisation?</span>
+      <span class="n">nparam</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span>
+      <span class="n">cutoff</span> <span class="o">=</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">nparam</span>
+      <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
+      <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
+        <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">())</span>
+      <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">nref</span> <span class="o">-</span> <span class="n">cutoff</span>
+
+    <span class="k">def</span> <span class="nf">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">pnl_ids</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+      <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
+      <span class="c"># Do we have enough reflections to support this parameterisation?</span>
+      <span class="n">gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">gp</span> <span class="o">==</span> <span class="n">group</span> <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">get_param_panel_groups</span><span class="p">()]</span>
+      <span class="n">fixlist</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_fixed</span><span class="p">()</span>
+      <span class="n">free_gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">gp_params</span><span class="p">,</span> <span class="n">fixlist</span><span class="p">)]</span>
+      <span class="n">nparam</span> <span class="o">=</span> <span class="n">free_gp_params</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+      <span class="n">cutoff</span> <span class="o">=</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">nparam</span>
+      <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
+      <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
+        <span class="n">subsel</span> <span class="o">=</span> <span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+        <span class="n">panels</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">subsel</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">pnl</span> <span class="ow">in</span> <span class="n">pnl_ids</span><span class="p">:</span>
+          <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">subsel</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">panels</span> <span class="o">==</span> <span class="n">pnl</span><span class="p">))</span>
+      <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">nref</span> <span class="o">-</span> <span class="n">cutoff</span>
+
+    <span class="k">def</span> <span class="nf">weak_parameterisation_search</span><span class="p">(</span>
+      <span class="n">beam_params</span><span class="p">,</span> <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">,</span> <span class="n">det_params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+      <span class="n">weak</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="n">nref_deficit</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="n">panels</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="n">pnl_gp</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="n">name</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">beam_params</span><span class="p">):</span>
+        <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
+          <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
+          <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
+          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_ori_params</span><span class="p">):</span>
+        <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
+          <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
+          <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
+          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_uc_params</span><span class="p">):</span>
+        <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
+          <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
+          <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
+          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">det_params</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">pnl_groups</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_panel_ids_by_group</span><span class="p">()</span>
+          <span class="k">for</span> <span class="n">igp</span><span class="p">,</span> <span class="n">gp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pnl_groups</span><span class="p">):</span>
+            <span class="n">net_nref</span> <span class="o">=</span> <span class="n">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">gp</span><span class="p">,</span> <span class="n">igp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
+              <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
+              <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
+              <span class="n">panels</span> <span class="o">=</span> <span class="n">gp</span>
+              <span class="n">pnl_gp</span> <span class="o">=</span> <span class="n">igp</span>
+              <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Detector{0}PanelGroup{1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">pnl_gp</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+          <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
+            <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
+            <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
+            <span class="n">panels</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">pnl_gp</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="k">return</span> <span class="p">{</span><span class="s">&#39;parameterisation&#39;</span><span class="p">:</span><span class="n">weak</span><span class="p">,</span>
+              <span class="s">&#39;panels&#39;</span><span class="p">:</span><span class="n">panels</span><span class="p">,</span>
+              <span class="s">&#39;panel_group_id&#39;</span><span class="p">:</span><span class="n">pnl_gp</span><span class="p">,</span>
+              <span class="s">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;fail&#39;</span><span class="p">:</span>
+      <span class="n">failmsg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise {0}&#39;</span>
+      <span class="n">failmsg</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Try modifying refinement.parameterisation.auto_reduction options&#39;</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">beam_params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xlo</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_ori_params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xlo</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xluc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_uc_params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xluc</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">det_params</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span> <span class="c"># test for hierarchical detector parameterisation</span>
+          <span class="n">pnl_groups</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">get_panel_ids_by_group</span><span class="p">()</span>
+          <span class="k">for</span> <span class="n">igp</span><span class="p">,</span> <span class="n">gp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pnl_groups</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">gp</span><span class="p">,</span> <span class="n">igp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+              <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise Detector{0} panel group {1}&#39;</span>
+              <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">igp</span><span class="p">)</span>
+              <span class="n">msg</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Try modifying refinement.parameterisation.auto_reduction options&#39;</span>
+              <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;fix&#39;</span><span class="p">:</span>
+      <span class="n">warnmsg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise {0}&#39;</span>
+      <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">beam_params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bp</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+          <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+      <span class="n">beam_params</span> <span class="o">=</span> <span class="n">tmp</span>
+
+      <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xlo</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_ori_params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xlo</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xlo</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+          <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+      <span class="n">xl_ori_params</span> <span class="o">=</span> <span class="n">tmp</span>
+
+      <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xluc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_uc_params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xluc</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xluc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+          <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+      <span class="n">xl_uc_params</span> <span class="o">=</span> <span class="n">tmp</span>
+
+      <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">det_params</span><span class="p">):</span>
+        <span class="n">fixlist</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">get_fixed</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span> <span class="c"># test for hierarchical detector parameterisation</span>
+          <span class="n">pnl_groups</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">get_panel_ids_by_group</span><span class="p">()</span>
+          <span class="k">for</span> <span class="n">igp</span><span class="p">,</span> <span class="n">gp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pnl_groups</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">gp</span><span class="p">,</span> <span class="n">igp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+              <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise Detector{0}PanelGroup{1}&#39;</span>
+              <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">igp</span><span class="p">)</span>
+              <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+              <span class="n">gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">gp</span> <span class="o">==</span> <span class="n">igp</span> <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="n">dp</span><span class="o">.</span><span class="n">get_param_panel_groups</span><span class="p">()]</span>
+              <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">gp_params</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">val</span><span class="p">:</span> <span class="n">fixlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+          <span class="n">dp</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">fixlist</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">dp</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dp</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;No parameters remain free for Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dp</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+            <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+      <span class="n">det_params</span> <span class="o">=</span> <span class="n">tmp</span>
+
+    <span class="k">elif</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;remove&#39;</span><span class="p">:</span>
+      <span class="n">warnmsg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise {0}&#39;</span>
+      <span class="n">warnmsg</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Associated reflections will be removed from the Reflection Manager&#39;</span>
+      <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="n">dat</span> <span class="o">=</span> <span class="n">weak_parameterisation_search</span><span class="p">(</span><span class="n">beam_params</span><span class="p">,</span>
+          <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">,</span> <span class="n">det_params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dat</span><span class="p">[</span><span class="s">&#39;parameterisation&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">break</span>
+        <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">dat</span><span class="p">[</span><span class="s">&#39;parameterisation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">dat</span><span class="p">[</span><span class="s">&#39;panels&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+          <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dat</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">])</span>
+          <span class="n">fixlist</span> <span class="o">=</span> <span class="n">dat</span><span class="p">[</span><span class="s">&#39;parameterisation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_fixed</span><span class="p">()</span>
+          <span class="n">pnl_gps</span> <span class="o">=</span> <span class="n">dat</span><span class="p">[</span><span class="s">&#39;parameterisation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get_param_panel_groups</span><span class="p">()</span>
+          <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">gp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pnl_gps</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">gp</span> <span class="o">==</span> <span class="n">dat</span><span class="p">[</span><span class="s">&#39;panel_group_id&#39;</span><span class="p">]:</span> <span class="n">fixlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+          <span class="n">dat</span><span class="p">[</span><span class="s">&#39;parameterisation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">fixlist</span><span class="p">)</span>
+          <span class="c"># identify observations on this panel group from associated experiments</span>
+          <span class="n">obs</span> <span class="o">=</span> <span class="n">refman</span><span class="o">.</span><span class="n">get_obs</span><span class="p">()</span>
+          <span class="n">isel</span><span class="o">=</span><span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
+          <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
+            <span class="n">subsel</span> <span class="o">=</span> <span class="p">(</span><span class="n">obs</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+            <span class="n">panels_this_exp</span> <span class="o">=</span> <span class="n">obs</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">subsel</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">pnl</span> <span class="ow">in</span> <span class="n">dat</span><span class="p">[</span><span class="s">&#39;panels&#39;</span><span class="p">]:</span>
+              <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">subsel</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">panels_this_exp</span> <span class="o">==</span> <span class="n">pnl</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dat</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">])</span>
+          <span class="n">fixlist</span> <span class="o">=</span> <span class="p">[</span><span class="bp">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">dat</span><span class="p">[</span><span class="s">&#39;parameterisation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">num_total</span><span class="p">()</span>
+          <span class="n">dat</span><span class="p">[</span><span class="s">&#39;parameterisation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">fixlist</span><span class="p">)</span>
+          <span class="c"># identify observations from the associated experiments</span>
+          <span class="n">obs</span> <span class="o">=</span> <span class="n">refman</span><span class="o">.</span><span class="n">get_obs</span><span class="p">()</span>
+          <span class="n">isel</span><span class="o">=</span><span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
+          <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
+            <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">obs</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">())</span>
+        <span class="c"># Now remove the selected reflections</span>
+        <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">obs</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="n">sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">isel</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">refman</span><span class="o">.</span><span class="n">filter_obs</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+        <span class="n">reflections</span> <span class="o">=</span> <span class="n">refman</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
+        <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+      <span class="c"># Strip out parameterisations with zero free parameters</span>
+      <span class="n">beam_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">beam_params</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+      <span class="n">xl_ori_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">xl_ori_params</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+      <span class="n">xl_uc_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">xl_uc_params</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+      <span class="n">det_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">det_params</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+
     <span class="c"># Prediction equation parameterisation</span>
     <span class="k">if</span> <span class="n">do_stills</span><span class="p">:</span> <span class="c"># doing stills</span>
       <span class="k">if</span> <span class="n">sparse</span><span class="p">:</span>
@@ -1018,10 +1265,16 @@
       <span class="k">assert</span> <span class="n">options</span><span class="o">.</span><span class="n">weighting_strategy</span><span class="o">.</span><span class="n">override</span> <span class="o">!=</span> <span class="s">&quot;stills&quot;</span>
 
     <span class="c"># do outlier rejection?</span>
-    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="s">&quot;tukey&quot;</span><span class="p">:</span>
-      <span class="n">iqr_multiplier</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">tukey</span><span class="o">.</span><span class="n">iqr_multiplier</span>
+    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="s">&quot;null&quot;</span><span class="p">:</span>
+      <span class="n">outlier_detector</span> <span class="o">=</span> <span class="bp">None</span>
     <span class="k">else</span><span class="p">:</span>
-      <span class="n">iqr_multiplier</span><span class="o">=</span><span class="bp">None</span>
+      <span class="k">if</span> <span class="n">do_stills</span><span class="p">:</span>
+        <span class="n">colnames</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;x_resid&quot;</span><span class="p">,</span> <span class="s">&quot;y_resid&quot;</span><span class="p">]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">colnames</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;x_resid&quot;</span><span class="p">,</span> <span class="s">&quot;y_resid&quot;</span><span class="p">,</span> <span class="s">&quot;phi_resid&quot;</span><span class="p">]</span>
+      <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.outlier_detection</span> <span class="kn">import</span> <span class="n">CentroidOutlierFactory</span>
+      <span class="n">outlier_detector</span> <span class="o">=</span> <span class="n">CentroidOutlierFactory</span><span class="o">.</span><span class="n">from_parameters_and_colnames</span><span class="p">(</span>
+        <span class="n">options</span><span class="p">,</span> <span class="n">colnames</span><span class="p">)</span>
 
     <span class="c"># override default weighting strategy?</span>
     <span class="n">weighting_strategy</span> <span class="o">=</span> <span class="bp">None</span>
@@ -1042,28 +1295,25 @@
 
     <span class="c"># calculate reflection block_width?</span>
     <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
+      <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.reflection_manager</span> <span class="kn">import</span> <span class="n">BlockCalculator</span>
+      <span class="n">block_calculator</span> <span class="o">=</span> <span class="n">BlockCalculator</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
       <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">UB_model_per</span> <span class="o">==</span> <span class="s">&quot;block&quot;</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.reflection_manager</span> <span class="kn">import</span> <span class="n">BlockCalculator</span>
-        <span class="n">block_calculator</span> <span class="o">=</span> <span class="n">BlockCalculator</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
         <span class="n">reflections</span> <span class="o">=</span> <span class="n">block_calculator</span><span class="o">.</span><span class="n">per_width</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">block_width</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
       <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">UB_model_per</span> <span class="o">==</span> <span class="s">&quot;image&quot;</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.reflection_manager</span> <span class="kn">import</span> <span class="n">BlockCalculator</span>
-        <span class="n">block_calculator</span> <span class="o">=</span> <span class="n">BlockCalculator</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
         <span class="n">reflections</span> <span class="o">=</span> <span class="n">block_calculator</span><span class="o">.</span><span class="n">per_image</span><span class="p">()</span>
 
     <span class="k">return</span> <span class="n">refman</span><span class="p">(</span><span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
             <span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
             <span class="n">nref_per_degree</span><span class="o">=</span><span class="n">nref_per_degree</span><span class="p">,</span>
-            <span class="n">min_num_obs</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">minimum_number_of_reflections</span><span class="p">,</span>
             <span class="n">max_sample_size</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">maximum_sample_size</span><span class="p">,</span>
             <span class="n">min_sample_size</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">minimum_sample_size</span><span class="p">,</span>
             <span class="n">close_to_spindle_cutoff</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">close_to_spindle_cutoff</span><span class="p">,</span>
-            <span class="n">iqr_multiplier</span><span class="o">=</span><span class="n">iqr_multiplier</span><span class="p">,</span>
+            <span class="n">outlier_detector</span><span class="o">=</span><span class="n">outlier_detector</span><span class="p">,</span>
             <span class="n">weighting_strategy_override</span><span class="o">=</span><span class="n">weighting_strategy</span><span class="p">,</span>
             <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">)</span>
 </div>
   <span class="nd">@staticmethod</span>
-<div class="viewcode-block" id="RefinerFactory.config_target"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_target">[docs]</a>  <span class="k">def</span> <span class="nf">config_target</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">):</span>
+<div class="viewcode-block" id="RefinerFactory.config_target"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_target">[docs]</a>  <span class="k">def</span> <span class="nf">config_target</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Given a set of parameters, configure a factory to build a</span>
 <span class="sd">    target function</span>
 
@@ -1106,7 +1356,9 @@
         <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target</span> \
           <span class="kn">import</span> <span class="n">LeastSquaresPositionalResidualWithRmsdCutoff</span> <span class="k">as</span> <span class="n">targ</span>
 
-    <span class="n">target</span> <span class="o">=</span> <span class="n">targ</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">ref_predictor</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span>
+    <span class="c"># Here we pass in None for the prediction_parameterisation, as this will</span>
+    <span class="c"># be linked to the object later</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">targ</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">ref_predictor</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
                     <span class="n">options</span><span class="o">.</span><span class="n">bin_size_fraction</span><span class="p">,</span> <span class="n">absolute_cutoffs</span><span class="p">,</span>
                     <span class="n">options</span><span class="o">.</span><span class="n">gradient_calculation_blocksize</span><span class="p">)</span>
 
@@ -1125,12 +1377,13 @@
 <span class="sd">    get_detector</span>
 <span class="sd">    get_goniometer</span>
 <span class="sd">    get_scan</span>
-<span class="sd">    get_reflections</span>
+<span class="sd">    get_modified_indexed_reflections</span>
 <span class="sd">    get_matches</span>
 <span class="sd">    get_param_reporter</span>
 <span class="sd">    parameter_correlation_plot</span>
 <span class="sd">    selection_used_for_refinement</span>
 <span class="sd">    predict_for_reflection_table</span>
+<span class="sd">    predict_for_indexed</span>
 
 <span class="sd">  Notes:</span>
 <span class="sd">    * The return value of run is a recorded history of the refinement</span>
@@ -1250,17 +1503,19 @@
     <span class="k">else</span><span class="p">:</span>
       <span class="k">return</span> <span class="bp">None</span>
 </div>
-<div class="viewcode-block" id="Refiner.get_reflections"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_reflections">[docs]</a>  <span class="k">def</span> <span class="nf">get_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return the input reflections&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Refiner.get_modified_indexed_reflections"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_modified_indexed_reflections">[docs]</a>  <span class="k">def</span> <span class="nf">get_modified_indexed_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the originally input reflections with some modifications done</span>
+<span class="sd">    during the construction of this Refiner, namely:</span>
 
-    <span class="c"># FIXME Consider: Does a Refiner really need to keep a copy of the input</span>
-    <span class="c"># reflections? (indexing code seems to use it, but is it necessary?)</span>
+<span class="sd">    1. &#39;s1&#39; column is set if it wasn&#39;t present before</span>
+<span class="sd">    2. &#39;iobs&#39; column is added</span>
+<span class="sd">    3. &#39;entering&#39; column is added</span>
+<span class="sd">    4. &#39;xyzobs.px.value&#39; column is set if it wasn&#39;t present before</span>
+<span class="sd">    5. &#39;used_in_refinement&#39; flag is unset (&#39;flag&#39; column added if necessary)</span>
 
-    <span class="c"># The length and order of this is unmodified by refinement - only beam</span>
-    <span class="c"># vectors may have been set, if they were not already. It is deemed safe</span>
-    <span class="c"># to return this without a copy (NB the input will usually already have been</span>
-    <span class="c"># copied by the RefinerFactory)</span>
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span>
+<span class="sd">    Only indexing uses this method. Its use elsewhere is discouraged.&quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refman</span><span class="o">.</span><span class="n">get_indexed</span><span class="p">()</span>
 </div>
 <div class="viewcode-block" id="Refiner.rmsds"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.rmsds">[docs]</a>  <span class="k">def</span> <span class="nf">rmsds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Return rmsds of the current model&quot;&quot;&quot;</span>

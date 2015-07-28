@@ -145,6 +145,18 @@
 <span class="sd">    :return: The reflection table of predictions</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">profile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">experiment</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">predict_reflections</span><span class="p">(</span>
+        <span class="n">experiment</span><span class="o">.</span><span class="n">imageset</span><span class="p">,</span>
+        <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="p">,</span>
+        <span class="n">experiment</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
+        <span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span>
+        <span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span>
+        <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">,</span>
+        <span class="n">dmin</span><span class="o">=</span><span class="n">dmin</span><span class="p">,</span>
+        <span class="n">dmax</span><span class="o">=</span><span class="n">dmax</span><span class="p">,</span>
+        <span class="n">margin</span><span class="o">=</span><span class="n">margin</span><span class="p">,</span>
+        <span class="n">force_static</span><span class="o">=</span><span class="n">force_static</span><span class="p">)</span>
     <span class="kn">from</span> <span class="nn">dials.algorithms.spot_prediction.reflection_predictor</span> \
       <span class="kn">import</span> <span class="n">ReflectionPredictor</span>
     <span class="n">predict</span> <span class="o">=</span> <span class="n">ReflectionPredictor</span><span class="p">(</span>
@@ -576,7 +588,7 @@
     <span class="bp">self</span><span class="p">[</span><span class="s">&#39;d&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">d</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span>
     <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;d&#39;</span><span class="p">]</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.compute_bbox"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_bbox">[docs]</a>  <span class="k">def</span> <span class="nf">compute_bbox</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">profile_model</span><span class="p">,</span> <span class="n">sigma_b_multiplier</span><span class="o">=</span><span class="mf">2.0</span><span class="p">):</span>
+<div class="viewcode-block" id="reflection_table_aux.compute_bbox"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_bbox">[docs]</a>  <span class="k">def</span> <span class="nf">compute_bbox</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">sigma_b_multiplier</span><span class="o">=</span><span class="mf">2.0</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Compute the bounding boxes.</span>
 
@@ -586,13 +598,21 @@
 <span class="sd">    :return: The bounding box for each reflection</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">Command</span>
-    <span class="k">return</span> <span class="n">profile_model</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span>
-      <span class="n">experiments</span><span class="p">,</span>
-      <span class="bp">self</span><span class="p">,</span>
-      <span class="n">sigma_b_multiplier</span><span class="o">=</span><span class="n">sigma_b_multiplier</span><span class="p">)</span>
+    <span class="bp">self</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">int6</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">expr</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iterate_experiments_and_indices</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+      <span class="bp">self</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
+        <span class="n">indices</span><span class="p">,</span>
+        <span class="n">expr</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">crystal</span><span class="p">,</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">scan</span><span class="p">,</span>
+          <span class="n">sigma_b_multiplier</span><span class="o">=</span><span class="n">sigma_b_multiplier</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">]</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.compute_partiality"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_partiality">[docs]</a>  <span class="k">def</span> <span class="nf">compute_partiality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">profile_model</span><span class="p">):</span>
+<div class="viewcode-block" id="reflection_table_aux.compute_partiality"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_partiality">[docs]</a>  <span class="k">def</span> <span class="nf">compute_partiality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Compute the reflection partiality.</span>
 
@@ -601,7 +621,51 @@
 <span class="sd">    :return: The partiality for each reflection</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">return</span> <span class="n">profile_model</span><span class="o">.</span><span class="n">compute_partiality</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+    <span class="bp">self</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">expr</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iterate_experiments_and_indices</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+      <span class="bp">self</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
+        <span class="n">indices</span><span class="p">,</span>
+        <span class="n">expr</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">compute_partiality</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">crystal</span><span class="p">,</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span>
+          <span class="n">expr</span><span class="o">.</span><span class="n">scan</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="reflection_table_aux.compute_mask"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_mask">[docs]</a>  <span class="k">def</span> <span class="nf">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">overlaps</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Apply a mask to the shoeboxes.</span>
+
+<span class="sd">    :param experiments: The list of experiments</span>
+<span class="sd">    :param profile_model: The profile model</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">expr</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iterate_experiments_and_indices</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+      <span class="n">expr</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">compute_mask</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span>
+        <span class="n">expr</span><span class="o">.</span><span class="n">crystal</span><span class="p">,</span>
+        <span class="n">expr</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
+        <span class="n">expr</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span>
+        <span class="n">expr</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span>
+        <span class="n">expr</span><span class="o">.</span><span class="n">scan</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="reflection_table_aux.iterate_experiments_and_indices"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.iterate_experiments_and_indices">[docs]</a>  <span class="k">def</span> <span class="nf">iterate_experiments_and_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    A helper function to interate through experiments and indices of reflections</span>
+<span class="sd">    for each experiment</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">index_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_indices_by_experiment_id</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">))</span>
+    <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">index_list</span><span class="p">))</span>
+    <span class="n">tot</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">index_list</span><span class="p">:</span>
+      <span class="n">tot</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">tot</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">index_list</span><span class="p">):</span>
+      <span class="k">yield</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">indices</span>
 </div>
 <div class="viewcode-block" id="reflection_table_aux.compute_background"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_background">[docs]</a>  <span class="k">def</span> <span class="nf">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -610,7 +674,8 @@
 <span class="sd">    :param experiments: The list of experiments</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_background_algorithm</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_background_algorithm</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="o">~</span><span class="n">success</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">failed_during_background_modelling</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="reflection_table_aux.compute_centroid"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_centroid">[docs]</a>  <span class="k">def</span> <span class="nf">compute_centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -628,9 +693,10 @@
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="kn">from</span> <span class="nn">dials.algorithms.integration.sum</span> <span class="kn">import</span> <span class="n">IntegrationAlgorithm</span>
     <span class="n">algorithm</span> <span class="o">=</span> <span class="n">IntegrationAlgorithm</span><span class="p">()</span>
-    <span class="n">algorithm</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="n">success</span> <span class="o">=</span> <span class="n">algorithm</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="o">~</span><span class="n">success</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">failed_during_summation</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.compute_fitted_intensity"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_fitted_intensity">[docs]</a>  <span class="k">def</span> <span class="nf">compute_fitted_intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">profile_model</span><span class="p">):</span>
+<div class="viewcode-block" id="reflection_table_aux.compute_fitted_intensity"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_fitted_intensity">[docs]</a>  <span class="k">def</span> <span class="nf">compute_fitted_intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fitter</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Helper function to compute the intensity.</span>
 
@@ -638,9 +704,8 @@
 <span class="sd">    :param profile_model: The profile model</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">profiles</span> <span class="o">=</span> <span class="n">profile_model</span><span class="o">.</span><span class="n">profiles</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">profiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-      <span class="n">profiles</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="n">success</span> <span class="o">=</span> <span class="n">fitter</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="o">~</span><span class="n">success</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">failed_during_profile_fitting</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="reflection_table_aux.compute_corrections"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_corrections">[docs]</a>  <span class="k">def</span> <span class="nf">compute_corrections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -680,18 +745,6 @@
       <span class="n">reference_selector</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">compute_fitted_intensity</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">profile_model</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.compute_mask"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_mask">[docs]</a>  <span class="k">def</span> <span class="nf">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">profile_model</span><span class="p">,</span> <span class="n">overlaps</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Apply a mask to the shoeboxes.</span>
-
-<span class="sd">    :param experiments: The list of experiments</span>
-<span class="sd">    :param profile_model: The profile model</span>
-
-<span class="sd">    &#39;&#39;&#39;</span>
-    <span class="kn">from</span> <span class="nn">dials.algorithms.shoebox</span> <span class="kn">import</span> <span class="n">Masker3DProfile</span>
-    <span class="n">mask_profiles</span> <span class="o">=</span> <span class="n">Masker3DProfile</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">profile_model</span><span class="p">)</span>
-    <span class="n">mask_profiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overlaps</span><span class="p">)</span>
-</div>
 <div class="viewcode-block" id="reflection_table_aux.extract_shoeboxes"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.extract_shoeboxes">[docs]</a>  <span class="k">def</span> <span class="nf">extract_shoeboxes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">nthreads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Helper function to read a load of shoebox data.</span>
@@ -720,7 +773,7 @@
       <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
         <span class="n">info</span><span class="p">(</span><span class="s">&#39;  reading image </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
       <span class="n">st</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
-      <span class="n">image</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_image</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="n">image</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_corrected_data</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
       <span class="n">mask2</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_mask</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
       <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
         <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask2</span><span class="p">))</span>
@@ -754,6 +807,23 @@
           <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">)))</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">checker</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;shoebox&#39;</span><span class="p">])</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">overloaded</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+</div>
+<div class="viewcode-block" id="reflection_table_aux.contains_invalid_pixels"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.contains_invalid_pixels">[docs]</a>  <span class="k">def</span> <span class="nf">contains_invalid_pixels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Check if the shoebox contains invalid pixels.</span>
+
+<span class="sd">    :return: True/False invalid for each reflection</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.shoebox</span> <span class="kn">import</span> <span class="n">MaskCode</span>
+    <span class="k">assert</span> <span class="s">&#39;shoebox&#39;</span> <span class="ow">in</span> <span class="bp">self</span>
+    <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">ntotal</span> <span class="o">=</span> <span class="p">(</span><span class="n">x1</span> <span class="o">-</span> <span class="n">x0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">y1</span> <span class="o">-</span> <span class="n">y0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">z1</span> <span class="o">-</span> <span class="n">z0</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">ntotal</span><span class="o">.</span><span class="n">all_gt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">nvalid</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;shoebox&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">count_mask_values</span><span class="p">(</span><span class="n">MaskCode</span><span class="o">.</span><span class="n">Valid</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">ntotal</span> <span class="o">-</span> <span class="n">nvalid</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">includes_bad_pixels</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">result</span>
 </div>
 <div class="viewcode-block" id="reflection_table_aux.find_overlaps"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.find_overlaps">[docs]</a>  <span class="k">def</span> <span class="nf">find_overlaps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
