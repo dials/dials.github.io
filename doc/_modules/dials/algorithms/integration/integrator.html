@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -126,6 +127,12 @@
 <span class="s">      }</span>
 
 <span class="s">      debug {</span>
+
+<span class="s">        reference {</span>
+<span class="s">          output = False</span>
+<span class="s">            .type = bool</span>
+<span class="s">            .help = &quot;Save the reference profiles&quot;</span>
+<span class="s">        }</span>
 
 <span class="s">        during = modelling *integration</span>
 <span class="s">          .type = choice</span>
@@ -324,6 +331,7 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">integration</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Filter</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">profile</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Profile</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">debug_reference_output</span> <span class="o">=</span> <span class="bp">False</span>
 
   <span class="nd">@staticmethod</span>
 <div class="viewcode-block" id="Parameters.from_phil"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Parameters.from_phil">[docs]</a>  <span class="k">def</span> <span class="nf">from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
@@ -370,6 +378,8 @@
     <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">during</span> <span class="o">==</span> <span class="s">&#39;integration&#39;</span><span class="p">:</span>
       <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span>
     <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span>
+
+    <span class="n">result</span><span class="o">.</span><span class="n">debug_reference_output</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">reference</span><span class="o">.</span><span class="n">output</span>
 
     <span class="c"># Get the min zeta filter</span>
     <span class="n">result</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span>
@@ -795,10 +805,12 @@
 
     <span class="c"># Check if pixels are overloaded</span>
     <span class="n">reflections</span><span class="o">.</span><span class="n">is_overloaded</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
-    <span class="n">reflections</span><span class="o">.</span><span class="n">contains_invalid_pixels</span><span class="p">()</span>
 
     <span class="c"># Compute the shoebox mask</span>
     <span class="n">reflections</span><span class="o">.</span><span class="n">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Check for invalid pixels in foreground/background</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">contains_invalid_pixels</span><span class="p">()</span>
 
     <span class="c"># Process the data</span>
     <span class="n">reflections</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
@@ -1013,6 +1025,21 @@
         <span class="n">finalized_profile_fitter</span> <span class="o">=</span> <span class="n">profile_fitter</span><span class="o">.</span><span class="n">finalized_model</span><span class="p">()</span>
 
         <span class="c"># Print profiles</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug_reference_output</span><span class="p">:</span>
+          <span class="n">reference_debug</span> <span class="o">=</span> <span class="p">[]</span>
+          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">finalized_profile_fitter</span><span class="p">)):</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">finalized_profile_fitter</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)):</span>
+              <span class="k">try</span><span class="p">:</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">j</span><span class="p">))</span>
+              <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+          <span class="n">reference_debug</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+          <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&quot;reference_profiles.pickle&quot;</span><span class="p">,</span> <span class="s">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">cPickle</span> <span class="kn">as</span> <span class="nn">pickle</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">reference_debug</span><span class="p">,</span> <span class="n">outfile</span><span class="p">)</span>
+
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">finalized_profile_fitter</span><span class="p">)):</span>
           <span class="n">m</span> <span class="o">=</span> <span class="n">finalized_profile_fitter</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
           <span class="n">debug</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
@@ -1286,7 +1313,7 @@
 
 
 
-<p class="blurb">Data Integration for Advanced Light Sources</p>
+<p class="blurb">Diffraction Integration for Advanced Light Sources</p>
 
 
 
@@ -1307,21 +1334,16 @@
       </div>
       <div class="clearer"></div>
     </div>
-  <div class="footer container">
-  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
-  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
-  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
-  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
-  </div>
-  
-    <div class="footer">
-      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
-      
-    </div>
-
-    
-
-    
+ <script type="text/javascript">
+    $(document).ready(function() {
+        $(".toggle > *").hide();
+        $(".toggle .header").show();
+        $(".toggle .header").click(function() {
+            $(this).parent().children().not(".header").toggle(400);
+            $(this).parent().children(".header").toggleClass("open");
+        })
+    });
+</script>
 
   </body>
 </html>

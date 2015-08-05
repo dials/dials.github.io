@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -585,6 +586,12 @@
         <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
         <span class="n">dest</span><span class="o">=</span><span class="s">&#39;expert_level&#39;</span><span class="p">,</span>
         <span class="n">help</span><span class="o">=</span><span class="s">&#39;Set the expert level for showing configuration parameters&#39;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+        <span class="s">&#39;--export-autocomplete-hints&#39;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s">&#39;store_true&#39;</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+        <span class="n">dest</span><span class="o">=</span><span class="s">&#39;export_autocomplete_hints&#39;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="n">optparse</span><span class="o">.</span><span class="n">SUPPRESS_HELP</span><span class="p">)</span>
 
     <span class="c"># Add an option to sort</span>
     <span class="k">if</span> <span class="n">sort_options</span><span class="p">:</span>
@@ -713,6 +720,10 @@
         <span class="n">attributes_level</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">attributes_level</span><span class="p">)</span>
       <span class="nb">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s">&#39;export_autocomplete_hints&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">options</span><span class="o">.</span><span class="n">export_autocomplete_hints</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_export_autocomplete_hints</span><span class="p">()</span>
+      <span class="nb">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
     <span class="c"># Parse the phil parameters</span>
     <span class="n">params</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span>
       <span class="n">args</span><span class="p">,</span>
@@ -781,8 +792,90 @@
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">OptionParser</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">format_help</span><span class="p">(</span><span class="n">formatter</span><span class="o">=</span><span class="n">formatter</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strip_rst_markup</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</div>
+  <span class="k">def</span> <span class="nf">_export_autocomplete_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c"># complete list of all parameters</span>
+    <span class="n">parameter_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c"># short name -&gt; full name expansion for unique names</span>
+    <span class="n">parameter_expansion_list</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="c"># full name -&gt; list of flags for choice parameters</span>
+    <span class="n">parameter_choice_list</span> <span class="o">=</span> <span class="p">{}</span>
 
-</div></div>
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">all_definitions</span><span class="p">():</span>
+      <span class="c"># Create complete list of all parameters</span>
+      <span class="n">parameter_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+      <span class="c"># Create expansion (alias) list for unique names that are not expert commands</span>
+      <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parameter_expansion_list</span> <span class="ow">and</span> \
+         <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">expert_level</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> \
+         <span class="n">d</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">expert_level</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">parameter_expansion_list</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">path</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">parameter_expansion_list</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+
+      <span class="c"># Extract parameter choice lists</span>
+      <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">phil_type</span> <span class="o">==</span> <span class="s">&quot;choice&quot;</span><span class="p">:</span>
+        <span class="n">parameter_choice_list</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">path</span><span class="p">]</span> <span class="o">=</span> \
+          <span class="p">[</span><span class="n">w</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">w</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">words</span><span class="p">]</span> <span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">construct_completion_tree</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot; Construct a tree of parameters, grouped by common prefixes &quot;&quot;&quot;</span>
+
+      <span class="c"># Split parameter paths at &#39;.&#39; character</span>
+      <span class="n">paths</span> <span class="o">=</span> <span class="p">[</span> <span class="n">p</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paths</span> <span class="p">]</span>
+
+      <span class="c"># Identify all names that are directly on this level</span>
+      <span class="c"># or represent parameter groups with a common prefix</span>
+      <span class="n">top_elements</span> <span class="o">=</span> <span class="p">{</span> <span class="s">&quot;</span><span class="si">%s%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;=&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s">&quot;.&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">paths</span> <span class="p">}</span>
+
+      <span class="c"># Partition all names that are further down the tree by their prefix</span>
+      <span class="n">subpaths</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">subpaths</span><span class="p">:</span> <span class="n">subpaths</span><span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+          <span class="n">subpaths</span><span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+      <span class="c"># If there are prefixes with only one name beneath them, put them on the top level</span>
+      <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">subpaths</span><span class="o">.</span><span class="n">iterkeys</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subpaths</span><span class="p">[</span><span class="n">s</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="n">top_elements</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="n">s</span><span class="p">)</span>
+          <span class="n">top_elements</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">=&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">subpaths</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+          <span class="k">del</span> <span class="n">subpaths</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+
+      <span class="n">result</span> <span class="o">=</span> <span class="p">{</span> <span class="s">&#39;&#39;</span><span class="p">:</span> <span class="n">top_elements</span> <span class="p">}</span>
+      <span class="c"># Revursively process each group</span>
+      <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">subpaths</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">construct_completion_tree</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+      <span class="k">return</span> <span class="n">result</span>
+
+    <span class="n">export_flags</span> <span class="o">=</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&#39;[&quot;</span><span class="si">%s</span><span class="s">&quot;]=&quot;</span><span class="si">%s</span><span class="s">&quot;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parameter_choice_list</span><span class="p">[</span><span class="n">p</span><span class="p">]))</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parameter_choice_list</span><span class="o">.</span><span class="n">iterkeys</span><span class="p">()])</span>
+    <span class="n">export_expansions</span> <span class="o">=</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&#39;[&quot;</span><span class="si">%s</span><span class="s">=&quot;]=&quot;</span><span class="si">%s</span><span class="s">=&quot;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">parameter_expansion_list</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span> <span class="k">if</span> <span class="n">exp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">])</span>
+
+    <span class="k">print</span> <span class="s">&#39;declare -p _dials_autocomplete_flags &gt;/dev/null 2&gt;&amp;1 &amp;&amp; _dials_autocomplete_flags=( </span><span class="si">%s</span><span class="s"> ) || :&#39;</span> <span class="o">%</span> <span class="n">export_flags</span>
+    <span class="k">print</span> <span class="s">&#39;declare -p _dials_autocomplete_expansion &gt;/dev/null 2&gt;&amp;1 &amp;&amp; _dials_autocomplete_expansion=( </span><span class="si">%s</span><span class="s"> ) || :&#39;</span> <span class="o">%</span> <span class="n">export_expansions</span>
+    <span class="n">tree</span> <span class="o">=</span> <span class="n">construct_completion_tree</span><span class="p">(</span><span class="n">parameter_list</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_tree_to_bash</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">tree</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">subkey</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">iterkeys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">subkey</span> <span class="o">!=</span> <span class="s">&#39;&#39;</span><span class="p">:</span>
+          <span class="n">_tree_to_bash</span><span class="p">(</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">subkey</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="n">tree</span><span class="p">[</span><span class="n">subkey</span><span class="p">])</span>
+          <span class="k">print</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">  </span><span class="si">%s</span><span class="s">*)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">subkey</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span><span class="p">)</span>
+          <span class="k">print</span> <span class="s">&#39;    _dials_autocomplete_values=&quot;</span><span class="si">%s</span><span class="s">&quot;;;&#39;</span> <span class="o">%</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">([</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">subkey</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tree</span><span class="p">[</span><span class="n">subkey</span><span class="p">][</span><span class="s">&#39;&#39;</span><span class="p">]]))</span>
+
+    <span class="k">print</span> <span class="s">&#39;function _dials_autocomplete_hints ()&#39;</span>
+    <span class="k">print</span> <span class="s">&#39;{&#39;</span>
+    <span class="k">print</span> <span class="s">&#39; case &quot;$1&quot; in&#39;</span>
+    <span class="n">_tree_to_bash</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">tree</span><span class="p">)</span>
+
+    <span class="n">toplevelset</span> <span class="o">=</span> <span class="n">tree</span><span class="p">[</span><span class="s">&#39;&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="nb">set</span><span class="p">([</span><span class="n">p</span> <span class="o">+</span> <span class="s">&quot;=&quot;</span> <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">parameter_expansion_list</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span> <span class="k">if</span> <span class="n">exp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">])</span>
+
+    <span class="k">print</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">  *)&#39;</span>
+    <span class="k">print</span> <span class="s">&#39;    _dials_autocomplete_values=&quot;</span><span class="si">%s</span><span class="s">&quot;;;&#39;</span> <span class="o">%</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">toplevelset</span><span class="p">))</span>
+    <span class="k">print</span> <span class="s">&#39; esac&#39;</span>
+    <span class="k">print</span> <span class="s">&#39;}&#39;</span>
+
+</div>
 <div class="viewcode-block" id="flatten_reflections"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.flatten_reflections">[docs]</a><span class="k">def</span> <span class="nf">flatten_reflections</span><span class="p">(</span><span class="n">filename_object_list</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">  Flatten a list of reflections tables</span>
@@ -833,7 +926,7 @@
 
 
 
-<p class="blurb">Data Integration for Advanced Light Sources</p>
+<p class="blurb">Diffraction Integration for Advanced Light Sources</p>
 
 
 
@@ -854,21 +947,16 @@
       </div>
       <div class="clearer"></div>
     </div>
-  <div class="footer container">
-  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
-  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
-  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../_static/LBL-logo-wide.jpeg" /></a>
-  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../_static/STFC_logo.png" /></a>
-  </div>
-  
-    <div class="footer">
-      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
-      
-    </div>
-
-    
-
-    
+ <script type="text/javascript">
+    $(document).ready(function() {
+        $(".toggle > *").hide();
+        $(".toggle .header").show();
+        $(".toggle .header").click(function() {
+            $(this).parent().children().not(".header").toggle(400);
+            $(this).parent().children(".header").toggleClass("open");
+        })
+    });
+</script>
 
   </body>
 </html>

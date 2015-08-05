@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -68,7 +69,7 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
 
 <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">pi</span>
-<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span><span class="p">,</span> <span class="n">debug</span>
+<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span><span class="p">,</span> <span class="n">debug</span><span class="p">,</span> <span class="n">warning</span>
 
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
 <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
@@ -251,14 +252,6 @@
     <span class="c"># that were not excluded to manage</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span> <span class="o">=</span> <span class="n">reflections</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">refs_to_keep</span><span class="p">))</span>
-
-    <span class="c"># remove unwanted columns from the managed reflections</span>
-    <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">,</span> <span class="s">&#39;iobs&#39;</span><span class="p">,</span> <span class="s">&#39;miller_index&#39;</span><span class="p">,</span> <span class="s">&#39;panel&#39;</span><span class="p">,</span> <span class="s">&#39;s1&#39;</span><span class="p">,</span> <span class="s">&#39;xyzcal.mm&#39;</span><span class="p">,</span>
-            <span class="s">&#39;xyzobs.mm.value&#39;</span><span class="p">,</span> <span class="s">&#39;xyzobs.mm.variance&#39;</span><span class="p">,</span> <span class="s">&#39;xyzobs.px.value&#39;</span><span class="p">,</span>
-            <span class="s">&#39;entering&#39;</span><span class="p">,</span> <span class="s">&#39;flags&#39;</span><span class="p">,</span> <span class="s">&#39;block&#39;</span><span class="p">,</span> <span class="s">&#39;block_centre&#39;</span><span class="p">]</span>
-    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-      <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">:</span>
-        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
 
     <span class="c"># set weights for all kept reflections</span>
     <span class="k">if</span> <span class="n">weighting_strategy_override</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
@@ -476,22 +469,27 @@
 
     <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">Summary statistics for {0} observations&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nref</span><span class="p">)</span> <span class="o">+</span>\
           <span class="s">&quot; matched to predictions:&quot;</span>
-    <span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;&quot;</span><span class="p">,</span> <span class="s">&quot;Min&quot;</span><span class="p">,</span> <span class="s">&quot;Q1&quot;</span><span class="p">,</span> <span class="s">&quot;Med&quot;</span><span class="p">,</span> <span class="s">&quot;Q3&quot;</span><span class="p">,</span> <span class="s">&quot;Max&quot;</span><span class="p">]</span>
     <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">x_resid</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Xc - Xo (mm)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">y_resid</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Yc - Yo (mm)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">phi_resid</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Phic - Phio (deg)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span> <span class="n">RAD2DEG</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_x</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;X weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_y</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Y weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_phi</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Phi weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span> <span class="n">DEG2RAD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">st</span> <span class="o">=</span> <span class="n">simple_table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">x_resid</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Xc - Xo (mm)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">y_resid</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Yc - Yo (mm)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">phi_resid</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Phic - Phio (deg)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span> <span class="n">RAD2DEG</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_x</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;X weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_y</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Y weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_phi</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Phi weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span> <span class="n">DEG2RAD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">st</span> <span class="o">=</span> <span class="n">simple_table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+      <span class="c"># zero length reflection list</span>
+      <span class="n">warning</span><span class="p">(</span><span class="s">&quot;Unable to calculate summary statistics for zero observations&quot;</span><span class="p">)</span>
+      <span class="k">return</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="n">info</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
 
@@ -587,21 +585,26 @@
 
     <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">Summary statistics for {0} observations&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nref</span><span class="p">)</span> <span class="o">+</span>\
           <span class="s">&quot; matched to predictions:&quot;</span>
-    <span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;&quot;</span><span class="p">,</span> <span class="s">&quot;Min&quot;</span><span class="p">,</span> <span class="s">&quot;Q1&quot;</span><span class="p">,</span> <span class="s">&quot;Med&quot;</span><span class="p">,</span> <span class="s">&quot;Q3&quot;</span><span class="p">,</span> <span class="s">&quot;Max&quot;</span><span class="p">]</span>
     <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">x_resid</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Xc - Xo (mm)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">y_resid</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Yc - Yo (mm)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">delpsi</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;DeltaPsi (deg)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span> <span class="n">RAD2DEG</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_x</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;X weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_y</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Y weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
-    <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_delpsi</span><span class="p">)</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;DeltaPsi weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span> <span class="n">DEG2RAD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">x_resid</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Xc - Xo (mm)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">y_resid</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Yc - Yo (mm)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">delpsi</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;DeltaPsi (deg)&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span> <span class="n">RAD2DEG</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_x</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;X weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_y</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;Y weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+      <span class="n">row_data</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">w_delpsi</span><span class="p">)</span>
+      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;DeltaPsi weights&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.4g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span> <span class="n">DEG2RAD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">row_data</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+      <span class="c"># zero length reflection list</span>
+      <span class="n">warning</span><span class="p">(</span><span class="s">&quot;Unable to calculate summary statistics for zero observations&quot;</span><span class="p">)</span>
+      <span class="k">return</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="n">st</span> <span class="o">=</span> <span class="n">simple_table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
     <span class="n">info</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
 
@@ -634,7 +637,7 @@
 
 
 
-<p class="blurb">Data Integration for Advanced Light Sources</p>
+<p class="blurb">Diffraction Integration for Advanced Light Sources</p>
 
 
 
@@ -655,21 +658,16 @@
       </div>
       <div class="clearer"></div>
     </div>
-  <div class="footer container">
-  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
-  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
-  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
-  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
-  </div>
-  
-    <div class="footer">
-      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
-      
-    </div>
-
-    
-
-    
+ <script type="text/javascript">
+    $(document).ready(function() {
+        $(".toggle > *").hide();
+        $(".toggle .header").show();
+        $(".toggle .header").click(function() {
+            $(this).parent().children().not(".header").toggle(400);
+            $(this).parent().children(".header").toggleClass("open");
+        })
+    });
+</script>
 
   </body>
 </html>
