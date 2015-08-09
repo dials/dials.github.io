@@ -79,12 +79,8 @@
     <span class="c"># Find the dials source directory</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">dist_path</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">dist_path</span><span class="p">(</span><span class="s">&#39;dials&#39;</span><span class="p">)</span>
 
-    <span class="c"># Find the dials distribution directory</span>
-    <span class="n">build_path</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">libtbx</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">build_path</span><span class="p">)</span>
-
     <span class="c"># Set the location of the output directory</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-        <span class="n">build_path</span><span class="p">,</span> <span class="s">&#39;dials&#39;</span><span class="p">,</span> <span class="s">&#39;autocomplete&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">under_build</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s">&#39;dials&#39;</span><span class="p">,</span> <span class="s">&#39;autocomplete&#39;</span><span class="p">))</span>
     <span class="k">try</span><span class="p">:</span>
       <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
@@ -112,23 +108,35 @@
     <span class="k">print</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">,</span> <span class="s">&#39;init.sh&#39;</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">loader</span><span class="p">:</span>
       <span class="n">loader</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;&#39;&#39;#!/bin/bash</span>
-<span class="s">if [ ! -e &quot;</span><span class="si">%s</span><span class="s">&quot; ]; then touch &quot;</span><span class="si">%s</span><span class="s">&quot; 2&gt;/dev/null; if [ -e &quot;</span><span class="si">%s</span><span class="s">&quot; ]; then</span>
 <span class="s">for cmd in </span><span class="si">%s</span><span class="s">; do</span>
-<span class="s"> echo Generating command line completion hints for $cmd</span>
-<span class="s"> $cmd --export-autocomplete-hints &gt; &quot;</span><span class="si">%s</span><span class="s">&quot; || rm &quot;</span><span class="si">%s</span><span class="s">&quot;</span>
-<span class="s">done; fi; fi</span>
+<span class="s"> if [ ! -e &quot;</span><span class="si">%s</span><span class="s">&quot; ]; then</span>
+<span class="s">  echo Generating command line completion hints for $cmd</span>
+<span class="s">  $cmd --export-autocomplete-hints &gt; &quot;</span><span class="si">%s</span><span class="s">&quot; || rm &quot;</span><span class="si">%s</span><span class="s">&quot;</span>
+<span class="s"> fi</span>
+<span class="s">done</span>
 <span class="s">source </span><span class="si">%s</span><span class="s">/util/autocomplete.sh</span>
 <span class="si">%s</span><span class="s"></span>
 <span class="s">&#39;&#39;&#39;</span> <span class="o">%</span> <span class="p">(</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">,</span> <span class="s">&#39;runonce&#39;</span><span class="p">),</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">,</span> <span class="s">&#39;runonce&#39;</span><span class="p">),</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">,</span> <span class="s">&#39;runonce&#39;</span><span class="p">),</span>
         <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command_list</span><span class="p">),</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">,</span> <span class="s">&#39;${cmd}&#39;</span><span class="p">),</span>
         <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">,</span> <span class="s">&#39;${cmd}&#39;</span><span class="p">),</span>
         <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">,</span> <span class="s">&#39;${cmd}&#39;</span><span class="p">),</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dist_path</span><span class="p">,</span>
         <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&quot;complete -F _dials_autocomplete </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">cmd</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">command_list</span><span class="p">])</span>
      <span class="p">))</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_directory</span><span class="p">,</span> <span class="s">&#39;SConscript&#39;</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">builder</span><span class="p">:</span>
+      <span class="n">builder</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+<span class="s">import os.path</span>
+<span class="s">import libtbx.load_env</span>
+<span class="s">def dispatcher_outer(name):</span>
+<span class="s">  return os.path.join(libtbx.env.under_build(&#39;bin&#39;), name)</span>
+<span class="s">def dispatcher_inner(name):</span>
+<span class="s">  return os.path.join(libtbx.env.dist_path(&#39;dials&#39;), &#39;command_line&#39;, &#39;</span><span class="si">%%</span><span class="s">s.py&#39; </span><span class="si">%%</span><span class="s"> name.partition(&#39;.&#39;)[2])</span>
+<span class="s">env = Environment()</span>
+<span class="s">env.Append( BUILDERS={&#39;AutoComplete&#39;: Builder(action=&#39;$SOURCE --export-autocomplete-hints &gt; $TARGET&#39;)} )</span>
+<span class="s">for cmd in [</span><span class="si">%s</span><span class="s">]:</span>
+<span class="s">  env.AutoComplete(cmd, [dispatcher_outer(cmd), dispatcher_inner(cmd)])</span>
+<span class="s">&#39;&#39;&#39;</span> <span class="o">%</span> <span class="p">(</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">cmd</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">command_list</span><span class="p">])</span> <span class="p">))</span>
 </div>
 <div class="viewcode-block" id="CompletionGenerator.install"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.config.CompletionGenerator.install">[docs]</a>  <span class="k">def</span> <span class="nf">install</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;Permanently install the autocompletion init script into setpaths-scripts.&#39;&#39;&#39;</span>
