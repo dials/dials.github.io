@@ -361,11 +361,10 @@
           <span class="k">try</span><span class="p">:</span>
             <span class="n">user_phils</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parse</span><span class="p">(</span><span class="n">file_name</span><span class="o">=</span><span class="n">arg</span><span class="p">))</span>
           <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="k">raise</span>
             <span class="k">if</span> <span class="n">return_unhandled</span><span class="p">:</span>
               <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-              <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Unable to parse phil file: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">arg</span><span class="p">)</span>
+              <span class="k">raise</span>
         <span class="k">else</span><span class="p">:</span>
           <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
       <span class="k">elif</span> <span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;=&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
@@ -375,12 +374,20 @@
           <span class="k">if</span> <span class="n">return_unhandled</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span>
             <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
           <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Unable to parse parameter: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">arg</span><span class="p">)</span>
+            <span class="k">raise</span>
       <span class="k">else</span><span class="p">:</span>
         <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
 
     <span class="c"># Fetch the phil parameters</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">sources</span><span class="o">=</span><span class="n">user_phils</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span><span class="p">,</span> <span class="n">unused</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span>
+      <span class="n">sources</span><span class="o">=</span><span class="n">user_phils</span><span class="p">,</span>
+      <span class="n">track_unused_definitions</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="c"># Print if bad definitions</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unused</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">msg</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">as_str</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">unused</span><span class="p">]</span>
+      <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&#39;  </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">msg</span><span class="p">])</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;The following definitions were not recognised</span><span class="se">\n</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">msg</span><span class="p">)</span>
 
     <span class="c"># Extract the parameters</span>
     <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span>
