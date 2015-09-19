@@ -60,32 +60,37 @@
   <div class="section" id="getting-started">
 <h1>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
 <p>The aim of this tutorial is to provide a quick start guide to running DIALS for
-integrating good quality synchrotron X-ray diffraction data. Many caveats apply
-to this:</p>
-<blockquote>
-<div><ul class="simple">
-<li>your mileage may vary etc. as the program is in development</li>
-<li>we don&#8217;t promise that the data are as good as from e.g. XDS</li>
-<li>DIALS only does data processing you will need to use e.g. Aimless for the
-subsequent scaling</li>
-</ul>
-</div></blockquote>
-<p>That said this tutorial illustrates that the program can work and give sensible
-results.</p>
+integrating good quality synchrotron X-ray diffraction data. Please note that
+DIALS only does data processing you will need to use e.g. Aimless for the
+subsequent scaling.</p>
 <div class="section" id="introduction">
 <h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <p>The philosophy behind DIALS is to be explicit in performing the various steps of
 data analysis rather than giving one big tool - DIALS is first and foremost a
 toolkit for doing the data analysis to be used within other systems.</p>
+<p>One such system is <a class="reference external" href="http://xia2.sourceforge.net/">xia2</a>, which is included
+in the DIALS installers, and supports processing with DIALS, in addition to XDS
+and MOSFLM. To use DIALS within xia2, simply use the <tt class="docutils literal"><span class="pre">-dials</span></tt> flag:</p>
+<div class="highlight-python"><div class="highlight"><pre>xia2 -dials /path/to/image/
+</pre></div>
+</div>
+<p>For more information on using xia2 see the
+<a class="reference external" href="http://xia2.sourceforge.net/">xia2 documentation</a>. The rest of this tutorial
+will concentrate on running the individual DIALS command line programs directly.</p>
 </div>
 <div class="section" id="import">
 <h2>Import<a class="headerlink" href="#import" title="Permalink to this headline">¶</a></h2>
-<p>There are two ways of importing images</p>
-<div class="highlight-none"><div class="highlight"><pre>dials.import /path/to/the/data/*.img
+<p>There are three ways of importing images</p>
+<div class="highlight-python"><div class="highlight"><pre>dials.import /path/to/the/data/*.img
 </pre></div>
 </div>
 <p>or</p>
-<div class="highlight-none"><div class="highlight"><pre>find /path/to/the/data -name *.img | dials.import -i
+<div class="highlight-python"><div class="highlight"><pre>dials.import /path/to/the/data/template_####.img
+</pre></div>
+</div>
+<p>where <tt class="docutils literal"><span class="pre">####</span></tt> represents the image number that increments from image to image,
+or</p>
+<div class="highlight-python"><div class="highlight"><pre>find /path/to/the/data -name *.img | dials.import -i
 </pre></div>
 </div>
 <p>The latter of these is useful when you have a limited number of command-line
@@ -94,10 +99,11 @@ set.</p>
 </div>
 <div class="section" id="find-spots">
 <h2>Find Spots<a class="headerlink" href="#find-spots" title="Permalink to this headline">¶</a></h2>
-<p>Most useful parameter here is the minimum spots size. By default it is 6, but
-this can be overridden with min_spot_size=N where N is e.g. 3. This takes
-datablock.json and creates strong.pickle:</p>
-<div class="highlight-none"><div class="highlight"><pre>dials.find_spots min_spot_size=3 datablock.json
+<p>Most useful parameter here is the minimum spots size. By default it is 3 for
+pixel array detectors (e.g. Pilatus detectors), and 6 otherwise
+(e.g. CCD detectors), but this can be overridden with min_spot_size=N where N
+is e.g. 3. This takes datablock.json and creates strong.pickle:</p>
+<div class="highlight-python"><div class="highlight"><pre>dials.find_spots min_spot_size=3 datablock.json
 </pre></div>
 </div>
 <p>(for example)</p>
@@ -107,13 +113,13 @@ datablock.json and creates strong.pickle:</p>
 <p>The indexing for DIALS offers a substantial number of options - these are
 detailed in the Phil file for dials.index, which is shown when you run the
 program. The most useful options are:</p>
-<div class="highlight-none"><div class="highlight"><pre>unit_cell=a,b,c,al,be,ga
-space_group=P4 (say)
-indexing.method=fft3d (say)
+<div class="highlight-python"><div class="highlight"><pre><span class="n">unit_cell</span><span class="o">=</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">al</span><span class="p">,</span><span class="n">be</span><span class="p">,</span><span class="n">ga</span>
+<span class="n">space_group</span><span class="o">=</span><span class="n">P4</span> <span class="p">(</span><span class="n">say</span><span class="p">)</span>
+<span class="n">indexing</span><span class="o">.</span><span class="n">method</span><span class="o">=</span><span class="n">fft3d</span> <span class="p">(</span><span class="n">say</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The indexing works as</p>
-<div class="highlight-none"><div class="highlight"><pre>dials.index strong.pickle datablock.json [options]
+<div class="highlight-python"><div class="highlight"><pre>dials.index strong.pickle datablock.json [options]
 </pre></div>
 </div>
 <p>and creates an &#8220;experiment&#8221; file experiment.json which details the crystal
@@ -125,10 +131,10 @@ dials.refine_bravais_settings.</p>
 </div>
 <div class="section" id="refinement">
 <h2>Refinement<a class="headerlink" href="#refinement" title="Permalink to this headline">¶</a></h2>
-<p>The indexing includes refinement - if you do not wish to use a time varying
+<p>The indexing includes refinement - if you do not wish to use a scan-varying
 crystal model you can go straight to integration. If you do want to use a time
 varying model, you will need to rerun the refinement with this new model as</p>
-<div class="highlight-none"><div class="highlight"><pre>dials.refine experiments.json indexed.pickle scan_varying=true
+<div class="highlight-python"><div class="highlight"><pre>dials.refine experiments.json indexed.pickle scan_varying=true
 </pre></div>
 </div>
 <p>which will generate refined_experiments.json - this you pass on to integration.</p>
@@ -139,25 +145,25 @@ varying model, you will need to rerun the refinement with this new model as</p>
 options, to control how the background is determined (including outlier pixels
 in the background determination) the reflection profile parameters (used to
 define the reflection mask, and by default discovered automatically) and the
-actual algorithm to be used for peak integration e.g. sum3d or fft3d.</p>
-<div class="highlight-none"><div class="highlight"><pre>dials.integrate outlier.algorithm=null refined_experiments.json indexed.pickle
+actual algorithm to be used for peak integration:</p>
+<div class="highlight-python"><div class="highlight"><pre>dials.integrate outlier.algorithm=null refined_experiments.json indexed.pickle
 </pre></div>
 </div>
 <p>This reads the indexed reflections to determine strong reflections for profile
 fitting and integrates the data in refined_experiments.json, using the default
 background determination with no outlier rejection and XDS-style 3D profile
-fitting. These commands are most likely to change and can be viewed by running</p>
+fitting.</p>
 </div>
 <div class="section" id="export">
 <h2>Export<a class="headerlink" href="#export" title="Permalink to this headline">¶</a></h2>
 <p>If you have got this far everything else is easy: export the data as MTZ then
-run pointless and aimless to resort and scale the data viz:</p>
-<div class="highlight-none"><div class="highlight"><pre>dials.export_mtz integrated.pickle refined_experiments.json
+run <a class="reference external" href="http://www.ccp4.ac.uk/html/pointless.html">pointless</a> and <a class="reference external" href="http://www.ccp4.ac.uk/html/aimless.html">aimless</a> to re-sort and scale the data:</p>
+<div class="highlight-python"><div class="highlight"><pre>dials.export_mtz integrated.pickle refined_experiments.json
 pointless hklin integrated.mtz hklout sorted.mtz
 aimless hklin sorted.mtz hklout scaled.mtz
 </pre></div>
 </div>
-<p>For details on pointless and aimless please refer to the CCP4 documentation.</p>
+<p>For details on <a class="reference external" href="http://www.ccp4.ac.uk/html/pointless.html">pointless</a> and <a class="reference external" href="http://www.ccp4.ac.uk/html/aimless.html">aimless</a> please refer to the CCP4 documentation.</p>
 <p class="rubric">Footnotes</p>
 <table class="docutils footnote" frame="void" id="f1" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
