@@ -1,0 +1,792 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.algorithms.indexing.fft3d &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for dials.algorithms.indexing.fft3d</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+<span class="c"># -*- mode: python; coding: utf-8; indent-tabs-mode: nil; python-indent: 2 -*-</span>
+<span class="c">#</span>
+<span class="c"># dials.algorithms.indexing.fft3d.py</span>
+<span class="c">#</span>
+<span class="c">#  Copyright (C) 2014 Diamond Light Source</span>
+<span class="c">#</span>
+<span class="c">#  Author: Richard Gildea</span>
+<span class="c">#</span>
+<span class="c">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c">#  included in the root directory of this package.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">import</span> <span class="nn">libtbx</span>
+<span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">fftpack</span>
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">uctbx</span><span class="p">,</span> <span class="n">xray</span>
+<span class="kn">from</span> <span class="nn">cctbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.indexer</span> \
+     <span class="kn">import</span> <span class="n">indexer_base</span><span class="p">,</span> <span class="n">optimise_basis_vectors</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.indexer</span> \
+     <span class="kn">import</span> <span class="n">vector_group</span><span class="p">,</span> <span class="n">is_approximate_integer_multiple</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model.experiment.experiment_list</span> <span class="kn">import</span> <span class="n">Experiment</span><span class="p">,</span> <span class="n">ExperimentList</span>
+
+<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span><span class="p">,</span> <span class="n">debug</span>
+
+<div class="viewcode-block" id="indexer_fft3d"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d">[docs]</a><span class="k">class</span> <span class="nc">indexer_fft3d</span><span class="p">(</span><span class="n">indexer_base</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">imagesets</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">indexer_fft3d</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">imagesets</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+<div class="viewcode-block" id="indexer_fft3d.find_lattices"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_lattices">[docs]</a>  <span class="k">def</span> <span class="nf">find_lattices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+      <span class="c"># rough calculation of suitable d_min based on max cell</span>
+      <span class="c"># see also Campbell, J. (1998). J. Appl. Cryst., 31(3), 407-413.</span>
+      <span class="c"># fft_cell should be greater than twice max_cell, so say:</span>
+      <span class="c">#   fft_cell = 2.5 * max_cell</span>
+      <span class="c"># then:</span>
+      <span class="c">#   fft_cell = n_points * d_min/2</span>
+      <span class="c">#   2.5 * max_cell = n_points * d_min/2</span>
+      <span class="c"># a little bit of rearrangement:</span>
+      <span class="c">#   d_min = 5 * max_cell/n_points</span>
+
+      <span class="n">d_min</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mi">5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">n_points</span><span class="p">)</span>
+      <span class="n">d_spacings</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;rlp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+        <span class="n">d_min</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">d_spacings</span><span class="p">))</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&quot;Setting d_min: </span><span class="si">%.2f</span><span class="s">&quot;</span> <span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span><span class="p">)</span>
+    <span class="n">n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">n_points</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gridding</span> <span class="o">=</span> <span class="n">fftpack</span><span class="o">.</span><span class="n">adjust_gridding_triple</span><span class="p">(</span>
+      <span class="p">(</span><span class="n">n_points</span><span class="p">,</span><span class="n">n_points</span><span class="p">,</span><span class="n">n_points</span><span class="p">),</span> <span class="n">max_prime</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">map_centroids_to_reciprocal_space_grid</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">d_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span>
+
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;Number of centroids used: </span><span class="si">%i</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span>
+      <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fft</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">debug_write_ccp4_map</span><span class="p">(</span><span class="n">map_data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">grid_real</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s">&quot;fft3d.map&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_search</span> <span class="o">==</span> <span class="s">&#39;flood_fill&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">find_peaks</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_search</span> <span class="o">==</span> <span class="s">&#39;clean&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">find_peaks_clean</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">cluster_analysis_search</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">find_basis_vector_combinations_cluster_analysis</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">debug_show_candidate_basis_vectors</span><span class="p">()</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug_plots</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug_plot_candidate_basis_vectors</span><span class="p">()</span>
+      <span class="n">crystal_models</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">max_lattices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">crystal_models</span> <span class="o">=</span> \
+          <span class="n">crystal_models</span><span class="p">[:</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">max_lattices</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">find_candidate_basis_vectors</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">debug_show_candidate_basis_vectors</span><span class="p">()</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug_plots</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug_plot_candidate_basis_vectors</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_candidate_orientation_matrices</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span><span class="p">,</span>
+        <span class="n">max_combinations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">basis_vector_combinations</span><span class="o">.</span><span class="n">max_try</span><span class="p">)</span>
+      <span class="n">crystal_model</span><span class="p">,</span> <span class="n">n_indexed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">choose_best_orientation_matrix</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">crystal_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">crystal_models</span> <span class="o">=</span> <span class="p">[</span><span class="n">crystal_model</span><span class="p">]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">crystal_models</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">cm</span> <span class="ow">in</span> <span class="n">crystal_models</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">:</span>
+        <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Experiment</span><span class="p">(</span><span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">,</span>
+                                      <span class="n">beam</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(),</span>
+                                      <span class="n">detector</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">(),</span>
+                                      <span class="n">goniometer</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">(),</span>
+                                      <span class="n">scan</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">(),</span>
+                                      <span class="n">crystal</span><span class="o">=</span><span class="n">cm</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">experiments</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.map_centroids_to_reciprocal_space_grid"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.map_centroids_to_reciprocal_space_grid">[docs]</a>  <span class="k">def</span> <span class="nf">map_centroids_to_reciprocal_space_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">d_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span>
+
+    <span class="n">n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rlgrid</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">d_min</span> <span class="o">*</span> <span class="n">n_points</span><span class="p">)</span>
+
+    <span class="c"># real space FFT grid dimensions</span>
+    <span class="n">cell_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="n">n_points</span> <span class="o">*</span> <span class="n">d_min</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fft_cell</span> <span class="o">=</span> <span class="n">uctbx</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(</span><span class="n">cell_lengths</span><span class="o">+</span><span class="p">[</span><span class="mi">90</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">crystal_symmetry</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span><span class="n">unit_cell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fft_cell</span><span class="p">,</span>
+                                             <span class="n">space_group_symbol</span><span class="o">=</span><span class="s">&quot;P1&quot;</span><span class="p">)</span>
+
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;FFT gridding: (</span><span class="si">%i</span><span class="s">,</span><span class="si">%i</span><span class="s">,</span><span class="si">%i</span><span class="s">)&quot;</span> <span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">)</span>
+
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">selection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b_iso</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b_iso</span> <span class="o">=</span> <span class="o">-</span><span class="mi">4</span> <span class="o">*</span> <span class="n">d_min</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
+      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Setting b_iso = </span><span class="si">%.1f</span><span class="s">&quot;</span> <span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b_iso</span><span class="p">)</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.indexing</span> <span class="kn">import</span> <span class="n">map_centroids_to_reciprocal_space_grid</span>
+    <span class="n">map_centroids_to_reciprocal_space_grid</span><span class="p">(</span>
+      <span class="n">grid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;rlp&#39;</span><span class="p">],</span> <span class="n">selection</span><span class="p">,</span>
+      <span class="n">d_min</span><span class="p">,</span> <span class="n">b_iso</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b_iso</span><span class="p">)</span>
+    <span class="n">reflections_used_for_indexing</span> <span class="o">=</span> <span class="n">selection</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_space_grid</span> <span class="o">=</span> <span class="n">grid</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections_used_for_indexing</span> <span class="o">=</span> <span class="n">reflections_used_for_indexing</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.fft"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.fft">[docs]</a>  <span class="k">def</span> <span class="nf">fft</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c">#gb_to_bytes = 1073741824</span>
+    <span class="c">#bytes_to_gb = 1/gb_to_bytes</span>
+    <span class="c">#(128**3)*8*2*bytes_to_gb</span>
+    <span class="c">#0.03125</span>
+    <span class="c">#(256**3)*8*2*bytes_to_gb</span>
+    <span class="c">#0.25</span>
+    <span class="c">#(512**3)*8*2*bytes_to_gb</span>
+    <span class="c">#2.0</span>
+
+    <span class="n">fft</span> <span class="o">=</span> <span class="n">fftpack</span><span class="o">.</span><span class="n">complex_to_complex_3d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">)</span>
+    <span class="n">grid_complex</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">complex_double</span><span class="p">(</span>
+      <span class="n">reals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="p">,</span>
+      <span class="n">imags</span><span class="o">=</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="n">grid_transformed</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">grid_complex</span><span class="p">)</span>
+    <span class="c">#self.grid_real = flex.pow2(flex.abs(grid_transformed))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">grid_real</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">grid_transformed</span><span class="p">))</span>
+    <span class="c">#self.grid_real = flex.pow2(flex.imag(self.grid_transformed))</span>
+    <span class="k">del</span> <span class="n">grid_transformed</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.find_peaks"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_peaks">[docs]</a>  <span class="k">def</span> <span class="nf">find_peaks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">grid_real_binary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_real</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+    <span class="n">rmsd</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+      <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">grid_real_binary</span><span class="o">.</span><span class="n">as_1d</span><span class="p">()</span><span class="o">-</span><span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">grid_real_binary</span><span class="o">.</span><span class="n">as_1d</span><span class="p">()))))</span>
+    <span class="n">grid_real_binary</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">grid_real_binary</span> <span class="o">&lt;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rmsd_cutoff</span><span class="p">)</span><span class="o">*</span><span class="n">rmsd</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">grid_real_binary</span><span class="o">.</span><span class="n">as_1d</span><span class="p">()</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">grid_real_binary</span><span class="o">.</span><span class="n">as_1d</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">grid_real_binary</span> <span class="o">=</span> <span class="n">grid_real_binary</span><span class="o">.</span><span class="n">iround</span><span class="p">()</span>
+    <span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">masks</span>
+    <span class="n">flood_fill</span> <span class="o">=</span> <span class="n">masks</span><span class="o">.</span><span class="n">flood_fill</span><span class="p">(</span><span class="n">grid_real_binary</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fft_cell</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">n_voids</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+      <span class="c"># Require at least peak at origin and one peak for each basis vector</span>
+      <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;Indexing failed: fft3d peak search failed to find sufficient number of peaks.&quot;</span><span class="p">)</span>
+    <span class="c"># the peak at the origin might have a significantly larger volume than the</span>
+    <span class="c"># rest so exclude this peak from determining maximum volume</span>
+    <span class="n">isel</span> <span class="o">=</span> <span class="p">(</span><span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span> <span class="o">&gt;</span> <span class="nb">int</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_volume_cutoff</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span>
+          <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()[</span><span class="mi">1</span><span class="p">:])))</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">optimise_initial_basis_vectors</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+      <span class="n">sites_cart</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">centres_of_mass_cart</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+      <span class="n">sites_cart_optimised</span> <span class="o">=</span> <span class="n">optimise_basis_vectors</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;rlp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections_used_for_indexing</span><span class="p">),</span>
+        <span class="n">sites_cart</span><span class="p">)</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">sites</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fft_cell</span><span class="o">.</span><span class="n">fractionalize</span><span class="p">(</span><span class="n">sites_cart_optimised</span><span class="p">)</span>
+
+      <span class="n">diffs</span> <span class="o">=</span> <span class="p">(</span><span class="n">sites_cart_optimised</span> <span class="o">-</span> <span class="n">sites_cart</span><span class="p">)</span>
+      <span class="n">norms</span> <span class="o">=</span> <span class="n">diffs</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+      <span class="n">flex</span><span class="o">.</span><span class="n">min_max_mean_double</span><span class="p">(</span><span class="n">norms</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+      <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">norms</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">[:</span><span class="mi">10</span><span class="p">]:</span>
+        <span class="n">debug</span><span class="p">(</span><span class="n">sites_cart</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">sites_cart_optimised</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">norms</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+
+      <span class="c"># only use those vectors which haven&#39;t shifted too far from starting point</span>
+      <span class="n">sel</span> <span class="o">=</span> <span class="n">norms</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">fft_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">sites</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sites</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+      <span class="c">#diff = (self.sites - flood_fill.centres_of_mass_frac().select(isel))</span>
+      <span class="c">#flex.min_max_mean_double(diff.norms()).show()</span>
+
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">sites</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">centres_of_mass_frac</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.find_candidate_basis_vectors"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_candidate_basis_vectors">[docs]</a>  <span class="k">def</span> <span class="nf">find_candidate_basis_vectors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c"># hijack the xray.structure class to facilitate calculation of distances</span>
+    <span class="n">xs</span> <span class="o">=</span> <span class="n">xray</span><span class="o">.</span><span class="n">structure</span><span class="p">(</span><span class="n">crystal_symmetry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sites</span><span class="p">):</span>
+      <span class="n">xs</span><span class="o">.</span><span class="n">add_scatterer</span><span class="p">(</span><span class="n">xray</span><span class="o">.</span><span class="n">scatterer</span><span class="p">(</span><span class="s">&quot;C</span><span class="si">%i</span><span class="s">&quot;</span> <span class="o">%</span><span class="n">i</span><span class="p">,</span> <span class="n">site</span><span class="o">=</span><span class="n">site</span><span class="p">))</span>
+
+    <span class="n">xs</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_mod_short</span><span class="p">()</span>
+    <span class="n">sites_cart</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_cart</span><span class="p">()</span>
+    <span class="n">lengths</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">sc</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="k">for</span> <span class="n">sc</span> <span class="ow">in</span> <span class="n">sites_cart</span><span class="p">])</span>
+    <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span>
+    <span class="n">xs</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+    <span class="n">volumes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;peaks.pdb&#39;</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="k">print</span> <span class="o">&gt;&gt;</span> <span class="n">f</span><span class="p">,</span> <span class="n">xs</span><span class="o">.</span><span class="n">as_pdb_file</span><span class="p">()</span>
+
+    <span class="n">sites_frac</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_frac</span><span class="p">()</span>
+    <span class="n">vectors</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_cart</span><span class="p">()</span>
+    <span class="n">norms</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+    <span class="n">sel</span> <span class="o">=</span> <span class="p">(</span><span class="n">norms</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">min_cell</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">norms</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span><span class="p">)</span>
+    <span class="n">vectors</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+    <span class="n">vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vectors</span><span class="p">]</span>
+    <span class="n">volumes</span> <span class="o">=</span> <span class="n">volumes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+    <span class="c"># XXX loop over these vectors and sort into groups similar to further down</span>
+    <span class="c"># group similar angle and lengths, also catch integer multiples of vectors</span>
+
+    <span class="n">vector_groups</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">relative_length_tolerance</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">angle_tolerance</span> <span class="o">=</span> <span class="mi">5</span> <span class="c"># degrees</span>
+
+    <span class="n">orth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fft_cell</span><span class="o">.</span><span class="n">orthogonalize</span>
+    <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">volume</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">vectors</span><span class="p">,</span> <span class="n">volumes</span><span class="p">):</span>
+      <span class="n">length</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">length</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">min_cell</span> <span class="ow">or</span> <span class="n">length</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="n">matched_group</span> <span class="o">=</span> <span class="bp">False</span>
+      <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">vector_groups</span><span class="p">:</span>
+        <span class="n">mean_v</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">mean_v_length</span> <span class="o">=</span> <span class="n">mean_v</span><span class="o">.</span><span class="n">length</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">mean_v_length</span> <span class="o">-</span> <span class="n">length</span><span class="p">)</span><span class="o">/</span><span class="nb">max</span><span class="p">(</span><span class="n">mean_v_length</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+            <span class="o">&lt;</span> <span class="n">relative_length_tolerance</span><span class="p">):</span>
+          <span class="n">angle</span> <span class="o">=</span> <span class="n">mean_v</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">angle</span> <span class="o">&lt;</span> <span class="n">angle_tolerance</span><span class="p">:</span>
+            <span class="n">group</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">volume</span><span class="p">)</span>
+            <span class="n">matched_group</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">break</span>
+          <span class="k">elif</span> <span class="nb">abs</span><span class="p">(</span><span class="mi">180</span><span class="o">-</span><span class="n">angle</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">angle_tolerance</span><span class="p">:</span>
+            <span class="n">group</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="n">v</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">volume</span><span class="p">)</span>
+            <span class="n">matched_group</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">break</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">matched_group</span><span class="p">:</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">vector_group</span><span class="p">()</span>
+        <span class="n">group</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">volume</span><span class="p">)</span>
+        <span class="n">vector_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+
+    <span class="n">vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">vector_groups</span><span class="p">]</span>
+    <span class="n">volumes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">volumes</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">vector_groups</span><span class="p">)</span>
+
+    <span class="c">## sort by length</span>
+    <span class="c">#lengths = flex.double([v.length() for v in vectors])</span>
+    <span class="c">#perm = flex.sort_permutation(lengths)</span>
+    <span class="c"># sort by peak size</span>
+    <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">volumes</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">volumes</span> <span class="o">=</span> <span class="n">volumes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+    <span class="n">vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">volume</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">vectors</span><span class="p">,</span> <span class="n">volumes</span><span class="p">)):</span>
+      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">(),</span> <span class="n">volume</span><span class="p">))</span>
+
+    <span class="n">lengths</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vectors</span><span class="p">)</span>
+    <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span>
+
+    <span class="c"># exclude vectors that are (approximately) integer multiples of a shorter</span>
+    <span class="c"># vector</span>
+    <span class="n">unique_vectors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">unique_volumes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">:</span>
+      <span class="n">v</span> <span class="o">=</span> <span class="n">vectors</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+      <span class="n">is_unique</span> <span class="o">=</span> <span class="bp">True</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v_u</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_vectors</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">((</span><span class="n">unique_volumes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">volumes</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="ow">and</span> <span class="n">is_approximate_integer_multiple</span><span class="p">(</span><span class="n">v_u</span><span class="p">,</span> <span class="n">v</span><span class="p">)):</span>
+          <span class="n">debug</span><span class="p">(</span><span class="s">&quot;rejecting </span><span class="si">%s</span><span class="s">: integer multiple of </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">(),</span> <span class="n">v_u</span><span class="o">.</span><span class="n">length</span><span class="p">()))</span>
+          <span class="n">is_unique</span> <span class="o">=</span> <span class="bp">False</span>
+          <span class="k">break</span>
+      <span class="k">if</span> <span class="n">is_unique</span><span class="p">:</span>
+        <span class="n">unique_vectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">unique_volumes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">volumes</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+
+    <span class="c"># re-sort by peak volume</span>
+    <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">unique_volumes</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">unique_vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">]</span>
+    <span class="n">volumes</span> <span class="o">=</span> <span class="n">unique_volumes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+
+    <span class="c">#for i, (v, volume) in enumerate(zip(vectors, volumes)):</span>
+      <span class="c">#debug(&quot;%s %s %s&quot; %(i, v.length(), volume))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span> <span class="o">=</span> <span class="n">vectors</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.find_basis_vector_combinations_cluster_analysis"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_basis_vector_combinations_cluster_analysis">[docs]</a>  <span class="k">def</span> <span class="nf">find_basis_vector_combinations_cluster_analysis</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c"># hijack the xray.structure class to facilitate calculation of distances</span>
+    <span class="n">xs</span> <span class="o">=</span> <span class="n">xray</span><span class="o">.</span><span class="n">structure</span><span class="p">(</span><span class="n">crystal_symmetry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sites</span><span class="p">):</span>
+      <span class="n">xs</span><span class="o">.</span><span class="n">add_scatterer</span><span class="p">(</span><span class="n">xray</span><span class="o">.</span><span class="n">scatterer</span><span class="p">(</span><span class="s">&quot;C</span><span class="si">%i</span><span class="s">&quot;</span> <span class="o">%</span><span class="n">i</span><span class="p">,</span> <span class="n">site</span><span class="o">=</span><span class="n">site</span><span class="p">))</span>
+
+    <span class="n">xs</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_mod_short</span><span class="p">()</span>
+    <span class="n">xs</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">sites_frac</span><span class="p">()</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.45</span><span class="p">)</span>
+    <span class="n">cell_multiplier</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">xs1</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span>
+      <span class="n">unit_cell</span><span class="o">=</span><span class="n">uctbx</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">([</span><span class="n">xs</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">parameters</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">cell_multiplier</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">))</span>
+    <span class="n">xs1</span><span class="o">.</span><span class="n">set_sites_cart</span><span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">sites_cart</span><span class="p">())</span>
+    <span class="n">xs</span> <span class="o">=</span> <span class="n">xs1</span>
+    <span class="n">sites_cart</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_cart</span><span class="p">()</span>
+    <span class="n">lengths</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">sc</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="k">for</span> <span class="n">sc</span> <span class="ow">in</span> <span class="n">sites_cart</span><span class="p">])</span>
+    <span class="n">xs</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">lengths</span><span class="p">))</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;peaks.pdb&#39;</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">print</span> <span class="o">&gt;&gt;</span> <span class="n">f</span><span class="p">,</span> <span class="n">xs</span><span class="o">.</span><span class="n">as_pdb_file</span><span class="p">()</span>
+
+    <span class="n">vector_heights</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+
+    <span class="n">sites_frac</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_frac</span><span class="p">()</span>
+    <span class="n">pair_asu_table</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">pair_asu_table</span><span class="p">(</span><span class="n">distance_cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span><span class="p">)</span>
+    <span class="n">asu_mappings</span> <span class="o">=</span> <span class="n">pair_asu_table</span><span class="o">.</span><span class="n">asu_mappings</span><span class="p">()</span>
+    <span class="n">distances</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">calculate_distances</span><span class="p">(</span><span class="n">pair_asu_table</span><span class="p">,</span> <span class="n">sites_frac</span><span class="p">)</span>
+    <span class="n">vectors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">difference_vectors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">pairs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">di</span> <span class="ow">in</span> <span class="n">distances</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">di</span><span class="o">.</span><span class="n">distance</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">min_cell</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">i_seq</span><span class="p">,</span> <span class="n">j_seq</span> <span class="o">=</span> <span class="n">di</span><span class="o">.</span><span class="n">i_seq</span><span class="p">,</span> <span class="n">di</span><span class="o">.</span><span class="n">j_seq</span>
+      <span class="k">if</span> <span class="n">i_seq</span> <span class="o">&gt;</span> <span class="n">j_seq</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">pairs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i_seq</span><span class="p">,</span> <span class="n">j_seq</span><span class="p">))</span>
+      <span class="n">rt_mx_ji</span> <span class="o">=</span> <span class="n">di</span><span class="o">.</span><span class="n">rt_mx_ji</span>
+      <span class="n">site_frac_ji</span> <span class="o">=</span> <span class="n">rt_mx_ji</span> <span class="o">*</span> <span class="n">sites_frac</span><span class="p">[</span><span class="n">j_seq</span><span class="p">]</span>
+      <span class="n">site_cart_ji</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">orthogonalize</span><span class="p">(</span><span class="n">site_frac_ji</span><span class="p">)</span>
+      <span class="n">site_cart_i</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">orthogonalize</span><span class="p">(</span><span class="n">sites_frac</span><span class="p">[</span><span class="n">i_seq</span><span class="p">])</span>
+      <span class="n">vectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">site_cart_ji</span><span class="p">))</span>
+      <span class="n">diff_vec</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">site_cart_i</span><span class="p">)</span> <span class="o">-</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">site_cart_ji</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">diff_vec</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c"># only one hemisphere of difference vector space</span>
+        <span class="n">diff_vec</span> <span class="o">=</span> <span class="o">-</span><span class="n">diff_vec</span>
+      <span class="n">difference_vectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">diff_vec</span><span class="p">)</span>
+
+    <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">cluster_analysis</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s">&#39;dbscan&#39;</span><span class="p">:</span>
+      <span class="n">i_cluster</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster_analysis_dbscan</span><span class="p">(</span><span class="n">difference_vectors</span><span class="p">)</span>
+      <span class="n">min_cluster_size</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s">&#39;hcluster&#39;</span><span class="p">:</span>
+      <span class="n">i_cluster</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster_analysis_hcluster</span><span class="p">(</span><span class="n">difference_vectors</span><span class="p">)</span>
+      <span class="n">i_cluster</span> <span class="o">-=</span> <span class="mi">1</span> <span class="c"># hcluster starts counting at 1</span>
+      <span class="n">min_cluster_size</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">min_cluster_size</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug_plots</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">debug_plot_clusters</span><span class="p">(</span>
+        <span class="n">difference_vectors</span><span class="p">,</span> <span class="n">i_cluster</span><span class="p">,</span> <span class="n">min_cluster_size</span><span class="o">=</span><span class="n">min_cluster_size</span><span class="p">)</span>
+
+
+    <span class="n">clusters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">min_cluster_size</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">min_cluster_size</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">i_cluster</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+      <span class="n">isel</span> <span class="o">=</span> <span class="p">(</span><span class="n">i_cluster</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_cluster_size</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="n">clusters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+
+    <span class="n">cluster_point_sets</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">centroids</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">cluster_sizes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
+
+    <span class="n">difference_vectors</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">difference_vectors</span><span class="p">)</span>
+
+    <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">flat_list</span>
+    <span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="n">clusters</span><span class="p">:</span>
+      <span class="n">points</span> <span class="o">=</span> <span class="n">flat_list</span><span class="p">([</span><span class="n">pairs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">cluster</span><span class="p">])</span>
+      <span class="n">cluster_point_sets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">points</span><span class="p">))</span>
+      <span class="n">d_vectors</span> <span class="o">=</span> <span class="n">difference_vectors</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span>
+      <span class="n">cluster_sizes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">d_vectors</span><span class="p">))</span>
+      <span class="n">centroids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d_vectors</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+
+    <span class="c"># build a graph where each node is a centroid from the difference vector</span>
+    <span class="c"># cluster analysis above, and an edge is defined when there is a</span>
+    <span class="c"># significant overlap between the sets of peaks in the FFT map that</span>
+    <span class="c"># contributed to the difference vectors in two clusters</span>
+    <span class="kn">import</span> <span class="nn">networkx</span> <span class="kn">as</span> <span class="nn">nx</span>
+    <span class="n">G</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+    <span class="n">G</span><span class="o">.</span><span class="n">add_nodes_from</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster_point_sets</span><span class="p">)))</span>
+
+    <span class="n">cutoff_frac</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster_point_sets</span><span class="p">)):</span>
+      <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">cluster_point_sets</span><span class="p">)):</span>
+        <span class="n">intersection_ij</span> <span class="o">=</span> <span class="n">cluster_point_sets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span>
+            <span class="n">cluster_point_sets</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+        <span class="n">union_ij</span> <span class="o">=</span> <span class="n">cluster_point_sets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">cluster_point_sets</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+        <span class="n">frac_connected</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">intersection_ij</span><span class="p">)</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">union_ij</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">frac_connected</span> <span class="o">&gt;</span> <span class="n">cutoff_frac</span><span class="p">:</span>
+          <span class="n">G</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span>
+
+    <span class="c"># iteratively find the maximum cliques in the graph</span>
+    <span class="c"># break from the loop if there are no cliques remaining or there are</span>
+    <span class="c"># fewer than 3 vectors in the remaining maximum clique</span>
+    <span class="c"># Allow 1 basis vector to be shared between two cliques, to allow for</span>
+    <span class="c"># cases where two lattices share one basis vectors (e.g. two plate</span>
+    <span class="c"># crystals exactly aligned in one direction, but not in the other two)</span>
+    <span class="n">distinct_cliques</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">cliques</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">find_cliques</span><span class="p">(</span><span class="n">G</span><span class="p">))</span>
+    <span class="n">cliques</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">cliques</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="nb">len</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">clique</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cliques</span><span class="p">):</span>
+      <span class="n">clique</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">clique</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">clique</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="n">is_distinct</span> <span class="o">=</span> <span class="bp">True</span>
+      <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">distinct_cliques</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">clique</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="n">is_distinct</span> <span class="o">=</span> <span class="bp">False</span>
+          <span class="k">break</span>
+      <span class="k">if</span> <span class="n">is_distinct</span><span class="p">:</span>
+        <span class="n">distinct_cliques</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">clique</span><span class="p">)</span>
+        <span class="n">this_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i_cluster</span> <span class="ow">in</span> <span class="n">clique</span><span class="p">:</span>
+          <span class="n">this_set</span> <span class="o">=</span> <span class="n">this_set</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">cluster_point_sets</span><span class="p">[</span><span class="n">i_cluster</span><span class="p">])</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&quot;Clique </span><span class="si">%i</span><span class="s">: </span><span class="si">%i</span><span class="s"> lattice points&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">this_set</span><span class="p">)))</span>
+
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">distinct_cliques</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;Estimated number of lattices: </span><span class="si">%i</span><span class="s">&quot;</span> <span class="o">%</span><span class="nb">len</span><span class="p">(</span><span class="n">distinct_cliques</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">clique</span> <span class="ow">in</span> <span class="n">distinct_cliques</span><span class="p">:</span>
+      <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">clique</span><span class="p">))</span>
+      <span class="n">vectors</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">centroids</span><span class="p">)</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+      <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">vectors</span><span class="o">.</span><span class="n">norms</span><span class="p">())</span>
+      <span class="n">vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">vectors</span><span class="p">[</span><span class="n">p</span><span class="p">])</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">]</span>
+
+      <span class="c"># exclude vectors that are (approximately) integer multiples of a shorter</span>
+      <span class="c"># vector</span>
+      <span class="n">unique_vectors</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vectors</span><span class="p">:</span>
+        <span class="n">is_unique</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">for</span> <span class="n">v_u</span> <span class="ow">in</span> <span class="n">unique_vectors</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">is_approximate_integer_multiple</span><span class="p">(</span><span class="n">v_u</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span>
+                                             <span class="n">relative_tolerance</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+                                             <span class="n">angular_tolerance</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+            <span class="n">is_unique</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">break</span>
+        <span class="k">if</span> <span class="n">is_unique</span><span class="p">:</span>
+          <span class="n">unique_vectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+      <span class="n">vectors</span> <span class="o">=</span> <span class="n">unique_vectors</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span>
+      <span class="n">candidate_orientation_matrices</span> \
+        <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_candidate_orientation_matrices</span><span class="p">(</span>
+          <span class="n">vectors</span><span class="p">,</span>
+          <span class="n">max_combinations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">basis_vector_combinations</span><span class="o">.</span><span class="n">max_try</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidate_orientation_matrices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="n">crystal_model</span><span class="p">,</span> <span class="n">n_indexed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">choose_best_orientation_matrix</span><span class="p">(</span>
+        <span class="n">candidate_orientation_matrices</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">crystal_model</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="c"># map to minimum reduced cell</span>
+      <span class="n">crystal_symmetry</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span>
+        <span class="n">unit_cell</span><span class="o">=</span><span class="n">crystal_model</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">(),</span>
+        <span class="n">space_group</span><span class="o">=</span><span class="n">crystal_model</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">())</span>
+      <span class="n">cb_op</span> <span class="o">=</span> <span class="n">crystal_symmetry</span><span class="o">.</span><span class="n">change_of_basis_op_to_minimum_cell</span><span class="p">()</span>
+      <span class="n">crystal_model</span> <span class="o">=</span> <span class="n">crystal_model</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">crystal_model</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+      <span class="n">file_name</span> <span class="o">=</span> <span class="s">&quot;vectors.pdb&quot;</span>
+      <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span>
+      <span class="n">cs</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span><span class="n">unit_cell</span><span class="o">=</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="mi">90</span><span class="p">,</span><span class="mi">90</span><span class="p">,</span><span class="mi">90</span><span class="p">),</span> <span class="n">space_group</span><span class="o">=</span><span class="s">&quot;P1&quot;</span><span class="p">)</span>
+      <span class="n">xs</span> <span class="o">=</span> <span class="n">xray</span><span class="o">.</span><span class="n">structure</span><span class="p">(</span><span class="n">crystal_symmetry</span><span class="o">=</span><span class="n">cs</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">difference_vectors</span><span class="p">:</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">xs</span><span class="o">.</span><span class="n">add_scatterer</span><span class="p">(</span><span class="n">xray</span><span class="o">.</span><span class="n">scatterer</span><span class="p">(</span><span class="s">&quot;C&quot;</span><span class="p">,</span> <span class="n">site</span><span class="o">=</span><span class="n">v</span><span class="o">/</span><span class="p">(</span><span class="n">a</span><span class="o">/</span><span class="mi">10</span><span class="p">)))</span>
+      <span class="n">xs</span><span class="o">.</span><span class="n">sites_mod_short</span><span class="p">()</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">print</span> <span class="o">&gt;&gt;</span> <span class="n">f</span><span class="p">,</span> <span class="n">xs</span><span class="o">.</span><span class="n">as_pdb_file</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">crystal_model</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span><span class="p">:</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">crystal_model</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.cluster_analysis_hcluster"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.cluster_analysis_hcluster">[docs]</a>  <span class="k">def</span> <span class="nf">cluster_analysis_hcluster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vectors</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">hcluster</span> <span class="kn">import</span> <span class="n">linkage</span><span class="p">,</span> <span class="n">fcluster</span>
+    <span class="kn">import</span> <span class="nn">numpy</span>
+
+    <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">cluster_analysis</span><span class="o">.</span><span class="n">hcluster</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span>
+    <span class="n">linkage_method</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">linkage</span><span class="o">.</span><span class="n">method</span>
+    <span class="n">linkage_metric</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">linkage</span><span class="o">.</span><span class="n">metric</span>
+    <span class="n">criterion</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">cutoff_criterion</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">linkage</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">linkage_method</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="n">linkage_metric</span><span class="p">)</span>
+    <span class="n">cutoff</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">cutoff</span>
+    <span class="n">i_cluster</span> <span class="o">=</span> <span class="n">fcluster</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="n">criterion</span><span class="p">)</span>
+    <span class="n">i_cluster</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">i_cluster</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">i_cluster</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.cluster_analysis_dbscan"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.cluster_analysis_dbscan">[docs]</a>  <span class="k">def</span> <span class="nf">cluster_analysis_dbscan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vectors</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+    <span class="kn">from</span> <span class="nn">sklearn.cluster</span> <span class="kn">import</span> <span class="n">DBSCAN</span>
+    <span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="kn">import</span> <span class="n">StandardScaler</span>
+
+    <span class="n">vectors</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span>
+
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span>
+    <span class="c"># scale the data - is this necessary/does it help or hinder?</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="c"># Compute DBSCAN</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">cluster_analysis</span><span class="o">.</span><span class="n">dbscan</span>
+    <span class="n">db</span> <span class="o">=</span> <span class="n">DBSCAN</span><span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span> <span class="n">min_samples</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">min_samples</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">core_samples</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">core_sample_indices_</span>
+    <span class="c"># core_samples is a list of numpy.int64 objects</span>
+    <span class="n">core_samples</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">core_samples</span><span class="p">])</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">labels_</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">))</span>
+
+    <span class="c"># Number of clusters in labels, ignoring noise if present.</span>
+    <span class="n">n_clusters_</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">labels</span><span class="p">))</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="k">if</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">in</span> <span class="n">labels</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Estimated number of clusters: </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">n_clusters_</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">labels</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.debug_plot_clusters"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.debug_plot_clusters">[docs]</a>  <span class="k">def</span> <span class="nf">debug_plot_clusters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vectors</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">min_cluster_size</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span>
+    <span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="kn">import</span> <span class="n">Axes3D</span> <span class="c"># import dependency</span>
+    <span class="kn">import</span> <span class="nn">numpy</span>
+
+    <span class="c"># Black removed and is used for noise instead.</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">pyplot</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s">&#39;3d&#39;</span><span class="p">)</span>
+    <span class="c"># label clusters smaller than min_cluster_size as noise</span>
+    <span class="n">unique_labels</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">unique_labels</span><span class="p">:</span>
+      <span class="n">sel_k</span> <span class="o">=</span> <span class="n">labels</span> <span class="o">==</span> <span class="n">k</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">sel_k</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_cluster_size</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel_k</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">unique_labels</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">n_clusters</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="k">if</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">in</span> <span class="n">unique_labels</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">colours</span> <span class="o">=</span> <span class="n">pyplot</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">Spectral</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">)))</span>
+    <span class="c">#vectors = flex.vec3_double(vectors)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">([</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s">&#39;k&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s">&#39;+&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">,</span> <span class="n">colours</span><span class="p">):</span>
+      <span class="n">class_members</span> <span class="o">=</span> <span class="p">(</span><span class="n">labels</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span><span class="c"># or len(class_members) &lt; min_cluster_size:</span>
+          <span class="c"># Black used for noise.</span>
+        <span class="n">col</span> <span class="o">=</span> <span class="s">&#39;k&#39;</span>
+        <span class="n">col</span> <span class="o">=</span> <span class="s">&#39;0.25&#39;</span> <span class="c"># mid-grey</span>
+        <span class="n">markersize</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">marker</span> <span class="o">=</span> <span class="s">&#39;+&#39;</span>
+        <span class="c">#continue</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">markersize</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="n">marker</span> <span class="o">=</span> <span class="s">&#39;o&#39;</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="c"># darken the edges</span>
+        <span class="n">frac</span> <span class="o">=</span> <span class="mf">0.75</span>
+        <span class="n">edgecolor</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">frac</span><span class="p">,</span> <span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">frac</span><span class="p">,</span> <span class="n">col</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">frac</span><span class="p">,</span> <span class="n">col</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">edgecolor</span> <span class="o">=</span> <span class="n">col</span>
+      <span class="n">vs</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">class_members</span><span class="p">])</span>
+      <span class="n">xs</span> <span class="o">=</span> <span class="n">vs</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span>
+      <span class="n">ys</span> <span class="o">=</span> <span class="n">vs</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span>
+      <span class="n">zs</span> <span class="o">=</span> <span class="n">vs</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span>
+      <span class="c"># plot whole sphere for visual effect</span>
+      <span class="n">xs</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">xs</span><span class="p">,</span> <span class="o">-</span><span class="n">xs</span><span class="p">))</span>
+      <span class="n">ys</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">ys</span><span class="p">,</span> <span class="o">-</span><span class="n">ys</span><span class="p">))</span>
+      <span class="n">zs</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">zs</span><span class="p">,</span> <span class="o">-</span><span class="n">zs</span><span class="p">))</span>
+      <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">,</span> <span class="n">zs</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">col</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="n">marker</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">markersize</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="n">edgecolor</span><span class="p">)</span>
+
+    <span class="n">pyplot</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&#39;Estimated number of clusters: </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">n_clusters</span><span class="p">)</span>
+    <span class="n">pyplot</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.find_peaks_clean"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_peaks_clean">[docs]</a>  <span class="k">def</span> <span class="nf">find_peaks_clean</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">omptbx</span>
+    <span class="c"># doesn&#39;t seem to be any benefit to using more than say 8 threads</span>
+    <span class="n">num_threads</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="n">omptbx</span><span class="o">.</span><span class="n">omp_get_num_procs</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">nproc</span><span class="p">)</span>
+    <span class="n">omptbx</span><span class="o">.</span><span class="n">omp_set_num_threads</span><span class="p">(</span><span class="n">num_threads</span><span class="p">)</span>
+    <span class="n">d_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span>
+    <span class="n">rlgrid</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">d_min</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="n">frame_number</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;xyzobs.px.value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">scan_range_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+      <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">frame_number</span><span class="p">))),</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span> <span class="c"># XXX what about multiple imagesets?</span>
+    <span class="n">scan_range_max</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+      <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">frame_number</span><span class="p">))),</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span> <span class="c"># XXX what about multiple imagesets?</span>
+    <span class="n">scan_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scan_range</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">scan_range</span><span class="p">):</span>
+      <span class="n">scan_range</span> <span class="o">=</span> <span class="p">[[</span><span class="n">scan_range_min</span><span class="p">,</span> <span class="n">scan_range_max</span><span class="p">]]</span>
+
+    <span class="n">scan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span> <span class="c"># XXX what about multiple imagesets?</span>
+    <span class="n">angle_ranges</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="p">[</span><span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_array_index</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">range_</span><span class="p">]</span>
+      <span class="k">for</span> <span class="n">range_</span> <span class="ow">in</span> <span class="n">scan_range</span><span class="p">]</span>
+
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">sampling_volume_map</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec2_double</span><span class="p">(</span><span class="n">angle_ranges</span><span class="p">),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_s0</span><span class="p">(),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span><span class="o">.</span><span class="n">get_rotation_axis</span><span class="p">(),</span>
+                        <span class="n">rlgrid</span><span class="p">,</span> <span class="n">d_min</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">b_iso</span><span class="p">)</span>
+
+    <span class="n">fft</span> <span class="o">=</span> <span class="n">fftpack</span><span class="o">.</span><span class="n">complex_to_complex_3d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">)</span>
+    <span class="n">grid_complex</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">complex_double</span><span class="p">(</span>
+      <span class="n">reals</span><span class="o">=</span><span class="n">grid</span><span class="p">,</span>
+      <span class="n">imags</span><span class="o">=</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="n">grid_transformed</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">grid_complex</span><span class="p">)</span>
+    <span class="n">grid_real</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">grid_transformed</span><span class="p">))</span>
+
+    <span class="n">gamma</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">peaks</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">()</span>
+    <span class="c">#n_peaks = 200</span>
+    <span class="n">n_peaks</span> <span class="o">=</span> <span class="mi">100</span> <span class="c"># XXX how many do we need?</span>
+
+    <span class="n">dirty_beam</span> <span class="o">=</span> <span class="n">grid_real</span>
+    <span class="n">dirty_map</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_real</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+    <span class="kn">import</span> <span class="nn">time</span>
+    <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">peaks</span> <span class="o">=</span> <span class="n">clean_3d</span><span class="p">(</span><span class="n">dirty_beam</span><span class="p">,</span> <span class="n">dirty_map</span><span class="p">,</span> <span class="n">n_peaks</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">)</span>
+    <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="c">#print &quot;clean_3d took %.2f s&quot; %(t1-t0)</span>
+
+    <span class="n">reciprocal_lattice_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;rlp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">reflections_used_for_indexing</span><span class="p">)</span>
+
+    <span class="n">peaks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimise_peaks</span><span class="p">(</span><span class="n">peaks</span><span class="p">,</span> <span class="n">reciprocal_lattice_points</span><span class="p">)</span>
+
+    <span class="n">peaks_frac</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">:</span>
+      <span class="n">peaks_frac</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                         <span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                         <span class="n">p</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+      <span class="c">#print p, peaks_frac[-1]</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">debug_write_ccp4_map</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="s">&quot;sampling_volume.map&quot;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">debug_write_ccp4_map</span><span class="p">(</span><span class="n">grid_real</span><span class="p">,</span> <span class="s">&quot;sampling_volume_FFT.map&quot;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">debug_write_ccp4_map</span><span class="p">(</span><span class="n">dirty_map</span><span class="p">,</span> <span class="s">&quot;clean.map&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">sites</span> <span class="o">=</span> <span class="n">peaks_frac</span>
+    <span class="c"># we don&#39;t really know the &quot;volume&quot;&quot; of the peaks, but this method should</span>
+    <span class="c"># find the peaks in order of their intensity (strongest first)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sites</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+
+    <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="indexer_fft3d.optimise_peaks"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.optimise_peaks">[docs]</a>  <span class="k">def</span> <span class="nf">optimise_peaks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">peaks</span><span class="p">,</span> <span class="n">reciprocal_lattice_points</span><span class="p">):</span>
+    <span class="c"># optimise the peak position using a grid search around the starting peak position</span>
+    <span class="n">optimised_peaks</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">()</span>
+    <span class="n">n_points</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">grid_step</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="k">for</span> <span class="n">peak</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">:</span>
+      <span class="n">max_value</span> <span class="o">=</span> <span class="mf">1e-8</span>
+      <span class="n">max_index</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">n_points</span><span class="p">,</span> <span class="n">n_points</span><span class="p">):</span>
+        <span class="n">i_coord</span> <span class="o">=</span> <span class="n">peak</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">grid_step</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">n_points</span><span class="p">,</span> <span class="n">n_points</span><span class="p">):</span>
+          <span class="n">j_coord</span> <span class="o">=</span> <span class="n">peak</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">j</span> <span class="o">*</span> <span class="n">grid_step</span>
+          <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">n_points</span><span class="p">,</span> <span class="n">n_points</span><span class="p">):</span>
+            <span class="n">k_coord</span> <span class="o">=</span> <span class="n">peak</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">k</span> <span class="o">*</span> <span class="n">grid_step</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fft_cell</span><span class="o">.</span><span class="n">orthogonalize</span><span class="p">(</span>
+              <span class="p">(</span><span class="n">i_coord</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">j_coord</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">k_coord</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="n">two_pi_S_dot_v</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">reciprocal_lattice_points</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">two_pi_S_dot_v</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">f</span> <span class="o">&gt;</span> <span class="n">max_value</span><span class="p">:</span>
+              <span class="n">max_value</span> <span class="o">=</span> <span class="n">f</span>
+              <span class="n">max_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">i_coord</span><span class="p">,</span> <span class="n">j_coord</span><span class="p">,</span> <span class="n">k_coord</span><span class="p">)</span>
+      <span class="n">optimised_peaks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">max_index</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">optimised_peaks</span>
+
+</div></div>
+<div class="viewcode-block" id="sampling_volume_map"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.sampling_volume_map">[docs]</a><span class="k">def</span> <span class="nf">sampling_volume_map</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">angle_range</span><span class="p">,</span> <span class="n">beam_vector</span><span class="p">,</span> <span class="n">rotation_axis</span><span class="p">,</span>
+                        <span class="n">rl_grid_spacing</span><span class="p">,</span> <span class="n">d_min</span><span class="p">,</span> <span class="n">b_iso</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.indexing</span> <span class="kn">import</span> <span class="n">sampling_volume_map</span>
+    <span class="k">return</span> <span class="n">sampling_volume_map</span><span class="p">(</span>
+      <span class="n">data</span><span class="p">,</span> <span class="n">angle_range</span><span class="p">,</span> <span class="n">beam_vector</span><span class="p">,</span> <span class="n">rotation_axis</span><span class="p">,</span> <span class="n">rl_grid_spacing</span><span class="p">,</span> <span class="n">d_min</span><span class="p">,</span> <span class="n">b_iso</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="clean_3d"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.clean_3d">[docs]</a><span class="k">def</span> <span class="nf">clean_3d</span><span class="p">(</span><span class="n">dirty_beam</span><span class="p">,</span> <span class="n">dirty_map</span><span class="p">,</span> <span class="n">n_peaks</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+  <span class="kn">from</span> <span class="nn">dials.algorithms.indexing</span> <span class="kn">import</span> <span class="n">clean_3d</span> <span class="k">as</span> <span class="n">_clean_3d</span>
+  <span class="k">return</span> <span class="n">_clean_3d</span><span class="p">(</span><span class="n">dirty_beam</span><span class="p">,</span> <span class="n">dirty_map</span><span class="p">,</span> <span class="n">n_peaks</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

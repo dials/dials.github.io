@@ -1,0 +1,338 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Developer Tutorial &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../index.html" />
+    <link rel="up" title="Tutorials" href="index.html" />
+    <link rel="next" title="Publications" href="../../publications.html" />
+    <link rel="prev" title="Refining multi-tile detector metrology with DIALS" href="metrology_corrections.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="developer-tutorial">
+<h1>Developer Tutorial<a class="headerlink" href="#developer-tutorial" title="Permalink to this headline">¶</a></h1>
+<p>DIALS has been designed to be extensible. If you&#8217;ve got a great idea for a new
+integration algorithm, then, with a bit of work, you should be able to get it
+running within the DIALS framework. The following tutorial applies for both
+developers looking to put their algorithms within DIALS itself as well as for
+those adding algorithms in their own installation.</p>
+<div class="section" id="spot-finding">
+<h2>Spot Finding<a class="headerlink" href="#spot-finding" title="Permalink to this headline">¶</a></h2>
+<p>Algorithms for computing the possible spot pixels used in spot finding should
+implement the following interface. An example can be found under
+&#8220;dials/extensions/kabsch_spotfinder_threshold_ext.py&#8221;.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">SpotFinderThresholdIface</span><span class="p">(</span><span class="n">interface</span><span class="o">.</span><span class="n">Interface</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">imageset</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">compute_threshold</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The algorithm is configured through phil parameters and the imageset.
+The extension should also provide a <tt class="samp docutils literal"><span class="pre">compute_threshold</span></tt> method which
+takes an image and a mask and should return a flex.bool array of the same
+dimensions where <tt class="samp docutils literal"><span class="pre">True</span></tt> pixels are possible spot pixels and <tt class="samp docutils literal"><span class="pre">False</span></tt>
+pixels are background.</p>
+</div>
+<div class="section" id="profile-modelling">
+<h2>Profile Modelling<a class="headerlink" href="#profile-modelling" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The profile modelling framework is not very mature and may be
+changed. I&#8217;ll try and keep the documentation up-to-date.</p>
+</div>
+<p>Algorithms for computing the profile model should implement the following
+interface. An example can be found under
+&#8220;dials/extensions/gaussian_rs_profile_model_ext.py&#8221;.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">ProfileModelCreatorIface</span><span class="p">(</span><span class="n">interface</span><span class="o">.</span><span class="n">Interface</span><span class="p">):</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The profile algorithm should have a &#8220;create&#8221; method that is given phil
+parameters, experiments and (optionally) reflections. In the absence of
+reflections, the profile model should be constructable from phil parameters.
+When reflections are present, the create method should be able to construct the
+model from the input reflections and experiments.</p>
+<p>The algorithm should return an instance of the ProfileModelList class (found in
+<tt class="samp docutils literal"><span class="pre">dials.algorithms.profile_model.model_list</span></tt>). The profile model list
+should contain a list of objects which implement the interface given in
+the <tt class="samp docutils literal"><span class="pre">dials.algorithms.profile_model.interface</span></tt> module and shown in brief
+below.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">ProfileModelIface</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">predict_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">compute_bbox</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">compute_partiality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The profile model should have methods for predicting the reflections, computing
+the bounding box of reflections for a number of experiments, computing the
+partiality of reflections and computing the foreground/background mask. Of these
+the bounding box and mask methods are crucial for integration to work;
+partiality is currently only used in reporting and can be a placeholder.</p>
+<p>The extention should have the ability to dump the profile model to phil
+parameters so that it can be input via a profile.phil file to, for example,
+re-run integration with the same profile parameters.</p>
+</div>
+<div class="section" id="indexing">
+<h2>Indexing<a class="headerlink" href="#indexing" title="Permalink to this headline">¶</a></h2>
+<p>FIXME</p>
+</div>
+<div class="section" id="refinement">
+<h2>Refinement<a class="headerlink" href="#refinement" title="Permalink to this headline">¶</a></h2>
+<p>FIXME</p>
+</div>
+<div class="section" id="integration">
+<h2>Integration<a class="headerlink" href="#integration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="centroid-algorithms">
+<h3>Centroid algorithms<a class="headerlink" href="#centroid-algorithms" title="Permalink to this headline">¶</a></h3>
+<p>Algorithms for computing the reflection centroid should implement the following
+interface. An example can be found under
+&#8220;dials/extensions/simple_centroid_ext.py&#8221;.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">CentroidIface</span><span class="p">(</span><span class="n">interface</span><span class="o">.</span><span class="n">Interface</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">compute_centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The algorithm is configured through phil parameters and the list of experiments.
+The extension should also provide a <tt class="samp docutils literal"><span class="pre">compute_centroid</span></tt> method which
+takes a list of reflections with extracted shoebox data. The &#8220;shoebox&#8221; column of
+the reflection table should contain a list of <tt class="samp docutils literal"><span class="pre">dials.model.Shoebox</span></tt> types.
+The algorithm should fill the &#8220;xyzobs.px&#8221; column of the reflection table with
+the observed centroid positions.</p>
+</div>
+<div class="section" id="background-algorithms">
+<h3>Background algorithms<a class="headerlink" href="#background-algorithms" title="Permalink to this headline">¶</a></h3>
+<p>Algorithms for computing the reflection background should implement the
+following interface. An example can be found under
+&#8220;dials/extensions/simple_background_ext.py&#8221;.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">BackgroundIface</span><span class="p">(</span><span class="n">interface</span><span class="o">.</span><span class="n">Interface</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="nd">@interface.abstractmethod</span>
+  <span class="k">def</span> <span class="nf">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The algorithm is configured through phil parameters and the list of experiments.
+The extension should also provide a <tt class="samp docutils literal"><span class="pre">compute_background</span></tt> method which
+takes a list of reflections with extracted shoebox data. The &#8220;shoebox&#8221; column of
+the reflection table should contain a list of <tt class="samp docutils literal"><span class="pre">dials.model.Shoebox</span></tt> types.
+The algorithm should fill the shoebox.background values and return the
+reflection list.</p>
+</div>
+</div>
+<div class="section" id="deploying-algorithms">
+<h2>Deploying algorithms<a class="headerlink" href="#deploying-algorithms" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="within-the-dials-project">
+<h3>Within the DIALS project<a class="headerlink" href="#within-the-dials-project" title="Permalink to this headline">¶</a></h3>
+<p>The DIALS project has the following layout.</p>
+<div class="highlight-none"><div class="highlight"><pre>dials
+|
+|-- algorithms
+|   |
+|   |-- integration
+|       |
+|       |-- sum
+|           |
+|           |-- ...
+|
+|-- interfaces
+|   |
+|   |-- ...
+|
+|-- extensions
+    |
+    |-- summation_integration_ext.py
+    |
+    |-- ...
+</pre></div>
+</div>
+<p>Each algorithm should have it&#8217;s implementation encapsulated within a package in
+the appropriate place. For example, summation integration is implemented within
+the &#8220;dials.algorithms.integration.sum&#8221; package. The extension class, which
+inherits from the appropriate interface, and configures and calls this algorithm
+should then be placed in the &#8220;dials/extensions&#8221; folder with an appropriate name.
+For example, the summation integration extension is placed in the module
+&#8220;dials.extensions.summation_integration_ext&#8221;. Modules within the dials.extension
+package will be automatically loaded when searching for algorithms and any class
+within these modules that inherits from an interface will be registered for use
+within the DIALS command line programs.</p>
+</div>
+<div class="section" id="within-external-projects">
+<h3>Within external projects<a class="headerlink" href="#within-external-projects" title="Permalink to this headline">¶</a></h3>
+<p>If you have a project containing algorithms written for use within DIALS that is
+built using the cctbx build system, it is easy to make DIALS aware of your new
+algorithms.</p>
+<p>A typical project layout is shown below.</p>
+<div class="highlight-none"><div class="highlight"><pre>my_project
+|
+|-- algorithms
+|   |
+|   |-- integration
+|       |
+|       |-- my_algorithm
+|           |
+|           |-- ...
+|
+|-- extensions
+    |
+    |-- my_algorithm_intensity_ext.py
+</pre></div>
+</div>
+<p>If your project has this directory structure, with an intensity algorithm
+implementation within the &#8220;my_algorithm&#8221; directory and the extension class
+(inheriting from the IntensityIface class) in the &#8220;extension&#8221; directory you can
+make DIALS aware of your algorithm by adding the following code to the
+libtbx_refresh.py scripy in the top level of your project. This will add the
+extensions directory in your project to the list of directories searched when
+loading available algorithms.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># libtbx_refresh.py</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">dials.framework</span> <span class="kn">import</span> <span class="n">env</span>
+  <span class="kn">import</span> <span class="nn">libtbx.load_env</span>
+  <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
+  <span class="n">path</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">dist_path</span><span class="p">(</span><span class="s">&quot;my_project&quot;</span><span class="p">)</span>
+  <span class="n">env</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s">&quot;extensions&quot;</span><span class="p">))</span>
+<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+  <span class="k">pass</span>
+</pre></div>
+</div>
+<p>Running &#8220;libtbx.refresh&#8221; or &#8220;make reconf&#8221; will update your build. You can check
+that your algorithm has been found properly by using the &#8220;dials.show_extensions&#8221;
+command-line program which should show a list of extensions implementing each
+interface with your algorithm listed with the other available algorithms.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

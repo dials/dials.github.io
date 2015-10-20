@@ -1,0 +1,246 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.algorithms.spot_prediction.reflection_predictor &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for dials.algorithms.spot_prediction.reflection_predictor</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+<span class="c">#</span>
+<span class="c"># reflection_predictor.py</span>
+<span class="c">#</span>
+<span class="c">#  Copyright (C) 2014 Diamond Light Source</span>
+<span class="c">#</span>
+<span class="c">#  Author: James Parkhurst</span>
+<span class="c">#</span>
+<span class="c">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c">#  included in the root directory of this package.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+
+<span class="c"># The phil parameters</span>
+<span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+
+<span class="s">  prediction {</span>
+
+<span class="s">    d_min = None</span>
+<span class="s">      .type = float</span>
+<span class="s">      .help = &quot;The maximum resolution limit&quot;</span>
+
+<span class="s">    d_max = None</span>
+<span class="s">      .type = float</span>
+<span class="s">      .help = &quot;The minimum resolution limit&quot;</span>
+
+<span class="s">    margin = 1</span>
+<span class="s">      .type = int</span>
+<span class="s">      .help = &quot;The margin to use to scan varying prediction&quot;</span>
+
+<span class="s">    force_static = False</span>
+<span class="s">      .type = bool</span>
+<span class="s">      .help = &quot;For scan-varying prediction for scan-static&quot;</span>
+
+<span class="s">  }</span>
+
+<span class="s">&#39;&#39;&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ReflectionPredictor"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.spot_prediction.html#dials.algorithms.spot_prediction.reflection_predictor.ReflectionPredictor">[docs]</a><span class="k">class</span> <span class="nc">ReflectionPredictor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A reflection predictor that takes a number of experiments and does the proper</span>
+<span class="sd">  prediction for each type of experiment.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">experiment</span><span class="p">,</span>
+               <span class="n">dmin</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">dmax</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">margin</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+               <span class="n">force_static</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise a predictor for each experiment.</span>
+
+<span class="sd">    :param experiment: The experiment to predict for</span>
+<span class="sd">    :param dmin: The maximum resolution</span>
+<span class="sd">    :param dmax: The minimum resolution</span>
+<span class="sd">    :param margin: The margin of hkl to predict</span>
+<span class="sd">    :param force_static: force scan varying prediction to be static</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.spot_prediction</span> <span class="kn">import</span> <span class="n">ScanStaticReflectionPredictor</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.spot_prediction</span> <span class="kn">import</span> <span class="n">ScanVaryingReflectionPredictor</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.spot_prediction</span> <span class="kn">import</span> <span class="n">StillsReflectionPredictor</span>
+    <span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="kn">import</span> <span class="n">ImageSweep</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+
+    <span class="k">class</span> <span class="nc">Predictor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+      <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">dmax</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+          <span class="k">assert</span><span class="p">(</span><span class="n">dmax</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+          <span class="n">result</span><span class="o">.</span><span class="n">compute_d_single</span><span class="p">(</span><span class="n">experiment</span><span class="p">)</span>
+          <span class="n">mask</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s">&#39;d&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">dmax</span>
+          <span class="n">result</span><span class="o">.</span><span class="n">del_selected</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="c"># Select the predictor class</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSweep</span><span class="p">):</span>
+      <span class="n">nsp</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">num_scan_points</span>
+      <span class="n">nim</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_num_images</span><span class="p">()</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">force_static</span> <span class="ow">and</span> <span class="n">nsp</span> <span class="o">==</span> <span class="n">nim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">predictor</span> <span class="o">=</span> <span class="n">ScanVaryingReflectionPredictor</span><span class="p">(</span>
+          <span class="n">experiment</span><span class="p">,</span>
+          <span class="n">dmin</span><span class="o">=</span><span class="n">dmin</span><span class="p">,</span>
+          <span class="n">margin</span><span class="o">=</span><span class="n">margin</span><span class="p">)</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="p">[</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_A_at_scan_point</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span>
+               <span class="nb">range</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">num_scan_points</span><span class="p">)]</span>
+        <span class="n">predict</span> <span class="o">=</span> <span class="n">Predictor</span><span class="p">(</span>
+          <span class="s">&quot;scan varying prediction&quot;</span><span class="p">,</span>
+          <span class="k">lambda</span><span class="p">:</span> <span class="n">predictor</span><span class="o">.</span><span class="n">for_ub</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">mat3_double</span><span class="p">(</span><span class="n">A</span><span class="p">)))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">predictor</span> <span class="o">=</span> <span class="n">ScanStaticReflectionPredictor</span><span class="p">(</span>
+          <span class="n">experiment</span><span class="p">,</span>
+          <span class="n">dmin</span><span class="o">=</span><span class="n">dmin</span><span class="p">)</span>
+        <span class="n">predict</span> <span class="o">=</span> <span class="n">Predictor</span><span class="p">(</span>
+          <span class="s">&quot;scan static prediction&quot;</span><span class="p">,</span>
+          <span class="k">lambda</span><span class="p">:</span> <span class="n">predictor</span><span class="o">.</span><span class="n">for_ub</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_A</span><span class="p">()))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">predictor</span> <span class="o">=</span> <span class="n">StillsReflectionPredictor</span><span class="p">(</span>
+        <span class="n">experiment</span><span class="p">,</span>
+        <span class="n">dmin</span><span class="o">=</span><span class="n">dmin</span><span class="p">)</span>
+
+      <span class="n">predict</span> <span class="o">=</span> <span class="n">Predictor</span><span class="p">(</span>
+        <span class="s">&quot;stills prediction&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">predictor</span><span class="o">.</span><span class="n">for_ub</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_A</span><span class="p">()))</span>
+
+    <span class="c"># Create and add the predictor class</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_predict</span> <span class="o">=</span> <span class="n">predict</span>
+
+  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Predict all the observable reflections.</span>
+
+<span class="sd">    :return: A reflection table</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Prediction type: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict</span><span class="p">()</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Predicted </span><span class="si">%d</span><span class="s"> reflections&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">table</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">table</span>
+
+<div class="viewcode-block" id="ReflectionPredictor.predictor"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.spot_prediction.html#dials.algorithms.spot_prediction.reflection_predictor.ReflectionPredictor.predictor">[docs]</a>  <span class="k">def</span> <span class="nf">predictor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Get the predictor for the given experiment index.</span>
+
+<span class="sd">    :param index: The experiment index</span>
+<span class="sd">    :return: The predictor</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict</span><span class="p">[</span><span class="n">index</span><span class="p">]</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

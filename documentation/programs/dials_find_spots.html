@@ -1,0 +1,357 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.find_spots &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../index.html" />
+    <link rel="up" title="Program documentation" href="index.html" />
+    <link rel="next" title="dials.find_spots_server/client" href="dials_find_spots_server.html" />
+    <link rel="prev" title="dials.import" href="dials_import.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="dials-find-spots">
+<h1>dials.find_spots<a class="headerlink" href="#dials-find-spots" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This program tries to find strong spots on a sequence of images. The program can
+be called with either a &#8220;datablock.json&#8221; file or a sequence of image files (see
+help for dials.import for more information about how images are imported). Spot
+finding will be done against each logically grouped set of images given. Strong
+pixels will be found on each image and spots will be formed from connected
+components. In the case of rotation images, connected component labelling will
+be done in 3D.</p>
+<p>Once a set of spots have been found, their centroids and intensities will be
+calculated. They will then be filtered according to the particular preferences
+of the user. The output will be a file (strong.pickle) containing a list of spot
+centroids and intensities which can be used in the dials.index program. To view
+a list of parameters for spot finding use the &#8211;show-config option.</p>
+<p>Examples:</p>
+<div class="highlight-python"><div class="highlight"><pre>dials.find_spots image1.cbf
+
+dials.find_spots imager_00*.cbf
+
+dials.find_spots datablock.json
+
+dials.find_spots datablock.json output.reflections=strong.pickle
+</pre></div>
+</div>
+</div>
+<div class="section" id="basic-parameters">
+<h2>Basic parameters<a class="headerlink" href="#basic-parameters" title="Permalink to this headline">¶</a></h2>
+<pre class="literal-block">
+output {
+  reflections = 'strong.pickle'
+  shoeboxes = True
+  datablock = None
+}
+per_image_statistics = False
+verbosity = 1
+spotfinder {
+  lookup {
+    mask = None
+  }
+  mp {
+    method = *multiprocessing sge lsf pbs
+    nproc = 1
+    nthreads = 1
+  }
+  write_hot_mask = False
+  scan_range = None
+  region_of_interest = None
+  filter {
+    min_spot_size = Auto
+    d_min = None
+    d_max = None
+    max_strong_pixel_fraction = 0.25
+    ice_rings {
+      filter = False
+    }
+    untrusted_polygon = None
+  }
+  threshold {
+    algorithm = *xds
+    xds {
+      gain = None
+      global_threshold = 0
+    }
+  }
+}
+
+</pre>
+</div>
+<div class="section" id="full-parameter-definitions">
+<h2>Full parameter definitions<a class="headerlink" href="#full-parameter-definitions" title="Permalink to this headline">¶</a></h2>
+<pre class="literal-block">
+output {
+  reflections = 'strong.pickle'
+    .help = &quot;The output filename&quot;
+    .type = str
+  shoeboxes = True
+    .help = &quot;Save the raw pixel values inside the reflection shoeboxes.&quot;
+    .type = bool
+  datablock = None
+    .help = &quot;Save the modified datablock. (usually only modified with hot&quot;
+            &quot;pixel mask)&quot;
+    .type = str
+}
+per_image_statistics = False
+  .help = &quot;Whether or not to print a table of per-image statistics.&quot;
+  .type = bool
+verbosity = 1
+  .help = &quot;The verbosity level&quot;
+  .type = int(value_min=0)
+spotfinder
+  .help = &quot;Parameters used in the spot finding algorithm.&quot;
+{
+  lookup
+    .help = &quot;Parameters specifying lookup file path&quot;
+  {
+    mask = None
+      .help = &quot;The path to the mask file.&quot;
+      .type = str
+  }
+  mp {
+    method = *multiprocessing sge lsf pbs
+      .help = &quot;The multiprocessing method to use&quot;
+      .type = choice
+    nproc = 1
+      .help = &quot;The number of processes to use.&quot;
+      .type = int(value_min=1)
+    nthreads = 1
+      .help = &quot;The number of local threads to use for openmp.&quot;
+      .type = int(value_min=1)
+  }
+  write_hot_mask = False
+    .help = &quot;Write the hot mask&quot;
+    .type = bool
+  scan_range = None
+    .help = &quot;The range of images to use in finding spots. Number of arguments&quot;
+            &quot;must be a factor of two. Specifying  0 0&quot; will use all images&quot;&quot;
+            &quot;by default. The given range follows C conventions (e.g. j0 &lt;= j &lt;&quot;
+            &quot;j1). For sweeps the scan range is interpreted as the literal scan&quot;
+            &quot;range. Whereas for imagesets the scan range is interpreted as the&quot;
+            &quot;image number in the imageset&quot;
+    .type = ints(size=2)
+    .multiple = True
+  region_of_interest = None
+    .help = &quot;A region of interest to look for spots. Specified as: x0,x1,y0,y1&quot;
+            &quot;The pixels x0 and y0 are included in the range but the pixels x1&quot;
+            &quot;and y1 are not. To specify an ROI covering the whole image set&quot;
+            &quot;region_of_interest=0,width,0,height.&quot;
+    .type = ints(size=4)
+  filter
+    .help = &quot;Parameters used in the spot finding filter strategy.&quot;
+  {
+    min_spot_size = Auto
+      .help = &quot;The minimum number of contiguous pixels for a spot to be&quot;
+              &quot;accepted by the filtering algorithm.&quot;
+      .type = int(value_min=0)
+    max_separation = 2
+      .help = &quot;The maximum peak-to-centroid separation (in pixels) for a spot&quot;
+              &quot;to be accepted by the filtering algorithm.&quot;
+      .type = float(value_min=0)
+      .expert_level = 1
+    d_min = None
+      .help = &quot;The high resolution limit in Angstrom for a spot to be accepted&quot;
+              &quot;by the filtering algorithm.&quot;
+      .type = float(value_min=0)
+    d_max = None
+      .help = &quot;The low resolution limit in Angstrom for a spot to be accepted&quot;
+              &quot;by the filtering algorithm.&quot;
+      .type = float(value_min=0)
+    max_strong_pixel_fraction = 0.25
+      .help = &quot;If the fraction of pixels in an image marked as strong is&quot;
+              &quot;greater than this value, throw an exception&quot;
+      .type = float(value_min=0, value_max=1)
+    background_gradient
+      .expert_level = 2
+    {
+      filter = False
+        .type = bool
+      background_size = 2
+        .type = int(value_min=1)
+      gradient_cutoff = 4
+        .type = float(value_min=0)
+    }
+    spot_density
+      .expert_level = 2
+    {
+      filter = False
+        .type = bool
+    }
+    ice_rings {
+      filter = False
+        .type = bool
+      unit_cell = 4.498,4.498,7.338,90,90,120
+        .help = &quot;The unit cell to generate d_spacings for powder rings.&quot;
+        .type = unit_cell
+        .expert_level = 1
+      space_group = 194
+        .help = &quot;The space group used to generate d_spacings for powder rings.&quot;
+        .type = space_group
+        .expert_level = 1
+      width = 0.06
+        .help = &quot;The width of an ice ring (in d-spacing).&quot;
+        .type = float(value_min=0)
+        .expert_level = 1
+    }
+    untrusted_polygon = None
+      .help = &quot;The pixel coordinates (fast, slow) that define the corners  of&quot;
+              &quot;the untrusted polygon. Spots whose centroids fall within  the&quot;
+              &quot;bounds of the untrusted polygon will be rejected.&quot;
+      .type = ints(value_min=0)
+      .multiple = True
+  }
+  threshold
+    .help = &quot;  I n t e r f a c e   f o r   t h r e s h o l d   a l g o r i t h&quot;
+            &quot;m s   t o   b e   u s e d   i n   s p o t   f i n d i n g .  &quot;
+  {
+    algorithm = *xds
+      .help = &quot;The choice of algorithm&quot;
+      .type = choice
+    xds
+      .help = &quot;Extensions to do xds-like threshold.&quot;
+    {
+      gain = None
+        .help = &quot;Use a flat gain map for the entire detector. Cannot be used&quot;
+                &quot;in conjunction with lookup.gain_map parameter.&quot;
+        .type = float(value_min=0)
+      kernel_size = 3 3
+        .help = &quot;The size of the local area around the spot in which to&quot;
+                &quot;calculate the mean and variance. The kernel is given as a box&quot;
+                &quot;of size (2 * nx + 1, 2 * ny + 1) centred at the pixel.&quot;
+        .type = ints(size=2)
+        .expert_level = 1
+      sigma_background = 6
+        .help = &quot;The number of standard deviations of the coefficient of&quot;
+                &quot;variation (variance / mean) in the local area below which the&quot;
+                &quot;pixel will be classified as background.&quot;
+        .type = float
+        .expert_level = 1
+      sigma_strong = 3
+        .help = &quot;The number of standard deviations above the mean in the local&quot;
+                &quot;area above which the pixel will be classified as strong.&quot;
+        .type = float
+        .expert_level = 1
+      min_local = 2
+        .help = &quot;The minimum number of pixels under the image processing&quot;
+                &quot;kernel that are need to do the thresholding operation.&quot;
+                &quot;Setting the value between 2 and the total number of pixels&quot;
+                &quot;under the kernel will force the algorithm to use that number&quot;
+                &quot;as the minimum. If the value is less than or equal to zero,&quot;
+                &quot;then the algorithm will use all pixels under the kernel. In&quot;
+                &quot;effect this will add a border of pixels which are always&quot;
+                &quot;classed as background around the edge of the image and around&quot;
+                &quot;any masked out pixels.&quot;
+        .type = int
+        .expert_level = 1
+      global_threshold = 0
+        .help = &quot;The global threshold value. Consider all pixels less than&quot;
+                &quot;this value to be part of the background.&quot;
+        .type = float
+    }
+  }
+}
+
+</pre>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

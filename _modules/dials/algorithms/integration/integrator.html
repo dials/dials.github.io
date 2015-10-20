@@ -1,0 +1,1369 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.algorithms.integration.integrator &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for dials.algorithms.integration.integrator</h1><div class="highlight"><pre>
+<span class="c">#</span>
+<span class="c"># integrator.py</span>
+<span class="c">#</span>
+<span class="c">#  Copyright (C) 2013 Diamond Light Source</span>
+<span class="c">#</span>
+<span class="c">#  Author: James Parkhurst</span>
+<span class="c">#</span>
+<span class="c">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c">#  included in the root directory of this package.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">dials_algorithms_integration_integrator_ext</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">Processor3D</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">ProcessorFlat3D</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">Processor2D</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">ProcessorSingle2D</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">ProcessorStills</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">ProcessorBuilder</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">job</span>
+<span class="kn">from</span> <span class="nn">dials</span> <span class="kn">import</span> <span class="n">phil</span>
+<span class="kn">import</span> <span class="nn">libtbx</span>
+
+
+<div class="viewcode-block" id="generate_phil_scope"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.generate_phil_scope">[docs]</a><span class="k">def</span> <span class="nf">generate_phil_scope</span><span class="p">():</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Generate the integration phil scope.</span>
+
+<span class="sd">  :return: The phil scope</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="kn">import</span> <span class="nn">dials.extensions</span>
+  <span class="kn">from</span> <span class="nn">dials.interfaces</span> <span class="kn">import</span> <span class="n">BackgroundIface</span>
+  <span class="kn">from</span> <span class="nn">dials.interfaces</span> <span class="kn">import</span> <span class="n">CentroidIface</span>
+
+  <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+
+<span class="s">    integration {</span>
+
+<span class="s">      include scope dials.data.multiprocessing.phil_scope</span>
+<span class="s">      include scope dials.data.lookup.phil_scope</span>
+
+<span class="s">      block {</span>
+
+<span class="s">        size = auto</span>
+<span class="s">          .type = float</span>
+<span class="s">          .help = &quot;The block size in rotation angle (degrees).&quot;</span>
+
+<span class="s">        units = *degrees radians frames</span>
+<span class="s">          .type = choice</span>
+<span class="s">          .help = &quot;The units of the block size&quot;</span>
+
+<span class="s">        threshold = 0.99</span>
+<span class="s">          .type = float(value_min=0.0, value_max=1.0)</span>
+<span class="s">          .help = &quot;For block size auto the block size is calculated by sorting&quot;</span>
+<span class="s">                  &quot;reflections by the number of frames they cover and then&quot;</span>
+<span class="s">                  &quot;selecting the block size to be 2*nframes[threshold] such&quot;</span>
+<span class="s">                  &quot;that 100*threshold </span><span class="si">% o</span><span class="s">f reflections are guarenteed to be&quot;</span>
+<span class="s">                  &quot;fully contained in 1 block&quot;</span>
+
+<span class="s">        force = False</span>
+<span class="s">          .type = bool</span>
+<span class="s">          .help = &quot;If the number of processors is 1 and force is False, then the&quot;</span>
+<span class="s">                  &quot;number of blocks may be set to 1. If force is True then the&quot;</span>
+<span class="s">                  &quot;block size is always calculated.&quot;</span>
+
+<span class="s">        max_memory_usage = 0.75</span>
+<span class="s">          .type = float(value_min=0.0,value_max=1.0)</span>
+<span class="s">          .help = &quot;The maximum percentage of total physical memory to use for&quot;</span>
+<span class="s">                  &quot;allocating shoebox arrays.&quot;</span>
+<span class="s">      }</span>
+
+<span class="s">      debug {</span>
+
+<span class="s">        reference {</span>
+<span class="s">          output = False</span>
+<span class="s">            .type = bool</span>
+<span class="s">            .help = &quot;Save the reference profiles&quot;</span>
+<span class="s">        }</span>
+
+<span class="s">        during = modelling *integration</span>
+<span class="s">          .type = choice</span>
+<span class="s">          .help = &quot;Do debugging during modelling or integration&quot;</span>
+
+<span class="s">        output = False</span>
+<span class="s">          .type = bool</span>
+<span class="s">          .help = &quot;Save shoeboxes after each processing task.&quot;</span>
+
+<span class="s">        separate_files = True</span>
+<span class="s">          .type = bool</span>
+<span class="s">          .help = &quot;If this is true, the shoeboxes are saved in separate files&quot;</span>
+<span class="s">                  &quot;from the output integrated.pickle file. This is necessary&quot;</span>
+<span class="s">                  &quot;in most cases since the amount of memory used by the&quot;</span>
+<span class="s">                  &quot;shoeboxes is typically greater than the available system&quot;</span>
+<span class="s">                  &quot;memory. If, however, you know that memory is not an issue,&quot;</span>
+<span class="s">                  &quot;you can saved the shoeboxes in the integrated.pickle file&quot;</span>
+<span class="s">                  &quot;by setting this option to False. This only works if the debug&quot;</span>
+<span class="s">                  &quot;output is during integrated and not modelling.&quot;</span>
+
+<span class="s">        select = None</span>
+<span class="s">          .type = reflection_table_selector</span>
+<span class="s">          .help = &quot;A string specifying the selection. The string should be of the&quot;</span>
+<span class="s">                  &quot;form: select=${COLUMN}[&lt;|&lt;=|==|!=|&gt;=|&gt;]${VALUE}. In addition&quot;</span>
+<span class="s">                  &quot;to the items in the reflection table, the following implicit&quot;</span>
+<span class="s">                  &quot;columns are defined if the necessary data is there:&quot;</span>
+<span class="s">                  &quot; intensity.sum.i_over_sigma&quot;</span>
+<span class="s">                  &quot; intensity.prf.i_over_sigma&quot;</span>
+
+<span class="s">        split_experiments = True</span>
+<span class="s">          .type = bool</span>
+<span class="s">          .help = &quot;Split shoeboxes into different files&quot;</span>
+
+<span class="s">      }</span>
+
+<span class="s">      integrator = *auto 3d flat3d 2d single2d stills</span>
+<span class="s">        .type = choice</span>
+<span class="s">        .help = &quot;The integrator to use.&quot;</span>
+<span class="s">        .expert_level=3</span>
+
+<span class="s">      profile {</span>
+
+<span class="s">        fitting = True</span>
+<span class="s">          .type = bool</span>
+<span class="s">          .help = &quot;Use profile fitting if available&quot;</span>
+
+<span class="s">        validation {</span>
+
+<span class="s">          number_of_partitions = 1</span>
+<span class="s">            .type = int(value_min=1)</span>
+<span class="s">            .help = &quot;The number of subsamples to take from the reference spots.&quot;</span>
+<span class="s">                    &quot;If the value is 1, then no validation is performed.&quot;</span>
+
+<span class="s">          min_partition_size = 100</span>
+<span class="s">            .type = int(value_min=1)</span>
+<span class="s">            .help = &quot;The minimum number of spots to use in each subsample.&quot;</span>
+
+<span class="s">        }</span>
+<span class="s">      }</span>
+
+<span class="s">      filter</span>
+<span class="s">        .expert_level = 1</span>
+<span class="s">      {</span>
+<span class="s">        min_zeta = 0.05</span>
+<span class="s">          .help = &quot;Filter the reflections by the value of zeta. A value of less&quot;</span>
+<span class="s">                  &quot;than or equal to zero indicates that this will not be used. A&quot;</span>
+<span class="s">                  &quot;positive value is used as the minimum permissable value.&quot;</span>
+<span class="s">          .type = float(value_min=0.0, value_max=1.0)</span>
+
+<span class="s">        max_shoebox_overlap = 1.0</span>
+<span class="s">          .type = float(value_min=0.0, value_max=1.0)</span>
+<span class="s">          .help = &quot;Filter reflections whose shoeboxes are overlapped by greater&quot;</span>
+<span class="s">                  &quot;than the requested amount. Note that this is not the&quot;</span>
+<span class="s">                  &quot;percentage of the peak that is overlapped but rather the&quot;</span>
+<span class="s">                  &quot;percentage of the shoebox (background and foreground). This&quot;</span>
+<span class="s">                  &quot;can be useful when the detector is too close and many&quot;</span>
+<span class="s">                  &quot;overlapping reflections are predicted at high resolution&quot;</span>
+<span class="s">                  &quot;causing memory issues.&quot;</span>
+
+<span class="s">        include scope dials.algorithms.integration.filtering.phil_scope</span>
+<span class="s">      }</span>
+<span class="s">    }</span>
+<span class="s">  &#39;&#39;&#39;</span><span class="p">,</span> <span class="n">process_includes</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+  <span class="n">main_scope</span> <span class="o">=</span> <span class="n">phil_scope</span><span class="o">.</span><span class="n">get_without_substitution</span><span class="p">(</span><span class="s">&quot;integration&quot;</span><span class="p">)</span>
+  <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">main_scope</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+  <span class="n">main_scope</span> <span class="o">=</span> <span class="n">main_scope</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+  <span class="n">main_scope</span><span class="o">.</span><span class="n">adopt_scope</span><span class="p">(</span><span class="n">BackgroundIface</span><span class="o">.</span><span class="n">phil_scope</span><span class="p">())</span>
+  <span class="n">main_scope</span><span class="o">.</span><span class="n">adopt_scope</span><span class="p">(</span><span class="n">CentroidIface</span><span class="o">.</span><span class="n">phil_scope</span><span class="p">())</span>
+  <span class="k">return</span> <span class="n">phil_scope</span>
+
+<span class="c"># The integration phil scope</span></div>
+<span class="n">phil_scope</span> <span class="o">=</span> <span class="n">generate_phil_scope</span><span class="p">()</span>
+
+<div class="viewcode-block" id="hist"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.hist">[docs]</a><span class="k">def</span> <span class="nf">hist</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">symbol</span><span class="o">=</span><span class="s">&#39;#&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A utility function to print a histogram of reflections on frames.</span>
+
+<span class="sd">  :param data: The data to histogram</span>
+<span class="sd">  :param width: The number of characters in each line</span>
+<span class="sd">  :param symbol: The plot symbol</span>
+<span class="sd">  :param prefix: String to prefix to each line</span>
+<span class="sd">  :return: The histogram string</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">Counter</span>
+  <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">log10</span><span class="p">,</span> <span class="n">floor</span>
+  <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Need &gt; 0 reflections&quot;</span>
+  <span class="k">assert</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Width should be &gt; 0&quot;</span>
+  <span class="n">count</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+  <span class="n">count</span> <span class="o">=</span> <span class="n">count</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+  <span class="n">count</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+  <span class="n">frame</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">count</span><span class="p">)</span>
+  <span class="n">min_frame</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+  <span class="n">max_frame</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+  <span class="n">min_count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+  <span class="n">max_count</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+  <span class="k">assert</span> <span class="n">max_count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Max should be &gt; 0&quot;</span>
+  <span class="k">assert</span> <span class="n">min_count</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Min should be &gt;= 0&quot;</span>
+  <span class="k">if</span> <span class="n">max_frame</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">num_frame_zeros</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">num_frame_zeros</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="n">log10</span><span class="p">(</span><span class="n">max_frame</span><span class="p">)))</span> <span class="o">+</span> <span class="mi">1</span>
+  <span class="n">num_count_zeros</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="n">log10</span><span class="p">(</span><span class="n">max_count</span><span class="p">)))</span> <span class="o">+</span> <span class="mi">1</span>
+  <span class="k">assert</span> <span class="n">num_frame_zeros</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Num should be &gt; 0&quot;</span>
+  <span class="k">assert</span> <span class="n">num_count_zeros</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Num should be &gt; 0&quot;</span>
+  <span class="n">num_hist</span> <span class="o">=</span> <span class="n">width</span> <span class="o">-</span> <span class="p">(</span><span class="n">num_frame_zeros</span> <span class="o">+</span> <span class="n">num_count_zeros</span> <span class="o">+</span> <span class="mi">5</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
+  <span class="k">assert</span> <span class="n">num_hist</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;num_hist should be &gt; 0&quot;</span>
+  <span class="n">fmt</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s%%</span><span class="s">-</span><span class="si">%d</span><span class="s">d [</span><span class="si">%%</span><span class="s">-</span><span class="si">%d</span><span class="s">d]: </span><span class="si">%%</span><span class="s">s&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">num_frame_zeros</span><span class="p">,</span> <span class="n">num_count_zeros</span><span class="p">)</span>
+  <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">num_hist</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_count</span>
+  <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+    <span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span> <span class="o">*</span> <span class="n">symbol</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">count</span><span class="p">)))</span>
+</div>
+<div class="viewcode-block" id="frame_hist"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.frame_hist">[docs]</a><span class="k">def</span> <span class="nf">frame_hist</span><span class="p">(</span><span class="n">bbox</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">symbol</span><span class="o">=</span><span class="s">&#39;#&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A utility function to print a histogram of reflections on frames.</span>
+
+<span class="sd">  :param bbox: The bounding boxes</span>
+<span class="sd">  :param width: The width of each line</span>
+<span class="sd">  :param symbol: The histogram symbol</span>
+<span class="sd">  :param prefix: A string to prefix to each line</span>
+<span class="sd">  :return: The histogram string</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="k">return</span> <span class="n">hist</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">z</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bbox</span> <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">b</span><span class="p">[</span><span class="mi">5</span><span class="p">])],</span>
+    <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+    <span class="n">symbol</span><span class="o">=</span><span class="n">symbol</span><span class="p">,</span>
+    <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="nframes_hist"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.nframes_hist">[docs]</a><span class="k">def</span> <span class="nf">nframes_hist</span><span class="p">(</span><span class="n">bbox</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">symbol</span><span class="o">=</span><span class="s">&#39;#&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A utility function to print a histogram of number of frames.</span>
+
+<span class="sd">  :param bbox: The bounding boxes</span>
+<span class="sd">  :param width: The width of each line</span>
+<span class="sd">  :param symbol: The histogram symbol</span>
+<span class="sd">  :param prefix: A string to prefix to each line</span>
+<span class="sd">  :return: The histogram string</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="k">return</span> <span class="n">hist</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bbox</span><span class="p">],</span>
+    <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+    <span class="n">symbol</span><span class="o">=</span><span class="n">symbol</span><span class="p">,</span>
+    <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Parameters"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Parameters">[docs]</a><span class="k">class</span> <span class="nc">Parameters</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A class to represent the integration parameters</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="Parameters.Filter"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Parameters.Filter">[docs]</a>  <span class="k">class</span> <span class="nc">Filter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Filter parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">min_zeta</span> <span class="o">=</span> <span class="mf">0.05</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">powder_filter</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="Parameters.Profile"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Parameters.Profile">[docs]</a>  <span class="k">class</span> <span class="nc">Profile</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Profile parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="Parameters.Profile.Validation"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Parameters.Profile.Validation">[docs]</a>    <span class="k">class</span> <span class="nc">Validation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">number_of_partitions</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_partition_size</span> <span class="o">=</span> <span class="mi">100</span>
+</div>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">fitting</span> <span class="o">=</span> <span class="bp">True</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">validation</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Profile</span><span class="o">.</span><span class="n">Validation</span><span class="p">()</span>
+</div>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialize</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration</span> <span class="kn">import</span> <span class="n">processor</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">modelling</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">integration</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Filter</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">profile</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Profile</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">debug_reference_output</span> <span class="o">=</span> <span class="bp">False</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Parameters.from_phil"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Parameters.from_phil">[docs]</a>  <span class="k">def</span> <span class="nf">from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Convert the phil parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration</span> <span class="kn">import</span> <span class="n">processor</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration.filtering</span> <span class="kn">import</span> <span class="n">MultiPowderRingFilter</span>
+
+    <span class="c"># Init the parameters</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
+
+    <span class="c"># Create the multi processing parameters</span>
+    <span class="n">mp</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="o">.</span><span class="n">MultiProcessing</span><span class="p">()</span>
+    <span class="n">mp</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span>
+    <span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span>
+    <span class="n">mp</span><span class="o">.</span><span class="n">nthreads</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nthreads</span>
+
+    <span class="c"># Set the lookup parameters</span>
+    <span class="n">lookup</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="o">.</span><span class="n">Lookup</span><span class="p">()</span>
+    <span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span>
+
+    <span class="c"># Set the block parameters</span>
+    <span class="n">block</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="o">.</span><span class="n">Block</span><span class="p">()</span>
+    <span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span>
+    <span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span>
+    <span class="n">block</span><span class="o">.</span><span class="n">force</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">force</span>
+    <span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
+
+    <span class="c"># Set the modelling processor parameters</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">modelling</span><span class="o">.</span><span class="n">mp</span> <span class="o">=</span> <span class="n">mp</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">modelling</span><span class="o">.</span><span class="n">lookup</span> <span class="o">=</span> <span class="n">lookup</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">modelling</span><span class="o">.</span><span class="n">block</span> <span class="o">=</span> <span class="n">block</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">during</span> <span class="o">==</span> <span class="s">&#39;modelling&#39;</span><span class="p">:</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">modelling</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">modelling</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">modelling</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">separate_files</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="c"># Set the integration processor parameters</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">mp</span> <span class="o">=</span> <span class="n">mp</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span> <span class="o">=</span> <span class="n">lookup</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">block</span> <span class="o">=</span> <span class="n">block</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">during</span> <span class="o">==</span> <span class="s">&#39;integration&#39;</span><span class="p">:</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">separate_files</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">separate_files</span>
+
+    <span class="n">result</span><span class="o">.</span><span class="n">debug_reference_output</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">reference</span><span class="o">.</span><span class="n">output</span>
+
+    <span class="c"># Get the min zeta filter</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span> <span class="o">=</span> <span class="n">MultiPowderRingFilter</span><span class="o">.</span><span class="n">from_params</span><span class="p">(</span>
+      <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="p">)</span>
+
+    <span class="c"># Set the profile fitting parameters</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">number_of_partitions</span> <span class="o">=</span> \
+      <span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">number_of_partitions</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">min_partition_size</span> <span class="o">=</span> \
+      <span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">min_partition_size</span>
+
+    <span class="c"># Return the result</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+</div></div>
+<div class="viewcode-block" id="InitializerRot"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.InitializerRot">[docs]</a><span class="k">class</span> <span class="nc">InitializerRot</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A pre-processing class for oscillation data.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">experiments</span><span class="p">,</span>
+               <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the pre-processor.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+
+  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do some pre-processing.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+    <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">shared</span>
+
+    <span class="c"># Compute some reflection properties</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_zeta_multi</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Filter the reflections by zeta</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;zeta&#39;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span>
+    <span class="n">num_ignore</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">dont_integrate</span><span class="p">)</span>
+
+    <span class="c"># Filter the reflections by powder ring</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;d&#39;</span><span class="p">])</span>
+      <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="InitializerStills"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.InitializerStills">[docs]</a><span class="k">class</span> <span class="nc">InitializerStills</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A pre-processing class for stills data.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">experiments</span><span class="p">,</span>
+               <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the pre-processor.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+
+  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do some pre-processing.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration.filtering</span> <span class="kn">import</span> <span class="n">MultiPowderRingFilter</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+
+    <span class="c"># Compute some reflection properties</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Check the bounding boxes are all 1 frame in width</span>
+    <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">z1</span> <span class="o">-</span> <span class="n">z0</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="s">&quot;bbox is invalid&quot;</span>
+
+    <span class="c"># Filter the reflections by powder ring</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;d&#39;</span><span class="p">])</span>
+      <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="FinalizerRot"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.FinalizerRot">[docs]</a><span class="k">class</span> <span class="nc">FinalizerRot</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A post-processing class for oscillation data.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the post processor.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+
+  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do some post processing.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c"># Compute the corrections</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_corrections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="FinalizerStills"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.FinalizerStills">[docs]</a><span class="k">class</span> <span class="nc">FinalizerStills</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A post-processing class for stills data.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the post processor.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+
+  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do some post processing.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="ProfileModellerExecutor"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileModellerExecutor">[docs]</a><span class="k">class</span> <span class="nc">ProfileModellerExecutor</span><span class="p">(</span><span class="n">Executor</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  The class to do profile modelling calculations</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">profile_fitter</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the executor</span>
+
+<span class="sd">    :param experiments: The experiment list</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span> <span class="o">=</span> <span class="n">profile_fitter</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ProfileModellerExecutor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ProfileModellerExecutor.initialize"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileModellerExecutor.initialize">[docs]</a>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the processing for a job</span>
+
+<span class="sd">    :param frame0: The first frame in the job</span>
+<span class="sd">    :param frame1: The last frame in the job</span>
+<span class="sd">    :param reflections: The reflections that will be processed</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+
+    <span class="c"># Get some info</span>
+    <span class="n">EPS</span> <span class="o">=</span> <span class="mf">1e-7</span>
+    <span class="n">full_value</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.997300203937</span> <span class="o">-</span> <span class="n">EPS</span><span class="p">)</span>
+    <span class="n">fully_recorded</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">full_value</span>
+    <span class="n">npart</span> <span class="o">=</span> <span class="n">fully_recorded</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">nfull</span> <span class="o">=</span> <span class="n">fully_recorded</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">nice</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">ntot</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Write some output</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Beginning modelling job </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">job</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Frames: </span><span class="si">%d</span><span class="s"> -&gt; </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span><span class="p">))</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Number of reflections&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Partial:     </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">npart</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Full:        </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">nfull</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  In ice ring: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">nice</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Total:       </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">ntot</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c"># Print a histogram of reflections on frames</span>
+    <span class="k">if</span> <span class="n">frame1</span> <span class="o">-</span> <span class="n">frame0</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39; The following histogram shows the number of reflections predicted&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39; to have all or part of their intensity on each frame.&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="n">frame_hist</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">],</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="n">symbol</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">))</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ProfileModellerExecutor.process"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileModellerExecutor.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Process the data</span>
+
+<span class="sd">    :param frame: The frame being processed</span>
+<span class="sd">    :param reflections: The reflections to process</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+
+    <span class="c"># Check if pixels are overloaded</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">is_overloaded</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Compute the shoebox mask</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Process the data</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_centroid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_summed_intensity</span><span class="p">()</span>
+
+    <span class="c"># Do the profile modelling</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Print some info</span>
+    <span class="n">fmt</span> <span class="o">=</span> <span class="s">&#39; Modelled </span><span class="si">% 5d</span><span class="s"> / </span><span class="si">% 5d</span><span class="s"> reflection profiles on image </span><span class="si">%d</span><span class="s">&#39;</span>
+    <span class="n">nmod</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_modelling</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">ntot</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span><span class="n">nmod</span><span class="p">,</span> <span class="n">ntot</span><span class="p">,</span> <span class="n">frame</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="ProfileModellerExecutor.finalize"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileModellerExecutor.finalize">[docs]</a>  <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Finalize the processing</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="ProfileModellerExecutor.data"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileModellerExecutor.data">[docs]</a>  <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    :return: the modeller</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span>
+
+</div></div>
+<div class="viewcode-block" id="ProfileValidatorExecutor"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileValidatorExecutor">[docs]</a><span class="k">class</span> <span class="nc">ProfileValidatorExecutor</span><span class="p">(</span><span class="n">Executor</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  The class to do profile validation calculations</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">profile_fitter</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the executor</span>
+
+<span class="sd">    :param experiments: The experiment list</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span> <span class="o">=</span> <span class="n">profile_fitter</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ProfileValidatorExecutor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ProfileValidatorExecutor.initialize"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileValidatorExecutor.initialize">[docs]</a>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the processing for a job</span>
+
+<span class="sd">    :param frame0: The first frame in the job</span>
+<span class="sd">    :param frame1: The last frame in the job</span>
+<span class="sd">    :param reflections: The reflections that will be processed</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+
+    <span class="c"># Get some info</span>
+    <span class="n">EPS</span> <span class="o">=</span> <span class="mf">1e-7</span>
+    <span class="n">full_value</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.997300203937</span> <span class="o">-</span> <span class="n">EPS</span><span class="p">)</span>
+    <span class="n">fully_recorded</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">full_value</span>
+    <span class="n">npart</span> <span class="o">=</span> <span class="n">fully_recorded</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">nfull</span> <span class="o">=</span> <span class="n">fully_recorded</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">nice</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">ntot</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Write some output</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Beginning modelling job </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">job</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Frames: </span><span class="si">%d</span><span class="s"> -&gt; </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span><span class="p">))</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Number of reflections&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Partial:     </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">npart</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Full:        </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">nfull</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  In ice ring: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">nice</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Total:       </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">ntot</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c"># Print a histogram of reflections on frames</span>
+    <span class="k">if</span> <span class="n">frame1</span> <span class="o">-</span> <span class="n">frame0</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39; The following histogram shows the number of reflections predicted&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39; to have all or part of their intensity on each frame.&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="n">frame_hist</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">],</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="n">symbol</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">))</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="ProfileValidatorExecutor.process"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileValidatorExecutor.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Process the data</span>
+
+<span class="sd">    :param frame: The frame being processed</span>
+<span class="sd">    :param reflections: The reflections to process</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+
+    <span class="c"># Check if pixels are overloaded</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">is_overloaded</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Compute the shoebox mask</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Process the data</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_centroid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_summed_intensity</span><span class="p">()</span>
+
+    <span class="c"># Do the profile validation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Print some info</span>
+    <span class="n">fmt</span> <span class="o">=</span> <span class="s">&#39; Validated </span><span class="si">% 5d</span><span class="s"> / </span><span class="si">% 5d</span><span class="s"> reflection profiles on image </span><span class="si">%d</span><span class="s">&#39;</span>
+    <span class="n">nmod</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_modelling</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">ntot</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span><span class="n">nmod</span><span class="p">,</span> <span class="n">ntot</span><span class="p">,</span> <span class="n">frame</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="ProfileValidatorExecutor.finalize"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileValidatorExecutor.finalize">[docs]</a>  <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Finalize the processing</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="ProfileValidatorExecutor.data"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileValidatorExecutor.data">[docs]</a>  <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    :return: the modeller</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span>
+
+</div></div>
+<div class="viewcode-block" id="IntegratorExecutor"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorExecutor">[docs]</a><span class="k">class</span> <span class="nc">IntegratorExecutor</span><span class="p">(</span><span class="n">Executor</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  The class to process the integration data</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">profile_fitter</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialize the executor</span>
+
+<span class="sd">    :param experiments: The experiment list</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">overlaps</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span> <span class="o">=</span> <span class="n">profile_fitter</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">IntegratorExecutor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="IntegratorExecutor.initialize"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorExecutor.initialize">[docs]</a>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialize the processing for the job</span>
+
+<span class="sd">    :param frame0: The first frame to process</span>
+<span class="sd">    :param frame1: The last frame to process</span>
+<span class="sd">    :param reflections: The reflections to process</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+
+    <span class="c"># Get some info</span>
+    <span class="n">EPS</span> <span class="o">=</span> <span class="mf">1e-7</span>
+    <span class="n">full_value</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.997300203937</span> <span class="o">-</span> <span class="n">EPS</span><span class="p">)</span>
+    <span class="n">fully_recorded</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">full_value</span>
+    <span class="n">npart</span> <span class="o">=</span> <span class="n">fully_recorded</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">nfull</span> <span class="o">=</span> <span class="n">fully_recorded</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">nice</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">nint</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">dont_integrate</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">ntot</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Write some output</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Beginning integration job </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">job</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Frames: </span><span class="si">%d</span><span class="s"> -&gt; </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span><span class="p">))</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot; Number of reflections&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Partial:     </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">npart</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Full:        </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">nfull</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  In ice ring: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">nice</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Integrate:   </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">nint</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;  Total:       </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">ntot</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c"># Print a histogram of reflections on frames</span>
+    <span class="k">if</span> <span class="n">frame1</span> <span class="o">-</span> <span class="n">frame0</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39; The following histogram shows the number of reflections predicted&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39; to have all or part of their intensity on each frame.&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="n">frame_hist</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">],</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39; &#39;</span><span class="p">,</span> <span class="n">symbol</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">))</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c"># Find any overlaps</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">overlaps</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">find_overlaps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="IntegratorExecutor.process"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorExecutor.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Process the reflections on a frame</span>
+
+<span class="sd">    :param frame: The frame to process</span>
+<span class="sd">    :param reflections: The reflections to process</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.shoebox</span> <span class="kn">import</span> <span class="n">MaskCode</span>
+
+    <span class="c"># Check if pixels are overloaded</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">is_overloaded</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Compute the shoebox mask</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+    <span class="c"># Check for invalid pixels in foreground/background</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">contains_invalid_pixels</span><span class="p">()</span>
+
+    <span class="c"># Process the data</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_centroid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_summed_intensity</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span><span class="p">:</span>
+      <span class="n">reflections</span><span class="o">.</span><span class="n">compute_fitted_intensity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span><span class="p">)</span>
+
+    <span class="c"># Compute the number of background/foreground pixels</span>
+    <span class="n">sbox</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;shoebox&#39;</span><span class="p">]</span>
+    <span class="n">code1</span> <span class="o">=</span> <span class="n">MaskCode</span><span class="o">.</span><span class="n">Valid</span>
+    <span class="n">code2</span> <span class="o">=</span> <span class="n">MaskCode</span><span class="o">.</span><span class="n">Background</span> <span class="o">|</span> <span class="n">code1</span>
+    <span class="n">code3</span> <span class="o">=</span> <span class="n">MaskCode</span><span class="o">.</span><span class="n">BackgroundUsed</span> <span class="o">|</span> <span class="n">code2</span>
+    <span class="n">code4</span> <span class="o">=</span> <span class="n">MaskCode</span><span class="o">.</span><span class="n">Foreground</span> <span class="o">|</span> <span class="n">code1</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;num_pixels.valid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sbox</span><span class="o">.</span><span class="n">count_mask_values</span><span class="p">(</span><span class="n">code1</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;num_pixels.background&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sbox</span><span class="o">.</span><span class="n">count_mask_values</span><span class="p">(</span><span class="n">code2</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;num_pixels.background_used&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sbox</span><span class="o">.</span><span class="n">count_mask_values</span><span class="p">(</span><span class="n">code3</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;num_pixels.foreground&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sbox</span><span class="o">.</span><span class="n">count_mask_values</span><span class="p">(</span><span class="n">code4</span><span class="p">)</span>
+
+    <span class="c"># Print some info</span>
+    <span class="n">fmt</span> <span class="o">=</span> <span class="s">&#39; Integrated </span><span class="si">% 5d</span><span class="s"> (sum) + </span><span class="si">% 5d</span><span class="s"> (prf) /</span><span class="si">% 5d</span><span class="s"> reflections on image </span><span class="si">%d</span><span class="s">&#39;</span>
+    <span class="n">nsum</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">integrated_sum</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">nprf</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">integrated_prf</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">ntot</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span><span class="n">nsum</span><span class="p">,</span> <span class="n">nprf</span><span class="p">,</span> <span class="n">ntot</span><span class="p">,</span> <span class="n">frame</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="IntegratorExecutor.finalize"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorExecutor.finalize">[docs]</a>  <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Finalize the processing</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="IntegratorExecutor.data"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorExecutor.data">[docs]</a>  <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Return data</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">None</span>
+
+</div></div>
+<div class="viewcode-block" id="Integrator"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator">[docs]</a><span class="k">class</span> <span class="nc">Integrator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  The integrator class</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">experiments</span><span class="p">,</span>
+               <span class="n">reflections</span><span class="p">,</span>
+               <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialize the integrator</span>
+
+<span class="sd">    :param experiments: The experiment list</span>
+<span class="sd">    :param reflections: The reflections to process</span>
+<span class="sd">    :param params: The parameters to use</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c"># Save some stuff</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="bp">None</span>
+
+<div class="viewcode-block" id="Integrator.integrate"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator.integrate">[docs]</a>  <span class="k">def</span> <span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Integrate the data</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration.report</span> <span class="kn">import</span> <span class="n">IntegrationReport</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration.report</span> <span class="kn">import</span> <span class="n">ProfileModelReport</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration.report</span> <span class="kn">import</span> <span class="n">ProfileValidationReport</span>
+    <span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">heading</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span><span class="p">,</span> <span class="n">debug</span>
+    <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">pprint</span>
+    <span class="kn">from</span> <span class="nn">random</span> <span class="kn">import</span> <span class="n">shuffle</span><span class="p">,</span> <span class="n">seed</span>
+    <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">floor</span><span class="p">,</span> <span class="n">ceil</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.profile_model.modeller</span> <span class="kn">import</span> <span class="n">MultiExpProfileModeller</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration.validation</span> <span class="kn">import</span> <span class="n">ValidatedMultiExpProfileModeller</span>
+
+    <span class="c"># Ensure we get the same random sample each time</span>
+    <span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c"># Init the report</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c"># Heading</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">heading</span><span class="p">(</span><span class="s">&quot;Processing reflections&quot;</span><span class="p">))</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c"># Create summary format</span>
+    <span class="n">fmt</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s">&#39; Processing the following experiments:</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39; Experiments: </span><span class="si">%d</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39; Beams:       </span><span class="si">%d</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39; Detectors:   </span><span class="si">%d</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39; Goniometers: </span><span class="si">%d</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39; Scans:       </span><span class="si">%d</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39; Crystals:    </span><span class="si">%d</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39; Imagesets:   </span><span class="si">%d</span><span class="se">\n</span><span class="s">&#39;</span>
+    <span class="p">)</span>
+
+    <span class="c"># Print the summary</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span>
+      <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">),</span>
+      <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()),</span>
+      <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()),</span>
+      <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">goniometers</span><span class="p">()),</span>
+      <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">()),</span>
+      <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()),</span>
+      <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">imagesets</span><span class="p">())))</span>
+
+    <span class="c"># Initialize the reflections</span>
+    <span class="n">initialize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InitializerClass</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">initialize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Check if we want to do some profile fitting</span>
+    <span class="n">fitting_class</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting_class</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">]</span>
+    <span class="n">fitting_avail</span> <span class="o">=</span> <span class="nb">all</span><span class="p">([</span><span class="n">c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">fitting_class</span><span class="p">])</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting</span> <span class="ow">and</span> <span class="n">fitting_avail</span><span class="p">:</span>
+      <span class="n">profile_fitting</span> <span class="o">=</span> <span class="bp">True</span>
+      <span class="n">profile_fitter</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">profile_fitting</span> <span class="o">=</span> <span class="bp">False</span>
+      <span class="n">profile_fitter</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c"># Do profile modelling</span>
+    <span class="k">if</span> <span class="n">profile_fitting</span><span class="p">:</span>
+
+      <span class="n">info</span><span class="p">(</span><span class="s">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+      <span class="n">info</span><span class="p">(</span><span class="n">heading</span><span class="p">(</span><span class="s">&quot;Modelling reflection profiles&quot;</span><span class="p">))</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+      <span class="c"># Get the selection</span>
+      <span class="n">selection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">reference_spot</span><span class="p">)</span>
+
+      <span class="c"># Get the reference spots</span>
+      <span class="n">reference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">selection</span><span class="p">)</span>
+
+      <span class="c"># Check if we need to skip</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">reference</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&quot;** Skipping profile modelling - no reference profiles given **&quot;</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+
+        <span class="c"># Try to set up the validation</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">number_of_partitions</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reference</span><span class="p">)</span>
+          <span class="n">k_max</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="n">n</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">min_partition_size</span><span class="p">))</span>
+          <span class="k">if</span> <span class="n">k_max</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">number_of_partitions</span><span class="p">:</span>
+            <span class="n">num_folds</span> <span class="o">=</span> <span class="n">k_max</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">num_folds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">number_of_partitions</span>
+          <span class="k">if</span> <span class="n">num_folds</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">num_folds</span><span class="p">))</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="n">n</span><span class="o">/</span><span class="n">num_folds</span><span class="p">)))[</span><span class="mi">0</span><span class="p">:</span><span class="n">n</span><span class="p">]</span>
+            <span class="n">shuffle</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+            <span class="n">reference</span><span class="p">[</span><span class="s">&#39;profile.index&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">num_folds</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">num_folds</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">num_folds</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="c"># Create the profile fitter</span>
+        <span class="n">profile_fitter</span> <span class="o">=</span> <span class="n">ValidatedMultiExpProfileModeller</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_folds</span><span class="p">):</span>
+          <span class="n">profile_fitter_single</span> <span class="o">=</span> <span class="n">MultiExpProfileModeller</span><span class="p">()</span><span class="c">#(num_folds)</span>
+          <span class="k">for</span> <span class="n">expr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">:</span>
+            <span class="n">profile_fitter_single</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting_class</span><span class="p">()(</span><span class="n">expr</span><span class="p">))</span>
+          <span class="n">profile_fitter</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">profile_fitter_single</span><span class="p">)</span>
+
+        <span class="c"># Create the data processor</span>
+        <span class="n">executor</span> <span class="o">=</span> <span class="n">ProfileModellerExecutor</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+          <span class="n">profile_fitter</span><span class="p">)</span>
+        <span class="n">processor</span> <span class="o">=</span> <span class="n">ProcessorBuilder</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">ProcessorClass</span><span class="p">,</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+          <span class="n">reference</span><span class="p">,</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">modelling</span><span class="p">)</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+        <span class="n">processor</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">executor</span>
+
+        <span class="c"># Process the reference profiles</span>
+        <span class="n">reference</span><span class="p">,</span> <span class="n">profile_fitter_list</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+
+        <span class="c"># Set the reference spots info</span>
+        <span class="c">#self.reflections.set_selected(selection, reference)</span>
+
+        <span class="c"># Finalize the profile models for validation</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">profile_fitter_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;No profile fitters&quot;</span>
+        <span class="n">profile_fitter</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">pf</span> <span class="ow">in</span> <span class="n">profile_fitter_list</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+          <span class="k">if</span> <span class="n">pf</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+          <span class="k">if</span> <span class="n">profile_fitter</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">profile_fitter</span> <span class="o">=</span> <span class="n">pf</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">profile_fitter</span><span class="o">.</span><span class="n">accumulate</span><span class="p">(</span><span class="n">pf</span><span class="p">)</span>
+        <span class="n">profile_fitter</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+
+        <span class="c"># Get the finalized modeller</span>
+        <span class="n">finalized_profile_fitter</span> <span class="o">=</span> <span class="n">profile_fitter</span><span class="o">.</span><span class="n">finalized_model</span><span class="p">()</span>
+
+        <span class="c"># Print profiles</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug_reference_output</span><span class="p">:</span>
+          <span class="n">reference_debug</span> <span class="o">=</span> <span class="p">[]</span>
+          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">finalized_profile_fitter</span><span class="p">)):</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">finalized_profile_fitter</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)):</span>
+              <span class="k">try</span><span class="p">:</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">j</span><span class="p">))</span>
+              <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+          <span class="n">reference_debug</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+          <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&quot;reference_profiles.pickle&quot;</span><span class="p">,</span> <span class="s">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">cPickle</span> <span class="kn">as</span> <span class="nn">pickle</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">reference_debug</span><span class="p">,</span> <span class="n">outfile</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">finalized_profile_fitter</span><span class="p">)):</span>
+          <span class="n">m</span> <span class="o">=</span> <span class="n">finalized_profile_fitter</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+          <span class="n">debug</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+          <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Profiles for experiment </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+          <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)):</span>
+            <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Profile </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">j</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+              <span class="n">debug</span><span class="p">(</span><span class="n">pprint</span><span class="o">.</span><span class="n">profile3d</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">j</span><span class="p">)))</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+              <span class="n">debug</span><span class="p">(</span><span class="s">&quot;** NO PROFILE **&quot;</span><span class="p">)</span>
+
+        <span class="c"># Print the modeller report</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="o">=</span> <span class="n">ProfileModelReport</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+          <span class="n">finalized_profile_fitter</span><span class="p">,</span>
+          <span class="n">reference</span><span class="p">)</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span><span class="o">.</span><span class="n">as_str</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s">&#39; &#39;</span><span class="p">))</span>
+
+        <span class="c"># Print the time info</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">info</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">time_info</span><span class="p">))</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="c"># If we have more than 1 fold then do the validation</span>
+        <span class="k">if</span> <span class="n">num_folds</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+
+          <span class="c"># Create the data processor</span>
+          <span class="n">executor</span> <span class="o">=</span> <span class="n">ProfileValidatorExecutor</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+            <span class="n">profile_fitter</span><span class="p">)</span>
+          <span class="n">processor</span> <span class="o">=</span> <span class="n">ProcessorBuilder</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ProcessorClass</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+            <span class="n">reference</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">modelling</span><span class="p">)</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+          <span class="n">processor</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">executor</span>
+
+          <span class="c"># Process the reference profiles</span>
+          <span class="n">reference</span><span class="p">,</span> <span class="n">validation</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+
+          <span class="c"># Print the modeller report</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">profile_validation_report</span> <span class="o">=</span> <span class="n">ProfileValidationReport</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+            <span class="n">profile_fitter</span><span class="p">,</span>
+            <span class="n">reference</span><span class="p">,</span>
+            <span class="n">num_folds</span><span class="p">)</span>
+          <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+          <span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">profile_validation_report</span><span class="o">.</span><span class="n">as_str</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s">&#39; &#39;</span><span class="p">))</span>
+
+          <span class="c"># Print the time info</span>
+          <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+          <span class="n">info</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">time_info</span><span class="p">))</span>
+          <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="c"># Set to the finalized fitter</span>
+        <span class="n">profile_fitter</span> <span class="o">=</span> <span class="n">finalized_profile_fitter</span>
+
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="n">heading</span><span class="p">(</span><span class="s">&quot;Integrating reflections&quot;</span><span class="p">))</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c"># Create the data processor</span>
+    <span class="n">executor</span> <span class="o">=</span> <span class="n">IntegratorExecutor</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+      <span class="n">profile_fitter</span><span class="p">)</span>
+    <span class="n">processor</span> <span class="o">=</span> <span class="n">ProcessorBuilder</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">ProcessorClass</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="p">)</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+    <span class="n">processor</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">executor</span>
+
+    <span class="c"># Process the reflections</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+
+    <span class="c"># Finalize the reflections</span>
+    <span class="n">finalize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">FinalizerClass</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">finalize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Create the integration report</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="n">IntegrationReport</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span><span class="o">.</span><span class="n">as_str</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s">&#39; &#39;</span><span class="p">))</span>
+
+    <span class="c"># Print the time info</span>
+    <span class="n">info</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">time_info</span><span class="p">))</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c"># Return the reflections</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span>
+</div>
+<div class="viewcode-block" id="Integrator.report"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator.report">[docs]</a>  <span class="k">def</span> <span class="nf">report</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Return the report of the processing</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.util.report</span> <span class="kn">import</span> <span class="n">Report</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">Report</span><span class="p">()</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+</div>
+<div class="viewcode-block" id="Integrator.summary"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator.summary">[docs]</a>  <span class="k">def</span> <span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block_size</span><span class="p">,</span> <span class="n">block_size_units</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Print a summary of the integration stuff. &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">libtbx.table_utils</span> <span class="kn">import</span> <span class="n">format</span> <span class="k">as</span> <span class="n">table</span>
+    <span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">heading</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+
+    <span class="c"># Compute the task table</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
+      <span class="n">rows</span> <span class="o">=</span> <span class="p">[[</span><span class="s">&quot;#&quot;</span><span class="p">,</span> <span class="s">&quot;Group&quot;</span><span class="p">,</span> <span class="s">&quot;Frame From&quot;</span><span class="p">,</span> <span class="s">&quot;Frame To&quot;</span><span class="p">]]</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">index</span><span class="p">()</span>
+        <span class="n">f0</span><span class="p">,</span> <span class="n">f1</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">frames</span><span class="p">()</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">group</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f1</span><span class="p">)])</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">all_sweeps</span><span class="p">():</span>
+      <span class="n">rows</span> <span class="o">=</span> <span class="p">[[</span><span class="s">&quot;#&quot;</span><span class="p">,</span> <span class="s">&quot;Group&quot;</span><span class="p">,</span> <span class="s">&quot;Frame From&quot;</span><span class="p">,</span> <span class="s">&quot;Frame To&quot;</span><span class="p">,</span> <span class="s">&quot;Angle From&quot;</span><span class="p">,</span> <span class="s">&quot;Angle To&quot;</span><span class="p">]]</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">index</span><span class="p">()</span>
+        <span class="n">expr</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">expr</span><span class="p">()</span>
+        <span class="n">f0</span><span class="p">,</span> <span class="n">f1</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">frames</span><span class="p">()</span>
+        <span class="n">scan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">[</span><span class="n">expr</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">scan</span>
+        <span class="n">p0</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_array_index</span><span class="p">(</span><span class="n">f0</span><span class="p">)</span>
+        <span class="n">p1</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_array_index</span><span class="p">(</span><span class="n">f1</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">group</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">p0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">p1</span><span class="p">)])</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Experiments must be all sweeps or all stills&#39;</span><span class="p">)</span>
+    <span class="n">task_table</span> <span class="o">=</span> <span class="n">table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">has_header</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">justify</span><span class="o">=</span><span class="s">&quot;right&quot;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&quot; &quot;</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Integrator3D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator3D">[docs]</a><span class="k">class</span> <span class="nc">Integrator3D</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Integrator for 3D algorithms</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerRot</span>
+  <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">Processor3D</span>
+  <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerRot</span>
+
+</div>
+<div class="viewcode-block" id="IntegratorFlat3D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorFlat3D">[docs]</a><span class="k">class</span> <span class="nc">IntegratorFlat3D</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Integrator for flattened 3D algorithms</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerRot</span>
+  <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">ProcessorFlat3D</span>
+  <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerRot</span>
+
+</div>
+<div class="viewcode-block" id="Integrator2D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator2D">[docs]</a><span class="k">class</span> <span class="nc">Integrator2D</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Integrator for 2D algorithms</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerRot</span>
+  <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">Processor2D</span>
+  <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerRot</span>
+
+</div>
+<div class="viewcode-block" id="IntegratorSingle2D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorSingle2D">[docs]</a><span class="k">class</span> <span class="nc">IntegratorSingle2D</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Integrator for 2D algorithms on a single image</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerRot</span>
+  <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">ProcessorSingle2D</span>
+  <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerRot</span>
+
+</div>
+<div class="viewcode-block" id="IntegratorStills"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorStills">[docs]</a><span class="k">class</span> <span class="nc">IntegratorStills</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Integrator for still algorithms</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerStills</span>
+  <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">ProcessorStills</span>
+  <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerStills</span>
+
+</div>
+<div class="viewcode-block" id="IntegratorFactory"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorFactory">[docs]</a><span class="k">class</span> <span class="nc">IntegratorFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A factory for creating integrators.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="IntegratorFactory.create"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorFactory.create">[docs]</a>  <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Create the integrator from the input configuration.</span>
+
+<span class="sd">    :param params: The input phil parameters</span>
+<span class="sd">    :param experiments: The list of experiments</span>
+<span class="sd">    :param reflections: The reflections to integrate</span>
+<span class="sd">    :return: The integrator class</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.integration.filtering</span> <span class="kn">import</span> <span class="n">MultiPowderRingFilter</span>
+    <span class="kn">from</span> <span class="nn">dials.interfaces</span> <span class="kn">import</span> <span class="n">BackgroundIface</span>
+    <span class="kn">from</span> <span class="nn">dials.interfaces</span> <span class="kn">import</span> <span class="n">CentroidIface</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+    <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
+    <span class="kn">import</span> <span class="nn">cPickle</span> <span class="kn">as</span> <span class="nn">pickle</span>
+
+    <span class="c"># Check each experiment has an imageset</span>
+    <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">imageset</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+<span class="s">          One or more experiment does not contain an imageset. Access to the</span>
+<span class="s">          image data is crucial for integration.</span>
+<span class="s">        &#39;&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c"># Read the mask in if necessary</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">integraton</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+          <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+
+    <span class="c"># Initialise the strategy classes</span>
+    <span class="n">BackgroundAlgorithm</span> <span class="o">=</span> <span class="n">BackgroundIface</span><span class="o">.</span><span class="n">extension</span><span class="p">(</span>
+      <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">background</span><span class="o">.</span><span class="n">algorithm</span><span class="p">)</span>
+    <span class="n">CentroidAlgorithm</span> <span class="o">=</span> <span class="n">CentroidIface</span><span class="o">.</span><span class="n">extension</span><span class="p">(</span>
+      <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">centroid</span><span class="o">.</span><span class="n">algorithm</span><span class="p">)</span>
+
+    <span class="c"># Set the algorithms in the reflection table</span>
+    <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="o">.</span><span class="n">_background_algorithm</span> <span class="o">=</span> \
+      <span class="n">flex</span><span class="o">.</span><span class="n">strategy</span><span class="p">(</span><span class="n">BackgroundAlgorithm</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+    <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="o">.</span><span class="n">_centroid_algorithm</span> <span class="o">=</span> \
+      <span class="n">flex</span><span class="o">.</span><span class="n">strategy</span><span class="p">(</span><span class="n">CentroidAlgorithm</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="c"># Get the classes we need</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s">&#39;auto&#39;</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">=</span> <span class="s">&#39;stills&#39;</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">=</span> <span class="s">&#39;3d&#39;</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s">&#39;3d&#39;</span><span class="p">:</span>
+      <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">Integrator3D</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s">&#39;flat3d&#39;</span><span class="p">:</span>
+      <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">IntegratorFlat3D</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s">&#39;2d&#39;</span><span class="p">:</span>
+      <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">Integrator2D</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s">&#39;single2d&#39;</span><span class="p">:</span>
+      <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">IntegratorSingle2D</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s">&#39;stills&#39;</span><span class="p">:</span>
+      <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">IntegratorStills</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Unknown integration type&quot;</span><span class="p">)</span>
+
+    <span class="c"># Return an instantiation of the class</span>
+    <span class="k">return</span> <span class="n">IntegratorClass</span><span class="p">(</span>
+      <span class="n">experiments</span><span class="p">,</span>
+      <span class="n">reflections</span><span class="p">,</span>
+      <span class="n">Parameters</span><span class="o">.</span><span class="n">from_phil</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="p">))</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
