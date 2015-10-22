@@ -7,6 +7,7 @@ usermap = {
   'david': 'upintheair',
   'fcx32934': 'upintheair',
   'rjgildea': 'rjgildea',
+  'hko55533': 'rjgildea',
   'sauter': 'nksauter',
 }
 
