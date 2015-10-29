@@ -68,9 +68,28 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
 
 
-<div class="viewcode-block" id="Extract"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.peak_finding.html#dials.algorithms.peak_finding.spot_finder.Extract">[docs]</a><span class="k">class</span> <span class="nc">Extract</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Result"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.peak_finding.html#dials.algorithms.peak_finding.spot_finder.Result">[docs]</a><span class="k">class</span> <span class="nc">Result</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">  Class to extract a batch of images</span>
+<span class="sd">  A class to hold the result from spot finding on an image.</span>
+
+<span class="sd">  When doing multi processing, we can process the result of</span>
+<span class="sd">  each thread as it comes in instead of waiting for all results.</span>
+<span class="sd">  The purpose of this class is to allow us to set the pixel list</span>
+<span class="sd">  to None after each image to lower memory usage.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pixel_list</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Set the pixel list</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pixel_list</span> <span class="o">=</span> <span class="n">pixel_list</span>
+
+</div>
+<div class="viewcode-block" id="ExtractPixelsFromImage"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.peak_finding.html#dials.algorithms.peak_finding.spot_finder.ExtractPixelsFromImage">[docs]</a><span class="k">class</span> <span class="nc">ExtractPixelsFromImage</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A class to extract pixels from a single image</span>
 
 <span class="sd">  &#39;&#39;&#39;</span>
 
@@ -80,132 +99,171 @@
                <span class="n">mask</span><span class="p">,</span>
                <span class="n">max_strong_pixel_fraction</span><span class="p">,</span>
                <span class="n">region_of_interest</span><span class="p">):</span>
-      <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">      Initialise with imageset and threshold function, both need to be picklable</span>
-<span class="sd">      for this to be called using multiprocessing.</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the class</span>
 
-<span class="sd">      :param imageset: The imageset to process</span>
-<span class="sd">      :param threshold_image: The threshold algorithm</span>
-<span class="sd">      :param mask: The mask to use</span>
+<span class="sd">    :param imageset: The imageset to extract from</span>
+<span class="sd">    :param threshold_image: The function to threshold with</span>
+<span class="sd">    :param mask: The image mask</span>
+<span class="sd">    :param max_strong_pixel_fraction: The maximum fraction of pixels allowed</span>
+<span class="sd">    :param region_of_interest: A region of interest to process</span>
 
-<span class="sd">      &#39;&#39;&#39;</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">threshold_image</span> <span class="o">=</span> <span class="n">threshold_image</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span> <span class="o">=</span> <span class="n">imageset</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span> <span class="o">=</span> <span class="n">max_strong_pixel_fraction</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span> <span class="o">=</span> <span class="n">region_of_interest</span>
-      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-        <span class="n">detector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
-        <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">detector</span><span class="p">))</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">threshold_image</span> <span class="o">=</span> <span class="n">threshold_image</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span> <span class="o">=</span> <span class="n">imageset</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span> <span class="o">=</span> <span class="n">max_strong_pixel_fraction</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span> <span class="o">=</span> <span class="n">region_of_interest</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="n">detector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
+      <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">detector</span><span class="p">))</span>
 
   <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
-      <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">      Extract pixels from a block of images.</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Extract strong pixels from an image</span>
 
-<span class="sd">      :param index: The image indices to extract</span>
-<span class="sd">      :return: The extracted spots</span>
+<span class="sd">    :param index: The index of the image</span>
 
-<span class="sd">      &#39;&#39;&#39;</span>
-      <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="kn">import</span> <span class="n">PixelList</span>
-      <span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="kn">import</span> <span class="n">ImageSweep</span>
-      <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
-      <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">ceil</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="kn">import</span> <span class="n">PixelList</span>
+    <span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="kn">import</span> <span class="n">ImageSweep</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+    <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">ceil</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
 
-      <span class="c"># Get the starting z</span>
-      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSweep</span><span class="p">):</span>
-        <span class="n">startz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c"># Get the frame number</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSweep</span><span class="p">):</span>
+      <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">index</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">ind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">indices</span><span class="p">()</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">assert</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">i1</span><span class="o">+</span><span class="mi">1</span> <span class="o">==</span> <span class="n">i2</span> <span class="k">for</span> <span class="n">i1</span><span class="p">,</span> <span class="n">i2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])))</span>
+      <span class="n">frame</span> <span class="o">=</span> <span class="n">ind</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+
+    <span class="c"># Create the list of pixel lists</span>
+    <span class="n">pixel_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c"># Get the image and mask</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_corrected_data</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_mask</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="c"># Set the mask</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">))</span>
+      <span class="n">mask</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">m1</span> <span class="o">&amp;</span> <span class="n">m2</span> <span class="k">for</span> <span class="n">m1</span><span class="p">,</span> <span class="n">m2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">))</span>
+
+    <span class="c"># Add the images to the pixel lists</span>
+    <span class="n">num_strong</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">im</span><span class="p">,</span> <span class="n">mk</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span>
+        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">im</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="n">x0</span> <span class="o">&lt;</span> <span class="n">x1</span><span class="p">,</span> <span class="s">&quot;x0 &lt; x1&quot;</span>
+        <span class="k">assert</span> <span class="n">y0</span> <span class="o">&lt;</span> <span class="n">y1</span><span class="p">,</span> <span class="s">&quot;y0 &lt; y1&quot;</span>
+        <span class="k">assert</span> <span class="n">x0</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;x0 &gt;= 0&quot;</span>
+        <span class="k">assert</span> <span class="n">y0</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;y0 &gt;= 0&quot;</span>
+        <span class="k">assert</span> <span class="n">x1</span> <span class="o">&lt;=</span> <span class="n">width</span><span class="p">,</span> <span class="s">&quot;x1 &lt;= width&quot;</span>
+        <span class="k">assert</span> <span class="n">y1</span> <span class="o">&lt;=</span> <span class="n">height</span><span class="p">,</span> <span class="s">&quot;y1 &lt;= height&quot;</span>
+        <span class="n">im_roi</span> <span class="o">=</span> <span class="n">im</span><span class="p">[</span><span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">,</span><span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">]</span>
+        <span class="n">mk_roi</span> <span class="o">=</span> <span class="n">mk</span><span class="p">[</span><span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">,</span><span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">]</span>
+        <span class="n">tm_roi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_image</span><span class="o">.</span><span class="n">compute_threshold</span><span class="p">(</span><span class="n">im_roi</span><span class="p">,</span> <span class="n">mk_roi</span><span class="p">)</span>
+        <span class="n">threshold_mask</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">im</span><span class="o">.</span><span class="n">accessor</span><span class="p">(),</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">threshold_mask</span><span class="p">[</span><span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">,</span><span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">]</span> <span class="o">=</span> <span class="n">tm_roi</span>
       <span class="k">else</span><span class="p">:</span>
-        <span class="n">ind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">indices</span><span class="p">()</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-          <span class="k">assert</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">i1</span><span class="o">+</span><span class="mi">1</span> <span class="o">==</span> <span class="n">i2</span> <span class="k">for</span> <span class="n">i1</span><span class="p">,</span> <span class="n">i2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])))</span>
-        <span class="n">startz</span> <span class="o">=</span> <span class="n">ind</span><span class="p">[</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">threshold_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_image</span><span class="o">.</span><span class="n">compute_threshold</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">mk</span><span class="p">)</span>
 
-      <span class="c"># Create the list of pixel lists</span>
-      <span class="n">plists</span> <span class="o">=</span> <span class="p">[</span><span class="n">PixelList</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">startz</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()]</span>
+      <span class="c"># Add the pixel list</span>
+      <span class="n">plist</span> <span class="o">=</span> <span class="n">PixelList</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">threshold_mask</span><span class="p">)</span>
+      <span class="n">pixel_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plist</span><span class="p">)</span>
 
-      <span class="c"># Iterate through the range of images</span>
-      <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">*</span><span class="n">index</span><span class="p">):</span>
+      <span class="c"># Add to the spot count</span>
+      <span class="n">num_strong</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">plist</span><span class="p">)</span>
 
-        <span class="c"># Get the image and mask</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_corrected_data</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_mask</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span>
+    <span class="c"># Check total number of strong pixels</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="n">num_image</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">for</span> <span class="n">im</span> <span class="ow">in</span> <span class="n">image</span><span class="p">:</span>
+        <span class="n">num_image</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">im</span><span class="p">)</span>
+      <span class="n">max_strong</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span> <span class="o">*</span> <span class="n">num_image</span><span class="p">))</span>
+      <span class="k">if</span> <span class="n">num_strong</span> <span class="o">&gt;</span> <span class="n">max_strong</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">          The number of strong pixels found (%d) is greater than the</span>
+<span class="sd">          maximum allowed (%d). Try changing spot finding parameters</span>
+<span class="sd">        &#39;&#39;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num_strong</span><span class="p">,</span> <span class="n">max_strong</span><span class="p">))</span>
 
-        <span class="c"># Set the mask</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-          <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">))</span>
-          <span class="n">mask</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">m1</span> <span class="o">&amp;</span> <span class="n">m2</span> <span class="k">for</span> <span class="n">m1</span><span class="p">,</span> <span class="n">m2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">))</span>
+    <span class="c"># Print some info</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&quot;Found </span><span class="si">%d</span><span class="s"> strong pixels on image </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num_strong</span><span class="p">,</span> <span class="n">index</span><span class="p">))</span>
 
-        <span class="c"># Add the images to the pixel lists</span>
-        <span class="k">for</span> <span class="n">pl</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">mk</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">plists</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
-          <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span>
-            <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">im</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-            <span class="k">assert</span> <span class="n">x0</span> <span class="o">&lt;</span> <span class="n">x1</span><span class="p">,</span> <span class="s">&quot;x0 &lt; x1&quot;</span>
-            <span class="k">assert</span> <span class="n">y0</span> <span class="o">&lt;</span> <span class="n">y1</span><span class="p">,</span> <span class="s">&quot;y0 &lt; y1&quot;</span>
-            <span class="k">assert</span> <span class="n">x0</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;x0 &gt;= 0&quot;</span>
-            <span class="k">assert</span> <span class="n">y0</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;y0 &gt;= 0&quot;</span>
-            <span class="k">assert</span> <span class="n">x1</span> <span class="o">&lt;=</span> <span class="n">width</span><span class="p">,</span> <span class="s">&quot;x1 &lt;= width&quot;</span>
-            <span class="k">assert</span> <span class="n">y1</span> <span class="o">&lt;=</span> <span class="n">height</span><span class="p">,</span> <span class="s">&quot;y1 &lt;= height&quot;</span>
-            <span class="n">im_roi</span> <span class="o">=</span> <span class="n">im</span><span class="p">[</span><span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">,</span><span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">]</span>
-            <span class="n">mk_roi</span> <span class="o">=</span> <span class="n">mk</span><span class="p">[</span><span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">,</span><span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">]</span>
-            <span class="n">tm_roi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_image</span><span class="o">.</span><span class="n">compute_threshold</span><span class="p">(</span><span class="n">im_roi</span><span class="p">,</span> <span class="n">mk_roi</span><span class="p">)</span>
-            <span class="n">threshold_mask</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">im</span><span class="o">.</span><span class="n">accessor</span><span class="p">(),</span><span class="bp">False</span><span class="p">)</span>
-            <span class="n">threshold_mask</span><span class="p">[</span><span class="n">y0</span><span class="p">:</span><span class="n">y1</span><span class="p">,</span><span class="n">x0</span><span class="p">:</span><span class="n">x1</span><span class="p">]</span> <span class="o">=</span> <span class="n">tm_roi</span>
-          <span class="k">else</span><span class="p">:</span>
-            <span class="n">threshold_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_image</span><span class="o">.</span><span class="n">compute_threshold</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">mk</span><span class="p">)</span>
-          <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">max_strong</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">im</span><span class="p">)))</span>
-            <span class="n">num_strong</span> <span class="o">=</span> <span class="n">threshold_mask</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">num_strong</span> <span class="o">&gt;</span> <span class="n">max_strong</span><span class="p">:</span>
-              <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">                The number of strong pixels found (%d) is greater than the</span>
-<span class="sd">                maximum allowed (%d). Try changing spot finding parameters</span>
-<span class="sd">              &#39;&#39;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num_strong</span><span class="p">,</span> <span class="n">max_strong</span><span class="p">))</span>
-          <span class="n">pl</span><span class="o">.</span><span class="n">add_image</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">threshold_mask</span><span class="p">)</span>
-
-      <span class="c"># Return the pixel lists</span>
-      <span class="k">return</span> <span class="n">plists</span>
+    <span class="c"># Return the result</span>
+    <span class="k">return</span> <span class="n">Result</span><span class="p">(</span><span class="n">pixel_list</span><span class="p">)</span>
 
 </div>
-<div class="viewcode-block" id="ProgressUpdater"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.peak_finding.html#dials.algorithms.peak_finding.spot_finder.ProgressUpdater">[docs]</a><span class="k">class</span> <span class="nc">ProgressUpdater</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="batch_parallel_map"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.peak_finding.html#dials.algorithms.peak_finding.spot_finder.batch_parallel_map">[docs]</a><span class="k">def</span> <span class="nf">batch_parallel_map</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                       <span class="n">iterable</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                       <span class="n">processes</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                       <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                       <span class="n">method</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                       <span class="n">chunksize</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">  Class to update the progress bar from multi processing callback.</span>
+<span class="sd">  A function to run jobs in batches in each process</span>
 
 <span class="sd">  &#39;&#39;&#39;</span>
+  <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_mp</span>
 
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">total</span><span class="p">):</span>
+  <span class="k">class</span> <span class="nc">batch_func</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Initialise the progress bar.</span>
-
-<span class="sd">    :param total: The total to count up to</span>
+<span class="sd">    Process the batch iterables</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">ProgressBar</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">total</span> <span class="o">=</span> <span class="n">total</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">num</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">progress</span> <span class="o">=</span> <span class="n">ProgressBar</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s">&#39;Extracting strong pixels from images&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
 
-  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">index</span><span class="p">:</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">class</span> <span class="nc">batch_iterable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Update the progress bar.</span>
-
-<span class="sd">    :param result: The result</span>
+<span class="sd">    Split the iterables into batches</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">num</span> <span class="o">+=</span> <span class="mi">1</span>
-    <span class="n">percent</span> <span class="o">=</span> <span class="mf">100.0</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">total</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">progress</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">percent</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iterable</span><span class="p">,</span> <span class="n">chunksize</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">iterable</span> <span class="o">=</span> <span class="n">iterable</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">chunksize</span> <span class="o">=</span> <span class="n">chunksize</span>
 
-<div class="viewcode-block" id="ProgressUpdater.finished"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.peak_finding.html#dials.algorithms.peak_finding.spot_finder.ProgressUpdater.finished">[docs]</a>  <span class="k">def</span> <span class="nf">finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-     <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">     Finish the progress bar.</span>
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">iterable</span><span class="p">):</span>
+        <span class="n">j</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="n">chunksize</span>
+        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">iterable</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="n">j</span>
 
-<span class="sd">     &#39;&#39;&#39;</span>
-     <span class="bp">self</span><span class="o">.</span><span class="n">progress</span><span class="o">.</span><span class="n">finished</span><span class="p">(</span><span class="s">&#39;Extracted strong pixels from images&#39;</span><span class="p">)</span>
+  <span class="k">class</span> <span class="nc">batch_callback</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Process the batch callback</span>
 
-</div></div>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="n">callback</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+
+  <span class="c"># Call the batches in parallel</span>
+  <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
+    <span class="n">func</span><span class="o">=</span><span class="n">batch_func</span><span class="p">(</span><span class="n">func</span><span class="p">),</span>
+    <span class="n">iterable</span><span class="o">=</span><span class="n">batch_iterable</span><span class="p">(</span><span class="n">iterable</span><span class="p">,</span> <span class="n">chunksize</span><span class="p">),</span>
+    <span class="n">processes</span><span class="o">=</span><span class="n">processes</span><span class="p">,</span>
+    <span class="n">callback</span><span class="o">=</span><span class="n">batch_callback</span><span class="p">(</span><span class="n">callback</span><span class="p">),</span>
+    <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+    <span class="n">preserve_order</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">preserve_exception_message</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+</div>
 <div class="viewcode-block" id="ExtractSpots"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.peak_finding.html#dials.algorithms.peak_finding.spot_finder.ExtractSpots">[docs]</a><span class="k">class</span> <span class="nc">ExtractSpots</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">  Class to find spots in an image and extract them into shoeboxes.</span>
@@ -217,6 +275,7 @@
                <span class="n">mask</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                <span class="n">mp_method</span><span class="o">=</span><span class="s">&#39;multiprocessing&#39;</span><span class="p">,</span>
                <span class="n">nproc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+               <span class="n">mp_chunksize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                <span class="n">max_strong_pixel_fraction</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
                <span class="n">region_of_interest</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -233,6 +292,7 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">threshold_image</span> <span class="o">=</span> <span class="n">threshold_image</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">mp_method</span> <span class="o">=</span> <span class="n">mp_method</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mp_chunksize</span> <span class="o">=</span> <span class="n">mp_chunksize</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">nproc</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span> <span class="o">=</span> <span class="n">max_strong_pixel_fraction</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span> <span class="o">=</span> <span class="n">region_of_interest</span>
@@ -248,75 +308,87 @@
     <span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">Command</span>
     <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
     <span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="kn">import</span> <span class="n">ImageSweep</span>
-    <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_mp</span>
+    <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="kn">import</span> <span class="n">PixelListLabeller</span>
     <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+    <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">floor</span>
 
     <span class="c"># Change the number of processors if necessary</span>
-    <span class="n">nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span>
-    <span class="k">if</span> <span class="n">nproc</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">):</span>
-      <span class="n">nproc</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
+    <span class="n">mp_nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span>
+    <span class="k">if</span> <span class="n">mp_nproc</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">):</span>
+      <span class="n">mp_nproc</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
+    <span class="n">mp_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mp_method</span>
+    <span class="n">mp_chunksize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mp_chunksize</span>
+    <span class="n">len_by_nproc</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span> <span class="o">/</span> <span class="n">mp_nproc</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">mp_chunksize</span> <span class="o">&gt;</span> <span class="n">len_by_nproc</span><span class="p">:</span>
+      <span class="n">mp_chunksize</span> <span class="o">=</span> <span class="n">len_by_nproc</span>
+    <span class="k">assert</span> <span class="n">mp_nproc</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Invalid number of processors&quot;</span>
+    <span class="k">assert</span> <span class="n">mp_chunksize</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Invalid chunk size&quot;</span>
 
-    <span class="c"># Extract the pixels in blocks of images in parallel</span>
-    <span class="n">info</span><span class="p">(</span><span class="s">&quot;Extracting strong pixels from images (may take a while)&quot;</span><span class="p">)</span>
-    <span class="n">pl</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
-      <span class="n">func</span><span class="o">=</span><span class="n">Extract</span><span class="p">(</span>
+    <span class="c"># The extract pixels function</span>
+    <span class="n">function</span> <span class="o">=</span> <span class="n">ExtractPixelsFromImage</span><span class="p">(</span>
         <span class="n">imageset</span><span class="p">,</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">threshold_image</span><span class="p">,</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span><span class="p">),</span>
-      <span class="n">iterable</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_blocks</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">nproc</span><span class="p">),</span>
-      <span class="n">processes</span><span class="o">=</span><span class="n">nproc</span><span class="p">,</span>
-      <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mp_method</span><span class="p">,</span>
-      <span class="n">preserve_order</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-      <span class="n">asynchronous</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-    <span class="n">info</span><span class="p">(</span><span class="s">&quot;Extracted strong pixels from images&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">region_of_interest</span><span class="p">)</span>
 
-    <span class="c"># Merge pixel lists into a single list for each panel</span>
-    <span class="n">len_pl</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pl</span><span class="p">)</span>
-    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Merging {0} pixel lists&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">len_pl</span><span class="p">))</span>
-    <span class="n">pl</span> <span class="o">=</span> <span class="p">[</span><span class="n">flex</span><span class="o">.</span><span class="n">pixel_list</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">pl</span><span class="p">)]</span>
-    <span class="n">np</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pl</span><span class="p">])</span>
-    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Merged {0} pixel lists with {1} pixels&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">len_pl</span><span class="p">,</span> <span class="n">np</span><span class="p">))</span>
+    <span class="c"># The indices to iterate over</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)))</span>
+
+    <span class="c"># Initialise the pixel labeller</span>
+    <span class="n">num_panels</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">())</span>
+    <span class="n">pixel_labeller</span> <span class="o">=</span> <span class="p">[</span><span class="n">PixelListLabeller</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_panels</span><span class="p">)]</span>
+
+    <span class="c"># Do the processing</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Extracting strong pixels from images&#39;</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39; Using </span><span class="si">%s</span><span class="s"> with </span><span class="si">%d</span><span class="s"> parallel job(s)</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">mp_method</span><span class="p">,</span> <span class="n">mp_nproc</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">mp_nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">def</span> <span class="nf">process_output</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">logging</span>
+        <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">result</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">levelno</span><span class="p">,</span> <span class="n">message</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">pixel_labeller</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pixel_list</span><span class="p">),</span> <span class="s">&quot;Inconsistent size&quot;</span>
+        <span class="k">for</span> <span class="n">plabeller</span><span class="p">,</span> <span class="n">plist</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">pixel_labeller</span><span class="p">,</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pixel_list</span><span class="p">):</span>
+          <span class="n">plabeller</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">plist</span><span class="p">)</span>
+        <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pixel_list</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="k">def</span> <span class="nf">execute_task</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+        <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">log</span>
+        <span class="kn">import</span> <span class="nn">logging</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">config_simple_cached</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">function</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+        <span class="n">handlers</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">handlers</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">handlers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&quot;Invalid number of logging handlers&quot;</span>
+        <span class="k">return</span> <span class="n">result</span><span class="p">,</span> <span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">messages</span><span class="p">()</span>
+      <span class="n">batch_parallel_map</span><span class="p">(</span>
+        <span class="n">func</span><span class="o">=</span><span class="n">execute_task</span><span class="p">,</span>
+        <span class="n">iterable</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+        <span class="n">processes</span><span class="o">=</span><span class="n">mp_nproc</span><span class="p">,</span>
+        <span class="n">callback</span><span class="o">=</span><span class="n">process_output</span><span class="p">,</span>
+        <span class="n">method</span><span class="o">=</span><span class="n">mp_method</span><span class="p">,</span>
+        <span class="n">chunksize</span><span class="o">=</span><span class="n">mp_chunksize</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">function</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">pixel_labeller</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">pixel_list</span><span class="p">),</span> <span class="s">&quot;Inconsistent size&quot;</span>
+        <span class="k">for</span> <span class="n">plabeller</span><span class="p">,</span> <span class="n">plist</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">pixel_labeller</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">pixel_list</span><span class="p">):</span>
+          <span class="n">plabeller</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">plist</span><span class="p">)</span>
+          <span class="n">result</span><span class="o">.</span><span class="n">pixel_list</span> <span class="o">=</span> <span class="bp">None</span>
 
     <span class="c"># Extract the pixel lists into a list of reflections</span>
-    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Extracting spots&#39;</span><span class="p">)</span>
     <span class="n">shoeboxes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">shoebox</span><span class="p">()</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSweep</span><span class="p">):</span>
       <span class="n">twod</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="n">twod</span> <span class="o">=</span> <span class="bp">True</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pl</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pixel_labeller</span><span class="p">):</span>
       <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">num_pixels</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">shoeboxes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">shoebox</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">twod</span><span class="p">))</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&#39;Extracted {0} spots&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoeboxes</span><span class="p">)))</span>
 
     <span class="c"># Return the shoeboxes</span>
     <span class="k">return</span> <span class="n">shoeboxes</span>
-
-  <span class="k">def</span> <span class="nf">_calculate_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset</span><span class="p">,</span> <span class="n">nblocks</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Calculate the blocks.</span>
-
-<span class="sd">    :param imageset: The imageset</span>
-<span class="sd">    :param nblocks: The number of blocks to process in</span>
-<span class="sd">    :return: The block size</span>
-
-<span class="sd">    &#39;&#39;&#39;</span>
-    <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">ceil</span>
-    <span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">imageset_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
-    <span class="k">assert</span><span class="p">(</span><span class="n">nblocks</span> <span class="o">&lt;=</span> <span class="n">imageset_length</span><span class="p">)</span>
-    <span class="n">block_length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="n">imageset_length</span> <span class="o">/</span> <span class="n">nblocks</span><span class="p">))</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nblocks</span><span class="p">):</span>
-      <span class="n">frame</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">block_length</span>
-      <span class="k">if</span> <span class="n">frame</span> <span class="o">&gt;</span> <span class="n">imageset_length</span><span class="p">:</span>
-        <span class="n">frame</span> <span class="o">=</span> <span class="n">imageset_length</span>
-      <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">frame</span> <span class="o">==</span> <span class="n">imageset_length</span><span class="p">:</span>
-        <span class="k">break</span>
-    <span class="k">assert</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">b</span> <span class="o">&gt;</span> <span class="n">a</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">blocks</span><span class="p">,</span> <span class="n">blocks</span><span class="p">[</span><span class="mi">1</span><span class="p">:])))</span>
-    <span class="k">return</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">blocks</span><span class="p">[</span><span class="mi">1</span><span class="p">:])]</span>
 
 </div>
 <div class="viewcode-block" id="SpotFinder"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.peak_finding.html#dials.algorithms.peak_finding.spot_finder.SpotFinder">[docs]</a><span class="k">class</span> <span class="nc">SpotFinder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -367,6 +439,7 @@
       <span class="n">table</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">nrows</span><span class="p">(),</span> <span class="n">i</span><span class="p">)</span>
       <span class="n">reflections</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
 
+      <span class="c"># Write a hot pixel mask</span>
       <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">write_hot_mask</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
           <span class="n">and_mask</span> <span class="o">=</span> <span class="p">[]</span>
@@ -381,8 +454,10 @@
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
           <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">hot_mask</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="n">pickle</span><span class="o">.</span><span class="n">HIGHEST_PROTOCOL</span><span class="p">)</span>
 
+    <span class="c"># Set the strong spot flag</span>
     <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span>
-      <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)),</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">strong</span><span class="p">)</span>
+      <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)),</span>
+      <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">strong</span><span class="p">)</span>
 
     <span class="c"># Return the reflections</span>
     <span class="k">return</span> <span class="n">reflections</span>
@@ -428,18 +503,17 @@
     <span class="n">shoeboxes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">shoebox</span><span class="p">(</span><span class="n">spots_all</span><span class="p">)</span>
 
     <span class="c"># Calculate the spot centroids</span>
-    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Calculating {0} spot centroids&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoeboxes</span><span class="p">)))</span>
     <span class="n">centroid</span> <span class="o">=</span> <span class="n">shoeboxes</span><span class="o">.</span><span class="n">centroid_valid</span><span class="p">()</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&#39;Calculated {0} spot centroids&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoeboxes</span><span class="p">)))</span>
 
     <span class="c"># Calculate the spot intensities</span>
-    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Calculating {0} spot intensities&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoeboxes</span><span class="p">)))</span>
     <span class="n">intensity</span> <span class="o">=</span> <span class="n">shoeboxes</span><span class="o">.</span><span class="n">summed_intensity</span><span class="p">()</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&#39;Calculated {0} spot intensities&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoeboxes</span><span class="p">)))</span>
 
     <span class="c"># Create the observations</span>
     <span class="n">observed</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">observation</span><span class="p">(</span><span class="n">shoeboxes</span><span class="o">.</span><span class="n">panels</span><span class="p">(),</span> <span class="n">centroid</span><span class="p">,</span> <span class="n">intensity</span><span class="p">)</span>
 
+    <span class="c"># Write the hot mask</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">write_hot_mask</span><span class="p">:</span>
       <span class="c"># Find spots which cover the whole scan range</span>
       <span class="n">bbox</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int6</span><span class="p">([</span><span class="n">sbox</span><span class="o">.</span><span class="n">bbox</span> <span class="k">for</span> <span class="n">sbox</span> <span class="ow">in</span> <span class="n">shoeboxes</span><span class="p">])</span>
