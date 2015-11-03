@@ -147,10 +147,11 @@
 <span class="p">}</span>
 
 <div class="viewcode-block" id="refined_settings_factory_from_refined_triclinic"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.symmetry.refined_settings_factory_from_refined_triclinic">[docs]</a><span class="k">def</span> <span class="nf">refined_settings_factory_from_refined_triclinic</span><span class="p">(</span>
-  <span class="n">params</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">i_setting</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+  <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">i_setting</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
   <span class="n">lepage_max_delta</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">nproc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">refiner_verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
 
-  <span class="n">crystal</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span>
+  <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">())</span> <span class="o">==</span> <span class="mi">1</span>
+  <span class="n">crystal</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
 
   <span class="n">used_reflections</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
   <span class="n">UC</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
@@ -192,7 +193,7 @@
   <span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
   <span class="k">for</span> <span class="n">subgroup</span> <span class="ow">in</span> <span class="n">Lfat</span><span class="p">:</span>
     <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">((</span>
-      <span class="n">params</span><span class="p">,</span> <span class="n">subgroup</span><span class="p">,</span> <span class="n">used_reflections</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">refiner_verbosity</span><span class="p">))</span>
+      <span class="n">params</span><span class="p">,</span> <span class="n">subgroup</span><span class="p">,</span> <span class="n">used_reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refiner_verbosity</span><span class="p">))</span>
 
   <span class="n">results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
     <span class="n">func</span><span class="o">=</span><span class="n">refine_subgroup</span><span class="p">,</span>
@@ -212,20 +213,22 @@
   <span class="kn">from</span> <span class="nn">dials.command_line.check_indexing_symmetry</span> \
        <span class="kn">import</span> <span class="n">get_symop_correlation_coefficients</span>
 
-  <span class="n">params</span><span class="p">,</span> <span class="n">subgroup</span><span class="p">,</span> <span class="n">used_reflections</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">refiner_verbosity</span> <span class="o">=</span> <span class="n">args</span>
+  <span class="n">params</span><span class="p">,</span> <span class="n">subgroup</span><span class="p">,</span> <span class="n">used_reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refiner_verbosity</span> <span class="o">=</span> <span class="n">args</span>
 
   <span class="n">used_reflections</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">used_reflections</span><span class="p">)</span>
   <span class="n">triclinic_miller</span> <span class="o">=</span> <span class="n">used_reflections</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">]</span>
   <span class="n">cb_op</span> <span class="o">=</span> <span class="n">subgroup</span><span class="p">[</span><span class="s">&#39;cb_op_inp_best&#39;</span><span class="p">]</span>
   <span class="n">higher_symmetry_miller</span> <span class="o">=</span> <span class="n">cb_op</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">triclinic_miller</span><span class="p">)</span>
   <span class="n">used_reflections</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">higher_symmetry_miller</span>
-  <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">subgroup</span><span class="o">.</span><span class="n">unrefined_crystal</span><span class="p">)</span>
+  <span class="n">unrefined_crystal</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">subgroup</span><span class="o">.</span><span class="n">unrefined_crystal</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">expt</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
+    <span class="n">expt</span><span class="o">.</span><span class="n">crystal</span> <span class="o">=</span> <span class="n">unrefined_crystal</span>
 
   <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.refinement</span> <span class="kn">import</span> <span class="n">refine</span>
-  <span class="kn">from</span> <span class="nn">dxtbx.model.experiment.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentList</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">([</span><span class="n">experiment</span><span class="p">])</span>
   <span class="n">subgroup</span><span class="o">.</span><span class="n">max_cc</span> <span class="o">=</span> <span class="bp">None</span>
   <span class="n">subgroup</span><span class="o">.</span><span class="n">min_cc</span> <span class="o">=</span> <span class="bp">None</span>
+  <span class="n">subgroup</span><span class="o">.</span><span class="n">correlation_coefficients</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="n">subgroup</span><span class="o">.</span><span class="n">cc_nrefs</span> <span class="o">=</span> <span class="p">[]</span>
   <span class="k">try</span><span class="p">:</span>
     <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
     <span class="n">disabled</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">disabled</span>
@@ -254,19 +257,20 @@
     <span class="n">subgroup</span><span class="o">.</span><span class="n">detector</span> <span class="o">=</span> <span class="n">refinery</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
     <span class="n">subgroup</span><span class="o">.</span><span class="n">refined_crystal</span> <span class="o">=</span> <span class="n">refinery</span><span class="o">.</span><span class="n">get_crystal</span><span class="p">()</span>
     <span class="n">cs</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span>
-        <span class="n">unit_cell</span><span class="o">=</span><span class="n">subgroup</span><span class="o">.</span><span class="n">refined_crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">(),</span>
-        <span class="n">space_group</span><span class="o">=</span><span class="n">subgroup</span><span class="o">.</span><span class="n">refined_crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">())</span>
-    <span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">miller</span>
-    <span class="n">ms</span> <span class="o">=</span> <span class="n">miller</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">cs</span><span class="p">,</span> <span class="n">used_reflections</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">])</span>
-    <span class="n">ms</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">used_reflections</span><span class="p">[</span><span class="s">&#39;intensity.sum.value&#39;</span><span class="p">]</span> <span class="o">/</span>
-                <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">used_reflections</span><span class="p">[</span><span class="s">&#39;intensity.sum.variance&#39;</span><span class="p">]))</span>
-    <span class="n">ccs</span><span class="p">,</span> <span class="n">nrefs</span> <span class="o">=</span> <span class="n">get_symop_correlation_coefficients</span><span class="p">(</span><span class="n">ms</span><span class="p">)</span>
-    <span class="n">subgroup</span><span class="o">.</span><span class="n">correlation_coefficients</span> <span class="o">=</span> <span class="n">ccs</span>
-    <span class="n">subgroup</span><span class="o">.</span><span class="n">cc_nrefs</span> <span class="o">=</span> <span class="n">nrefs</span>
-    <span class="n">ccs</span> <span class="o">=</span> <span class="n">ccs</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">nrefs</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ccs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-      <span class="n">subgroup</span><span class="o">.</span><span class="n">max_cc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ccs</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-      <span class="n">subgroup</span><span class="o">.</span><span class="n">min_cc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">ccs</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+      <span class="n">unit_cell</span><span class="o">=</span><span class="n">subgroup</span><span class="o">.</span><span class="n">refined_crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">(),</span>
+      <span class="n">space_group</span><span class="o">=</span><span class="n">subgroup</span><span class="o">.</span><span class="n">refined_crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">())</span>
+    <span class="k">if</span> <span class="s">&#39;intensity.sum.value&#39;</span> <span class="ow">in</span> <span class="n">used_reflections</span><span class="p">:</span>
+      <span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">miller</span>
+      <span class="n">ms</span> <span class="o">=</span> <span class="n">miller</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">cs</span><span class="p">,</span> <span class="n">used_reflections</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">])</span>
+      <span class="n">ms</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">used_reflections</span><span class="p">[</span><span class="s">&#39;intensity.sum.value&#39;</span><span class="p">]</span> <span class="o">/</span>
+                    <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">used_reflections</span><span class="p">[</span><span class="s">&#39;intensity.sum.variance&#39;</span><span class="p">]))</span>
+      <span class="n">ccs</span><span class="p">,</span> <span class="n">nrefs</span> <span class="o">=</span> <span class="n">get_symop_correlation_coefficients</span><span class="p">(</span><span class="n">ms</span><span class="p">)</span>
+      <span class="n">subgroup</span><span class="o">.</span><span class="n">correlation_coefficients</span> <span class="o">=</span> <span class="n">ccs</span>
+      <span class="n">subgroup</span><span class="o">.</span><span class="n">cc_nrefs</span> <span class="o">=</span> <span class="n">nrefs</span>
+      <span class="n">ccs</span> <span class="o">=</span> <span class="n">ccs</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">nrefs</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ccs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">subgroup</span><span class="o">.</span><span class="n">max_cc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ccs</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">subgroup</span><span class="o">.</span><span class="n">min_cc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">ccs</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
   <span class="k">finally</span><span class="p">:</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">disabled</span> <span class="o">=</span> <span class="n">disabled</span>
   <span class="k">return</span> <span class="n">subgroup</span>
