@@ -1,0 +1,1096 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dials.algorithms.integration.processor &mdash; DIALS  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../../_static/dials_icon.png"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="top" title="DIALS  documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for dials.algorithms.integration.processor</h1><div class="highlight"><pre>
+<span class="c">#</span>
+<span class="c"># processor.py</span>
+<span class="c">#</span>
+<span class="c">#  Copyright (C) 2015 Diamond Light Source</span>
+<span class="c">#</span>
+<span class="c">#  Author: James Parkhurst</span>
+<span class="c">#</span>
+<span class="c">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c">#  included in the root directory of this package.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">dials_algorithms_integration_integrator_ext</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">dials</span> <span class="kn">import</span> <span class="n">phil</span>
+<span class="kn">import</span> <span class="nn">libtbx</span>
+
+
+<span class="k">class</span> <span class="nc">_Job</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">nthreads</span> <span class="o">=</span> <span class="mi">1</span>
+
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">_Job</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">Parameters</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Class to handle parameters for the processor</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">class</span> <span class="nc">MultiProcessing</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Multi processing parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="s">&quot;multiprocessing&quot;</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="mi">1</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">nthreads</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">method</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">nproc</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">nthreads</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">nthreads</span>
+
+  <span class="k">class</span> <span class="nc">Lookup</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Lookup parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">mask</span>
+
+  <span class="k">class</span> <span class="nc">Block</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Block parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="s">&#39;degrees&#39;</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="mf">0.99</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">force</span> <span class="o">=</span> <span class="bp">False</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">=</span> <span class="mf">0.75</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">size</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">units</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">threshold</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">force</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">force</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">max_memory_usage</span>
+
+  <span class="k">class</span> <span class="nc">Shoebox</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Shoebox parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="bp">False</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">flatten</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">partials</span>
+
+  <span class="k">class</span> <span class="nc">Debug</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Debug parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="bp">False</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">split_experiments</span> <span class="o">=</span> <span class="bp">True</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">separate_files</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">output</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">select</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">split_experiments</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">split_experiments</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">separate_files</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">separate_files</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialize the parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mp</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">MultiProcessing</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">lookup</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Lookup</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">block</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Block</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">shoebox</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Shoebox</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">debug</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Debug</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Update the parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">mp</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">lookup</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">block</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">shoebox</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">debug</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">TimingInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A class to contain timing info.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">read</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">extract</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">initialize</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">process</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">finalize</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="mi">0</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Convert to string. &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">libtbx.table_utils</span> <span class="kn">import</span> <span class="n">format</span> <span class="k">as</span> <span class="n">table</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
+      <span class="p">[</span><span class="s">&quot;Read time&quot;</span>        <span class="p">,</span> <span class="s">&quot;</span><span class="si">%.2f</span><span class="s"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">)</span>       <span class="p">],</span>
+      <span class="p">[</span><span class="s">&quot;Extract time&quot;</span>     <span class="p">,</span> <span class="s">&quot;</span><span class="si">%.2f</span><span class="s"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extract</span><span class="p">)</span>    <span class="p">],</span>
+      <span class="p">[</span><span class="s">&quot;Pre-process time&quot;</span> <span class="p">,</span> <span class="s">&quot;</span><span class="si">%.2f</span><span class="s"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">)</span> <span class="p">],</span>
+      <span class="p">[</span><span class="s">&quot;Process time&quot;</span>     <span class="p">,</span> <span class="s">&quot;</span><span class="si">%.2f</span><span class="s"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">)</span>    <span class="p">],</span>
+      <span class="p">[</span><span class="s">&quot;Post-process time&quot;</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%.2f</span><span class="s"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finalize</span><span class="p">)</span>   <span class="p">],</span>
+      <span class="p">[</span><span class="s">&quot;Total time&quot;</span>       <span class="p">,</span> <span class="s">&quot;</span><span class="si">%.2f</span><span class="s"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">total</span><span class="p">)</span>      <span class="p">],</span>
+      <span class="p">[</span><span class="s">&quot;User time&quot;</span>        <span class="p">,</span> <span class="s">&quot;</span><span class="si">%.2f</span><span class="s"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>       <span class="p">],</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">justify</span><span class="o">=</span><span class="s">&#39;right&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39; &#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Processor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Processor interface class. &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">manager</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the processor.</span>
+
+<span class="sd">    The processor requires a manager class implementing the Manager interface.</span>
+<span class="sd">    This class executes all the workers in separate threads and accumulates the</span>
+<span class="sd">    results to expose to the user.</span>
+
+<span class="sd">    :param manager: The processing manager</span>
+<span class="sd">    :param params: The phil parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span> <span class="o">=</span> <span class="n">manager</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">executor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Get the executor</span>
+
+<span class="sd">    :return: The executor</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">executor</span>
+
+  <span class="nd">@executor.setter</span>
+  <span class="k">def</span> <span class="nf">executor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Set the executor</span>
+
+<span class="sd">    :param function: The executor</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">function</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do all the processing tasks.</span>
+
+<span class="sd">    :return: The processing results</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
+    <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_mp</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+    <span class="n">mp_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span>
+    <span class="n">mp_nproc</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">)</span>
+    <span class="n">mp_nthreads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nthreads</span>
+    <span class="k">assert</span> <span class="n">mp_nproc</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Invalid number of processors&quot;</span>
+    <span class="n">job</span><span class="o">.</span><span class="n">nthreads</span> <span class="o">=</span> <span class="n">mp_nthreads</span>
+    <span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39; Using </span><span class="si">%s</span><span class="s"> with </span><span class="si">%d</span><span class="s"> parallel job(s) and </span><span class="si">%d</span><span class="s"> thread(s) per job</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+      <span class="n">mp_method</span><span class="p">,</span> <span class="n">mp_nproc</span><span class="p">,</span> <span class="n">mp_nthreads</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">mp_nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">def</span> <span class="nf">process_output</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">logging</span>
+        <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">result</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">levelno</span><span class="p">,</span> <span class="n">message</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">accumulate</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="k">def</span> <span class="nf">execute_task</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+        <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">log</span>
+        <span class="kn">import</span> <span class="nn">logging</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">config_simple_cached</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">task</span><span class="p">()</span>
+        <span class="n">handlers</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">handlers</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">handlers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&quot;Invalid number of logging handlers&quot;</span>
+        <span class="k">return</span> <span class="n">result</span><span class="p">,</span> <span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">messages</span><span class="p">()</span>
+      <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
+        <span class="n">func</span><span class="o">=</span><span class="n">execute_task</span><span class="p">,</span>
+        <span class="n">iterable</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">tasks</span><span class="p">()),</span>
+        <span class="n">processes</span><span class="o">=</span><span class="n">mp_nproc</span><span class="p">,</span>
+        <span class="n">callback</span><span class="o">=</span><span class="n">process_output</span><span class="p">,</span>
+        <span class="n">method</span><span class="o">=</span><span class="n">mp_method</span><span class="p">,</span>
+        <span class="n">preserve_order</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+        <span class="n">preserve_exception_message</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">tasks</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">accumulate</span><span class="p">(</span><span class="n">task</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+    <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">user_time</span> <span class="o">=</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span>
+    <span class="n">result1</span><span class="p">,</span> <span class="n">result2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result1</span><span class="p">,</span> <span class="n">result2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">time</span>
+
+
+<span class="k">class</span> <span class="nc">Result</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A class representing a processing result.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the data.</span>
+
+<span class="sd">    :param index: The processing job index</span>
+<span class="sd">    :param reflections: The processed reflections</span>
+<span class="sd">    :param data: Other processed data</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+
+
+<span class="k">class</span> <span class="nc">NullTask</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A class to perform a null task.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the task</span>
+
+<span class="sd">    :param index: The index of the processing job</span>
+<span class="sd">    :param experiments: The list of experiments</span>
+<span class="sd">    :param reflections: The list of reflections</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span>
+
+  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do the processing.</span>
+
+<span class="sd">    :return: The processed data</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">read_time</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">extract_time</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">process_time</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">total_time</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">class</span> <span class="nc">Task</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A class to perform a processing task.</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">index</span><span class="p">,</span>
+               <span class="n">job</span><span class="p">,</span>
+               <span class="n">experiments</span><span class="p">,</span>
+               <span class="n">reflections</span><span class="p">,</span>
+               <span class="n">params</span><span class="p">,</span>
+               <span class="n">executor</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the task.</span>
+
+<span class="sd">    :param index: The index of the processing job</span>
+<span class="sd">    :param experiments: The list of experiments</span>
+<span class="sd">    :param reflections: The list of reflections</span>
+<span class="sd">    :param params: The processing parameters</span>
+<span class="sd">    :param job: The frames to integrate</span>
+<span class="sd">    :param flatten: Flatten the shoeboxes</span>
+<span class="sd">    :param save_shoeboxes: Save the shoeboxes to file</span>
+<span class="sd">    :param executor: The executor class</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">assert</span> <span class="n">executor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">,</span> <span class="s">&quot;No executor given&quot;</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Zero reflections given&quot;</span>
+    <span class="k">assert</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">&gt;</span>  <span class="mf">0.0</span><span class="p">,</span> <span class="s">&quot;Max memory % must be &gt; 0&quot;</span>
+    <span class="k">assert</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s">&quot;Max memory % must be &lt; 1&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">job</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">executor</span>
+
+  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do the processing.</span>
+
+<span class="sd">    :return: The processed data</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+    <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
+    <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="kn">import</span> <span class="n">make_image</span>
+    <span class="kn">from</span> <span class="nn">libtbx.introspection</span> <span class="kn">import</span> <span class="n">machine_memory_info</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+
+    <span class="c"># Get the start time</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+
+    <span class="c"># Set the global process ID</span>
+    <span class="n">job</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span>
+
+    <span class="c"># Check all reflections have same imageset and get it</span>
+    <span class="n">exp_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]))</span>
+    <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">[</span><span class="n">exp_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">imageset</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_id</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+      <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">imageset</span> <span class="o">==</span> <span class="n">imageset</span><span class="p">,</span> <span class="s">&quot;Task can only handle 1 imageset&quot;</span>
+
+    <span class="c"># Get the sub imageset</span>
+    <span class="n">frame00</span><span class="p">,</span> <span class="n">frame01</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">frame10</span><span class="p">,</span> <span class="n">frame11</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+      <span class="n">frame10</span><span class="p">,</span> <span class="n">frame11</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">frame00</span> <span class="o">&lt;</span> <span class="n">frame01</span>
+      <span class="k">assert</span> <span class="n">frame10</span> <span class="o">&lt;</span> <span class="n">frame11</span>
+      <span class="k">assert</span> <span class="n">frame00</span> <span class="o">&gt;=</span> <span class="n">frame10</span>
+      <span class="k">assert</span> <span class="n">frame01</span> <span class="o">&lt;=</span> <span class="n">frame11</span>
+      <span class="n">index0</span> <span class="o">=</span> <span class="n">frame00</span> <span class="o">-</span> <span class="n">frame10</span>
+      <span class="n">index1</span> <span class="o">=</span> <span class="n">index0</span> <span class="o">+</span> <span class="p">(</span><span class="n">frame01</span> <span class="o">-</span> <span class="n">frame00</span><span class="p">)</span>
+      <span class="k">assert</span> <span class="n">index0</span> <span class="o">&lt;</span> <span class="n">index1</span>
+      <span class="k">assert</span> <span class="n">index0</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+      <span class="k">assert</span> <span class="n">index1</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
+      <span class="n">imageset</span> <span class="o">=</span> <span class="n">imageset</span><span class="p">[</span><span class="n">index0</span><span class="p">:</span><span class="n">index1</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Programmer Error: bad array range&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+      <span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">))</span>
+
+    <span class="c"># Initlize the executor</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Set the shoeboxes (dont&#39;t allocate)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;shoebox&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">shoebox</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">],</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">],</span>
+      <span class="n">allocate</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+      <span class="n">flatten</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span><span class="p">)</span>
+
+    <span class="c"># Create the processor</span>
+    <span class="n">processor</span> <span class="o">=</span> <span class="n">ShoeboxProcessor</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span>
+      <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()),</span>
+      <span class="n">frame0</span><span class="p">,</span>
+      <span class="n">frame1</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+
+    <span class="c"># Compute percentage of max available. The function is not portable to</span>
+    <span class="c"># windows so need to add a check if the function fails. On windows no</span>
+    <span class="c"># warning will be printed</span>
+    <span class="n">memory_info</span> <span class="o">=</span> <span class="n">machine_memory_info</span><span class="p">()</span>
+    <span class="n">total_memory</span> <span class="o">=</span> <span class="n">memory_info</span><span class="o">.</span><span class="n">memory_total</span><span class="p">()</span>
+    <span class="n">sbox_memory</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">compute_max_memory_usage</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">total_memory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">total_memory</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Your system appears to have no memory!&quot;</span>
+      <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">&gt;</span>  <span class="mf">0.0</span><span class="p">,</span> <span class="s">&quot;maximum memory usage must be &gt; 0&quot;</span>
+      <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s">&quot;maximum memory usage must be &lt;= 1&quot;</span>
+      <span class="n">limit_memory</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
+      <span class="k">if</span> <span class="n">sbox_memory</span> <span class="o">&gt;</span> <span class="n">limit_memory</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+<span class="s">        There was a problem allocating memory for shoeboxes. Possible solutions</span>
+<span class="s">        include increasing the percentage of memory allowed for shoeboxes or</span>
+<span class="s">        decreasing the block size. This could also be caused by a highly mosaic</span>
+<span class="s">        crystal model - is your crystal really this mosaic?</span>
+<span class="s">          Total system memory: </span><span class="si">%g</span><span class="s"> GB</span>
+<span class="s">          Limit shoebox memory: </span><span class="si">%g</span><span class="s"> GB</span>
+<span class="s">          Required shoebox memory: </span><span class="si">%g</span><span class="s"> GB</span>
+<span class="s">        &#39;&#39;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">,</span> <span class="n">limit_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">,</span> <span class="n">sbox_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&#39; Memory usage:&#39;</span><span class="p">)</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&#39;  Total system memory: </span><span class="si">%g</span><span class="s"> GB&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">))</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&#39;  Limit shoebox memory: </span><span class="si">%g</span><span class="s"> GB&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">limit_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">))</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&#39;  Required shoebox memory: </span><span class="si">%g</span><span class="s"> GB&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sbox_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">))</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c"># Loop through the imageset, extract pixels and process reflections</span>
+    <span class="n">read_time</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)):</span>
+      <span class="n">st</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+      <span class="n">image</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_corrected_data</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="n">mask</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_mask</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">),</span> \
+          <span class="s">&quot;Mask/Image are incorrect size </span><span class="si">%d</span><span class="s"> </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">))</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">m1</span> <span class="o">&amp;</span> <span class="n">m2</span> <span class="k">for</span> <span class="n">m1</span><span class="p">,</span> <span class="n">m2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span> <span class="n">mask</span><span class="p">))</span>
+
+      <span class="n">read_time</span> <span class="o">+=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">st</span>
+      <span class="n">processor</span><span class="o">.</span><span class="n">next</span><span class="p">(</span><span class="n">make_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="p">)</span>
+      <span class="k">del</span> <span class="n">image</span>
+      <span class="k">del</span> <span class="n">mask</span>
+    <span class="k">assert</span> <span class="n">processor</span><span class="o">.</span><span class="n">finished</span><span class="p">(),</span> <span class="s">&quot;Data processor is not finished&quot;</span>
+
+    <span class="c"># Optionally save the shoeboxes</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">separate_files</span><span class="p">:</span>
+      <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">split_experiments</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">split_by_experiment_id</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+          <span class="n">i</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+          <span class="n">table</span><span class="o">.</span><span class="n">as_pickle</span><span class="p">(</span><span class="s">&#39;shoeboxes_</span><span class="si">%d</span><span class="s">_</span><span class="si">%d</span><span class="s">.pickle&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">i</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">as_pickle</span><span class="p">(</span><span class="s">&#39;shoeboxes_</span><span class="si">%d</span><span class="s">.pickle&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="c"># Delete the shoeboxes</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span> <span class="o">==</span> <span class="bp">False</span> <span class="ow">or</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">separate_files</span> <span class="o">==</span> <span class="bp">True</span><span class="p">):</span>
+      <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;shoebox&#39;</span><span class="p">]</span>
+
+    <span class="c"># Finalize the executor</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+
+    <span class="c"># Return the result</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="o">.</span><span class="n">data</span><span class="p">())</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">read_time</span> <span class="o">=</span> <span class="n">read_time</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">extract_time</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">extract_time</span><span class="p">()</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">process_time</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">process_time</span><span class="p">()</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">total_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">class</span> <span class="nc">Manager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A class to manage processing book-keeping</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the manager.</span>
+
+<span class="sd">    :param experiments: The list of experiments</span>
+<span class="sd">    :param reflections: The list of reflections</span>
+<span class="sd">    :param params: The phil parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c"># Initialise the callbacks</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="c"># Save some data</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span>
+
+    <span class="c"># Other data</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c"># Save some parameters</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+
+    <span class="c"># Set the finalized flag to False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">finalized</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="c"># Initialise the timing information</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">TimingInfo</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialise the processing</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
+
+    <span class="c"># Get the start time</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+
+    <span class="c"># Ensure the reflections contain bounding boxes</span>
+    <span class="k">assert</span> <span class="s">&quot;bbox&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="s">&quot;Reflections have no bbox&quot;</span>
+
+    <span class="c"># Compute the block size and processors</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">compute_blocks</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">compute_jobs</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">split_reflections</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">compute_processors</span><span class="p">()</span>
+
+    <span class="c"># Create the reflection manager</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span> <span class="o">=</span> <span class="n">ReflectionManager</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="c"># Set the initialization time</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">initialize</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+
+  <span class="k">def</span> <span class="nf">task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Get a task.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">warn</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">frames</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">frames</span><span class="p">()</span>
+    <span class="n">expr_id</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">expr</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">expr_id</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">expr_id</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;Invalid experiment id&quot;</span>
+    <span class="k">assert</span> <span class="n">expr_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Invalid experiment id&quot;</span>
+    <span class="k">assert</span> <span class="n">expr_id</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">),</span> <span class="s">&quot;Invalid experiment id&quot;</span>
+    <span class="n">experiments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="c">#[expr_id[0]:expr_id[1]]</span>
+    <span class="n">reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">warn</span><span class="p">(</span><span class="s">&quot;*** WARNING: no reflections in job </span><span class="si">%d</span><span class="s"> ***&quot;</span> <span class="o">%</span> <span class="n">index</span><span class="p">)</span>
+      <span class="n">task</span> <span class="o">=</span> <span class="n">NullTask</span><span class="p">(</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">index</span><span class="p">,</span>
+        <span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">task</span> <span class="o">=</span> <span class="n">Task</span><span class="p">(</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">index</span><span class="p">,</span>
+        <span class="n">job</span><span class="o">=</span><span class="n">frames</span><span class="p">,</span>
+        <span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
+        <span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
+        <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+        <span class="n">executor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">executor</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">task</span>
+
+  <span class="k">def</span> <span class="nf">tasks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Iterate through the tasks.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">accumulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Accumulate the results. &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">data</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">accumulate</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">read</span> <span class="o">+=</span> <span class="n">result</span><span class="o">.</span><span class="n">read_time</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">extract</span> <span class="o">+=</span> <span class="n">result</span><span class="o">.</span><span class="n">extract_time</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">process</span> <span class="o">+=</span> <span class="n">result</span><span class="o">.</span><span class="n">process_time</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">total</span> <span class="o">+=</span> <span class="n">result</span><span class="o">.</span><span class="n">total_time</span>
+
+  <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Finalize the processing and finish.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
+
+    <span class="c"># Get the start time</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+
+    <span class="c"># Check manager is finished</span>
+    <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">finished</span><span class="p">(),</span> <span class="s">&quot;Manager is not finished&quot;</span>
+
+    <span class="c"># Update the time and finalized flag</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">finalize</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">finalized</span> <span class="o">=</span> <span class="bp">True</span>
+
+  <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Return the result.</span>
+
+<span class="sd">    :return: The result</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">finalized</span> <span class="o">==</span> <span class="bp">True</span><span class="p">,</span> <span class="s">&quot;Manager is not finalized&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span>
+
+  <span class="k">def</span> <span class="nf">finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Return if all tasks have finished.</span>
+
+<span class="sd">    :return: True/False all tasks have finished</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">finalized</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">finished</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Return the number of tasks.</span>
+
+<span class="sd">    :return: the number of tasks</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">compute_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Compute the processing block size.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+    <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">ceil</span><span class="p">,</span> <span class="n">pi</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+      <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span> <span class="o">==</span> <span class="bp">False</span> <span class="ow">and</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">force</span> <span class="o">==</span> <span class="bp">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="bp">None</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Threshold must be &gt; 0&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s">&quot;Threshold must be &lt; 1&quot;</span>
+        <span class="n">nframes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">b</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">]])</span>
+        <span class="n">cutoff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">nframes</span><span class="p">))</span>
+        <span class="n">block_size</span> <span class="o">=</span> <span class="n">nframes</span><span class="p">[</span><span class="n">cutoff</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">block_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="s">&#39;frames&#39;</span>
+
+  <span class="k">def</span> <span class="nf">compute_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Compute the jobs</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">groupby</span>
+    <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">ceil</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="n">groupby</span><span class="p">(</span>
+      <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)),</span>
+      <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">imageset</span><span class="p">),</span>
+                 <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="o">=</span> <span class="n">JobList</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+      <span class="n">indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+      <span class="n">i0</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="n">i1</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+      <span class="n">expr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">[</span><span class="n">i0</span><span class="p">]</span>
+      <span class="n">scan</span> <span class="o">=</span> <span class="n">expr</span><span class="o">.</span><span class="n">scan</span>
+      <span class="n">imgs</span> <span class="o">=</span> <span class="n">expr</span><span class="o">.</span><span class="n">imageset</span>
+      <span class="n">array_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">imgs</span><span class="p">))</span>
+      <span class="k">if</span> <span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">scan</span><span class="p">),</span> <span class="s">&quot;Invalid scan range&quot;</span>
+        <span class="n">array_range</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">block_size_frames</span> <span class="o">=</span> <span class="n">array_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">array_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">==</span> <span class="s">&#39;radians&#39;</span><span class="p">:</span>
+        <span class="n">phi0</span><span class="p">,</span> <span class="n">dphi</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">block_size_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="n">dphi</span><span class="p">))</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">==</span> <span class="s">&#39;degrees&#39;</span><span class="p">:</span>
+        <span class="n">phi0</span><span class="p">,</span> <span class="n">dphi</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()</span>
+        <span class="n">block_size_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="n">dphi</span><span class="p">))</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">==</span> <span class="s">&#39;frames&#39;</span><span class="p">:</span>
+        <span class="n">block_size_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Unknown block_size_units = </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">block_size_units</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">i0</span><span class="p">,</span> <span class="n">i1</span><span class="p">),</span> <span class="n">array_range</span><span class="p">,</span> <span class="n">block_size_frames</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Invalid number of jobs&quot;</span>
+
+  <span class="k">def</span> <span class="nf">split_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Split the reflections into partials or over job boundaries</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span>
+
+    <span class="c"># Optionally split the reflection table into partials, otherwise,</span>
+    <span class="c"># split over job boundaries</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span><span class="p">:</span>
+      <span class="n">num_full</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">split_partials</span><span class="p">()</span>
+      <span class="n">num_partial</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+      <span class="k">assert</span> <span class="n">num_partial</span> <span class="o">&gt;=</span> <span class="n">num_full</span><span class="p">,</span> <span class="s">&quot;Invalid number of partials&quot;</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">num_partial</span> <span class="o">&gt;</span> <span class="n">num_full</span><span class="p">):</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&#39; Split </span><span class="si">%d</span><span class="s"> reflections into </span><span class="si">%d</span><span class="s"> partial reflections</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+          <span class="n">num_full</span><span class="p">,</span>
+          <span class="n">num_partial</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">num_full</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+      <span class="n">num_partial</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+      <span class="k">assert</span> <span class="n">num_partial</span> <span class="o">&gt;=</span> <span class="n">num_full</span><span class="p">,</span> <span class="s">&quot;Invalid number of partials&quot;</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">num_partial</span> <span class="o">&gt;</span> <span class="n">num_full</span><span class="p">):</span>
+        <span class="n">num_split</span> <span class="o">=</span> <span class="n">num_partial</span> <span class="o">-</span> <span class="n">num_full</span>
+        <span class="n">info</span><span class="p">(</span><span class="s">&#39; Split </span><span class="si">%d</span><span class="s"> reflections overlapping job boundaries</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">num_split</span><span class="p">)</span>
+
+    <span class="c"># Compute the partiality</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">compute_partiality</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">compute_processors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Compute the number of processors</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">libtbx.introspection</span> <span class="kn">import</span> <span class="n">machine_memory_info</span>
+    <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">floor</span>
+    <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+
+    <span class="c"># Set the memory usage per processor</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s">&#39;multiprocessing&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">):</span>
+
+      <span class="c"># Get the maximum shoebox memory</span>
+      <span class="n">max_memory</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">shoebox_memory</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span><span class="p">))</span>
+
+      <span class="c"># Compute percentage of max available. The function is not portable to</span>
+      <span class="c"># windows so need to add a check if the function fails. On windows no</span>
+      <span class="c"># warning will be printed</span>
+      <span class="n">memory_info</span> <span class="o">=</span> <span class="n">machine_memory_info</span><span class="p">()</span>
+      <span class="n">total_memory</span> <span class="o">=</span> <span class="n">memory_info</span><span class="o">.</span><span class="n">memory_total</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">total_memory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">total_memory</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Your system appears to have no memory!&quot;</span>
+        <span class="n">limit_memory</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
+        <span class="n">njobs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="n">limit_memory</span> <span class="o">/</span> <span class="n">max_memory</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">njobs</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+<span class="s">            No enough memory to run integration jobs. Possible solutions</span>
+<span class="s">            include increasing the percentage of memory allowed for shoeboxes or</span>
+<span class="s">            decreasing the block size.</span>
+<span class="s">              Total system memory: </span><span class="si">%g</span><span class="s"> GB</span>
+<span class="s">              Limit shoebox memory: </span><span class="si">%g</span><span class="s"> GB</span>
+<span class="s">              Max shoebox memory: </span><span class="si">%g</span><span class="s"> GB</span>
+<span class="s">          &#39;&#39;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">,</span> <span class="n">limit_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">,</span> <span class="n">max_memory</span><span class="o">/</span><span class="mf">1e9</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="n">njobs</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">/=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span>
+
+  <span class="k">def</span> <span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Get a summary of the processing</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">libtbx.table_utils</span> <span class="kn">import</span> <span class="n">format</span> <span class="k">as</span> <span class="n">table</span>
+
+    <span class="c"># Compute the task table</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
+      <span class="n">rows</span> <span class="o">=</span> <span class="p">[[</span><span class="s">&quot;#&quot;</span><span class="p">,</span>
+               <span class="s">&quot;Group&quot;</span><span class="p">,</span>
+               <span class="s">&quot;Frame From&quot;</span><span class="p">,</span>
+               <span class="s">&quot;Frame To&quot;</span><span class="p">,</span>
+               <span class="s">&quot;# Reflections&quot;</span><span class="p">]]</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">index</span><span class="p">()</span>
+        <span class="n">f0</span><span class="p">,</span> <span class="n">f1</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">frames</span><span class="p">()</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">num_reflections</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">group</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">all_sweeps</span><span class="p">():</span>
+      <span class="n">rows</span> <span class="o">=</span> <span class="p">[[</span><span class="s">&quot;#&quot;</span><span class="p">,</span>
+               <span class="s">&quot;Group&quot;</span><span class="p">,</span>
+               <span class="s">&quot;Frame From&quot;</span><span class="p">,</span>
+               <span class="s">&quot;Frame To&quot;</span><span class="p">,</span>
+               <span class="s">&quot;Angle From&quot;</span><span class="p">,</span>
+               <span class="s">&quot;Angle To&quot;</span><span class="p">,</span>
+               <span class="s">&quot;# Reflections&quot;</span><span class="p">]]</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">index</span><span class="p">()</span>
+        <span class="n">expr</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">expr</span><span class="p">()</span>
+        <span class="n">f0</span><span class="p">,</span> <span class="n">f1</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">frames</span><span class="p">()</span>
+        <span class="n">scan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">[</span><span class="n">expr</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">scan</span>
+        <span class="n">p0</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_array_index</span><span class="p">(</span><span class="n">f0</span><span class="p">)</span>
+        <span class="n">p1</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_array_index</span><span class="p">(</span><span class="n">f1</span><span class="p">)</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">num_reflections</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">group</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">p0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">p1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Experiments must be all sweeps or all stills&#39;</span><span class="p">)</span>
+
+    <span class="c"># The job table</span>
+    <span class="n">task_table</span> <span class="o">=</span> <span class="n">table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">has_header</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">justify</span><span class="o">=</span><span class="s">&quot;right&quot;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&quot; &quot;</span><span class="p">)</span>
+
+    <span class="c"># The format string</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="n">block_size</span> <span class="o">=</span> <span class="s">&quot;auto&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">block_size</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">fmt</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s">&#39;Processing reflections in the following blocks of images:</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39; block_size: </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span>
+      <span class="s">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="s">&#39;</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span><span class="n">block_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">task_table</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ManagerRot</span><span class="p">(</span><span class="n">Manager</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Specialize the manager for oscillation data using the oscillation pre and</span>
+<span class="sd">  post processors. &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Initialise the pre-processor, post-processor and manager. &#39;&#39;&#39;</span>
+
+    <span class="c"># Ensure we have the correct type of data</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_sweeps</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+<span class="s">        An inappropriate processing algorithm may have been selected!</span>
+<span class="s">         Trying to perform rotation processing when not all experiments</span>
+<span class="s">         are indicated as rotation experiments.</span>
+<span class="s">      &#39;&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c"># Initialise the manager</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ManagerRot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+      <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ManagerStills</span><span class="p">(</span><span class="n">Manager</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Specialize the manager for stills data using the stills pre and post</span>
+<span class="sd">  processors. &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Initialise the pre-processor, post-processor and manager. &#39;&#39;&#39;</span>
+
+    <span class="c"># Ensure we have the correct type of data</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
+<span class="s">        An inappropriate processing algorithm may have been selected!</span>
+<span class="s">         Trying to perform stills processing when not all experiments</span>
+<span class="s">         are indicated as stills experiments.</span>
+<span class="s">      &#39;&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c"># Initialise the manager</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ManagerStills</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+      <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Processor3D</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Top level processor for 3D processing. &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Initialise the manager and the processor. &#39;&#39;&#39;</span>
+
+    <span class="c"># Set some parameters</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="c"># Create the processing manager</span>
+    <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerRot</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="c"># Initialise the processor</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">Processor3D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ProcessorFlat3D</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Top level processor for flat 2D processing. &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Initialise the manager and the processor. &#39;&#39;&#39;</span>
+
+    <span class="c"># Set some parameters</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="c"># Create the processing manager</span>
+    <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerRot</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="c"># Initialise the processor</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ProcessorFlat3D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Processor2D</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Top level processor for 2D processing. &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Initialise the manager and the processor. &#39;&#39;&#39;</span>
+
+    <span class="c"># Set some parameters</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="c"># Create the processing manager</span>
+    <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerRot</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="c"># Initialise the processor</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">Processor2D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ProcessorSingle2D</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Top level processor for still image processing. &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Initialise the manager and the processor. &#39;&#39;&#39;</span>
+
+    <span class="c"># Set some of the parameters</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="s">&#39;frames&#39;</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="c"># Create the processing manager</span>
+    <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerRot</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span>  <span class="n">params</span><span class="p">)</span>
+
+    <span class="c"># Initialise the processor</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ProcessorSingle2D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ProcessorStills</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; Top level processor for still image processing. &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Initialise the manager and the processor. &#39;&#39;&#39;</span>
+
+    <span class="c"># Set some parameters</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="s">&#39;frames&#39;</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="c"># Create the processing manager</span>
+    <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerStills</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="c"># Initialise the processor</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ProcessorStills</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ProcessorBuilder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  A class to simplify building the processor</span>
+
+<span class="sd">  &#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">Class</span><span class="p">,</span>
+               <span class="n">experiments</span><span class="p">,</span>
+               <span class="n">reflections</span><span class="p">,</span>
+               <span class="n">params</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialize with the required input</span>
+
+<span class="sd">    :param Class: The input class</span>
+<span class="sd">    :param experiments: The input experiments</span>
+<span class="sd">    :param reflections: The reflections</span>
+<span class="sd">    :param params: Optionally input parameters</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">Class</span> <span class="o">=</span> <span class="n">Class</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Build the class</span>
+
+<span class="sd">    :return: The processor class</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Class</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2015, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
