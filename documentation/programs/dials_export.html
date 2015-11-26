@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>idials &mdash; DIALS  documentation</title>
+    <title>dials.export &mdash; DIALS  documentation</title>
     
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -33,8 +33,8 @@
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="top" title="DIALS  documentation" href="../../index.html" />
     <link rel="up" title="Program documentation" href="index.html" />
-    <link rel="next" title="dials.show_models" href="dials_show_models.html" />
-    <link rel="prev" title="dials.export" href="dials_export.html" />
+    <link rel="next" title="idials" href="idials.html" />
+    <link rel="prev" title="dials.integrate" href="dials_integrate.html" />
    
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
@@ -56,71 +56,118 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="idials">
-<h1>idials<a class="headerlink" href="#idials" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="dials-export">
+<h1>dials.export<a class="headerlink" href="#dials-export" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="introduction">
 <h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
-<p>This program is an interactive console mode for the dials command line programs.
-It provides convient access to the following dials programs</p>
-<blockquote>
-<div><ul class="simple">
-<li>dials.import</li>
-<li>dials.find_spots</li>
-<li>dials.discover_better_experimental_model</li>
-<li>dials.index</li>
-<li>dials.refine_bravais_settings</li>
-<li>dials.reindex</li>
-<li>dials.refine</li>
-<li>dials.integrate</li>
-<li>dials.export</li>
-</ul>
-</div></blockquote>
-<p>To view the full list of commands available in the console, type &#8220;help&#8221;.</p>
-<p>The program implements a tree model for the data processing. Each command
-executed is treated as a node in the tree and each job is output into its own
-directory where all output associated with the job will be kept. The current
-state can be changed by using the &#8220;goto&#8221; command to jump between nodes of the
-tree. This allows the user to go back and re-do a stage of the processing if
-necessary.</p>
-<p>The program uses a modal state model. To change mode use the &#8220;mode&#8221; command.
-Parameters are set using the &#8220;set&#8221; command. Parameters can be viewed using the
-&#8220;get&#8221; command which shows only the modified parameters and the &#8220;all&#8221; command
-which shows all the parameters. Parameters can be set to default values by using
-the &#8220;reset&#8221; command. The mode is then run using the &#8220;run&#8221; command. This design
-allows complicated parameter definitions to be specified in a more convenient
-way for the user.</p>
-<p>For convenience when the user wants to use default or a small number of
-parameters, an imperative mode is supplied for the dials programs. Each of these
-commands changes the mode, sets the parameters and runs the program in a single
-line.</p>
-<p>The program implements a persistant state mechanism. If the program crashes, the
-state can be recovered by simply restarting the program in the same directory.</p>
+<p>This program is used to export the results of dials processing in various
+formats.</p>
+<p>The output formats currently supported are:</p>
+<p>MTZ format exports the files as an unmerged mtz file, ready for input to
+downstream programs such as Pointless and Aimless. The required input is an
+experiments.json file and an integrated.pickle file.</p>
+<p>NXS format exports the files as an NXmx file. The required input is an
+experiments.json file and an integrated.pickle file.</p>
+<p>MOSFLM format exports the files as an index.mat mosflm-format matrix file and a
+mosflm.in file containing basic instructions for input to mosflm. The required
+input is an experiments.json file.</p>
+<p>XDS format exports an experiments.json file as XDS.INP and XPARM.XDS files. If a
+reflection pickle is given it will be exported as a SPOT.XDS file.</p>
 <p>Examples:</p>
-<div class="highlight-python"><div class="highlight"><pre># Process data, select bravais setting and integrate with/without profile
-# fitting
-&gt;&gt; import template=/path/to/images_####.cbf
-&gt;&gt; find_spots
-&gt;&gt; index
-&gt;&gt; refine_bravais_settings
-&gt;&gt; reindex solution=1
-&gt;&gt; refine scan_varying=True
-&gt;&gt; integrate
-&gt;&gt; export
-&gt;&gt; goto 6
-&gt;&gt; integrate profile.fitting=False
-&gt;&gt; export
+<div class="highlight-python"><div class="highlight"><pre># Export to mtz
+dials.export experiments.json integrated.pickle
+dials.export experiments.json integrated.pickle mtz.hklout=integrated.mtz
 
-# Simple scripting can be done by inputting command on stdin
-idials &lt;&lt;EOF
-import template=/path/to/images_####.cbf
-find_spots
-index
-refine scan_varying=True
-integrate
-export
-EOF
+# Export to nexus
+dials.export experiments.json integrated.pickle format=nxs
+dials.export experiments.json integrated.pickle format=nxs nxs.hklout=integrated.nxs
+
+# Export to mosflm
+dials.export experiments.json integrated.pickle format=mosflm
+
+# Export to xds
+dials.export strong.pickle format=xds
+dials.export indexed.pickle format=xds
+dials.export experiments.json format=xds
+dials.export experiments.json indexed.pickle format=xds
 </pre></div>
 </div>
+</div>
+<div class="section" id="basic-parameters">
+<h2>Basic parameters<a class="headerlink" href="#basic-parameters" title="Permalink to this headline">¶</a></h2>
+<pre class="literal-block">
+format = *mtz nxs mosflm xds
+mtz {
+  ignore_panels = False
+  include_partials = False
+  keep_partials = False
+  min_isigi = -5
+  hklout = hklout.mtz
+}
+nxs {
+  hklout = hklout.nxs
+}
+mosflm {
+  directory = mosflm
+}
+xds {
+  directory = xds
+}
+output {
+  log = dials.export_mtz.log
+  debug_log = dials.export_mtz.debug.log
+}
+
+</pre>
+</div>
+<div class="section" id="full-parameter-definitions">
+<h2>Full parameter definitions<a class="headerlink" href="#full-parameter-definitions" title="Permalink to this headline">¶</a></h2>
+<pre class="literal-block">
+format = *mtz nxs mosflm xds
+  .help = &quot;The output file format&quot;
+  .type = choice
+mtz {
+  ignore_panels = False
+    .help = &quot;Ignore multiple panels / detectors in output&quot;
+    .type = bool
+  include_partials = False
+    .help = &quot;Include partial reflections (scaled) in output&quot;
+    .type = bool
+  keep_partials = False
+    .help = &quot;Keep low partiality reflections&quot;
+    .type = bool
+  min_isigi = -5
+    .help = &quot;Exclude reflections with unfeasible values of I/Sig(I)&quot;
+    .type = float
+  hklout = hklout.mtz
+    .help = &quot;The output MTZ file&quot;
+    .type = str
+}
+nxs {
+  hklout = hklout.nxs
+    .help = &quot;The output Nexus file&quot;
+    .type = str
+}
+mosflm {
+  directory = mosflm
+    .help = &quot;The output directory for mosflm output&quot;
+    .type = str
+}
+xds {
+  directory = xds
+    .help = &quot;The output directory for xds output&quot;
+    .type = str
+}
+output {
+  log = dials.export_mtz.log
+    .help = &quot;The log filename&quot;
+    .type = str
+  debug_log = dials.export_mtz.debug.log
+    .help = &quot;The debug log filename&quot;
+    .type = str
+}
+
+</pre>
 </div>
 </div>
 

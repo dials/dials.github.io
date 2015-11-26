@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>dials.show_models &mdash; DIALS  documentation</title>
+    <title>dials.create_profile_model &mdash; DIALS  documentation</title>
     
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -33,8 +33,8 @@
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="top" title="DIALS  documentation" href="../../index.html" />
     <link rel="up" title="Program documentation" href="index.html" />
-    <link rel="next" title="dials.image_viewer" href="dials_image_viewer.html" />
-    <link rel="prev" title="idials" href="idials.html" />
+    <link rel="next" title="dials.estimate_gain" href="dials_estimate_gain.html" />
+    <link rel="prev" title="dials.apply_mask" href="dials_apply_mask.html" />
    
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
@@ -56,32 +56,142 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="dials-show-models">
-<h1>dials.show_models<a class="headerlink" href="#dials-show-models" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="dials-create-profile-model">
+<h1>dials.create_profile_model<a class="headerlink" href="#dials-create-profile-model" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="introduction">
 <h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This program computes the profile model from the input reflections. It then
+saves a modified experiments.json file with the additional profile model
+information. Usually this is performed during integration; however, on some
+occasions it may be desirable to compute the profile model independantly.</p>
 <p>Examples:</p>
-<div class="highlight-python"><div class="highlight"><pre>dials.show_models datablock.json
-
-dials.show_models experiments.json
-
-dials.show_models image_*.cbf
+<div class="highlight-python"><div class="highlight"><pre>dials.create_profile_model experiments.json reflections.pickle
 </pre></div>
 </div>
 </div>
 <div class="section" id="basic-parameters">
 <h2>Basic parameters<a class="headerlink" href="#basic-parameters" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">show_scan_varying</span> <span class="o">=</span> <span class="bp">False</span>
-</pre></div>
-</div>
+<pre class="literal-block">
+output = experiments_with_profile_model.json
+profile {
+  algorithm = gaussian_rs *gaussian_rs
+  gaussian_rs {
+    scan_varying = False
+    min_spots = 100
+    filter {
+      min_zeta = 0.05
+    }
+    fitting {
+      scan_step = 5
+      grid_size = 5
+      threshold = 0.02
+      grid_method = single *regular_grid circular_grid
+      fit_method = *reciprocal_space detector_space
+    }
+  }
+  gaussian_rs {
+    scan_varying = False
+    min_spots = 100
+    filter {
+      min_zeta = 0.05
+    }
+    fitting {
+      scan_step = 5
+      grid_size = 5
+      threshold = 0.02
+      grid_method = single *regular_grid circular_grid
+      fit_method = *reciprocal_space detector_space
+    }
+  }
+}
+
+</pre>
 </div>
 <div class="section" id="full-parameter-definitions">
 <h2>Full parameter definitions<a class="headerlink" href="#full-parameter-definitions" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-python"><div class="highlight"><pre>show_scan_varying = False
-  .help = &quot;Whether or not to show the crystal at each scan point.&quot;
-  .type = bool
-</pre></div>
-</div>
+<pre class="literal-block">
+output = experiments_with_profile_model.json
+  .help = &quot;The filename for the experiments&quot;
+  .type = str
+profile
+  .help = &quot;
+     T h e   i n t e r f a c e   d e f i n i t i o n   f o r   a  &quot;
+          &quot;p r o f i l e   m o d e l . 
+ 
+    &quot;
+{
+  algorithm = gaussian_rs *gaussian_rs
+    .help = &quot;The choice of algorithm&quot;
+    .type = choice
+  gaussian_rs
+    .help = &quot;An extension class implementing a reciprocal space gaussian&quot;
+            &quot;profile model.&quot;
+  {
+    scan_varying = False
+      .help = &quot;Calculate a scan varying model&quot;
+      .type = bool
+    min_spots = 100
+      .help = &quot;The minimum number of spots needed to do the profile modelling&quot;
+      .type = int(value_min=0)
+    filter {
+      min_zeta = 0.05
+        .help = &quot;Filter reflections by min zeta&quot;
+        .type = float
+    }
+    fitting {
+      scan_step = 5
+        .help = &quot;Space between profiles in degrees&quot;
+        .type = float
+      grid_size = 5
+        .help = &quot;The size of the profile grid.&quot;
+        .type = int
+      threshold = 0.02
+        .help = &quot;The threshold to use in reference profile&quot;
+        .type = float
+      grid_method = single *regular_grid circular_grid
+        .help = &quot;Select the profile grid method&quot;
+        .type = choice
+      fit_method = *reciprocal_space detector_space
+        .help = &quot;The fitting method&quot;
+        .type = choice
+    }
+  }
+  gaussian_rs
+    .help = &quot;An extension class implementing a reciprocal space gaussian&quot;
+            &quot;profile model.&quot;
+  {
+    scan_varying = False
+      .help = &quot;Calculate a scan varying model&quot;
+      .type = bool
+    min_spots = 100
+      .help = &quot;The minimum number of spots needed to do the profile modelling&quot;
+      .type = int(value_min=0)
+    filter {
+      min_zeta = 0.05
+        .help = &quot;Filter reflections by min zeta&quot;
+        .type = float
+    }
+    fitting {
+      scan_step = 5
+        .help = &quot;Space between profiles in degrees&quot;
+        .type = float
+      grid_size = 5
+        .help = &quot;The size of the profile grid.&quot;
+        .type = int
+      threshold = 0.02
+        .help = &quot;The threshold to use in reference profile&quot;
+        .type = float
+      grid_method = single *regular_grid circular_grid
+        .help = &quot;Select the profile grid method&quot;
+        .type = choice
+      fit_method = *reciprocal_space detector_space
+        .help = &quot;The fitting method&quot;
+        .type = choice
+    }
+  }
+}
+
+</pre>
 </div>
 </div>
 
