@@ -84,8 +84,8 @@
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.outlier_detection.outlier_base</span> \
   <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">outlier_phil_str</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.restraints.restraints_parameterisation</span> \
-  <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">restraints_phil_str</span>
-<span class="n">format_data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;outlier_phil&#39;</span><span class="p">:</span><span class="n">outlier_phil_str</span><span class="p">,</span> <span class="s">&#39;restraints_phil&#39;</span><span class="p">:</span><span class="n">restraints_phil_str</span><span class="p">}</span>
+  <span class="kn">import</span> <span class="n">uc_phil_str</span> <span class="k">as</span> <span class="n">uc_restraints_phil_str</span>
+<span class="n">format_data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;outlier_phil&#39;</span><span class="p">:</span><span class="n">outlier_phil_str</span><span class="p">,</span> <span class="s">&#39;uc_restraints_phil&#39;</span><span class="p">:</span><span class="n">uc_restraints_phil_str</span><span class="p">}</span>
 <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
 
 <span class="s">refinement</span>
@@ -156,8 +156,6 @@
 <span class="s">        .type = ints(value_min=0)</span>
 <span class="s">        .help = &quot;Fix specified parameters by a list of indices&quot;</span>
 <span class="s">        .expert_level = 1</span>
-
-<span class="s">      </span><span class="si">%(restraints_phil)s</span><span class="s"></span>
 <span class="s">    }</span>
 
 <span class="s">    crystal</span>
@@ -174,7 +172,7 @@
 <span class="s">          .help = &quot;Fix specified parameters by a list of indices&quot;</span>
 <span class="s">          .expert_level = 1</span>
 
-<span class="s">        </span><span class="si">%(restraints_phil)s</span><span class="s"></span>
+<span class="s">        </span><span class="si">%(uc_restraints_phil)s</span><span class="s"></span>
 <span class="s">      }</span>
 
 <span class="s">      orientation</span>
@@ -183,8 +181,6 @@
 <span class="s">          .type = ints(value_min=0)</span>
 <span class="s">          .help = &quot;Fix specified parameters by a list of indices&quot;</span>
 <span class="s">          .expert_level = 1</span>
-
-<span class="s">        </span><span class="si">%(restraints_phil)s</span><span class="s"></span>
 <span class="s">      }</span>
 
 <span class="s">      scan_varying = False</span>
@@ -244,8 +240,6 @@
 <span class="s">        .type = ints(value_min=0)</span>
 <span class="s">        .help = &quot;Fix specified parameters by a list of indices&quot;</span>
 <span class="s">        .expert_level = 1</span>
-
-<span class="s">      </span><span class="si">%(restraints_phil)s</span><span class="s"></span>
 <span class="s">    }</span>
 
 <span class="s">    sparse = Auto</span>
@@ -363,7 +357,7 @@
 <span class="s">      .type = int</span>
 <span class="s">      .expert_level = 1</span>
 
-<span class="s">    close_to_spindle_cutoff = 0.05</span>
+<span class="s">    close_to_spindle_cutoff = 0.02</span>
 <span class="s">      .help = &quot;The inclusion criterion currently uses the volume of the&quot;</span>
 <span class="s">              &quot;parallelepiped formed by the spindle axis, the incident&quot;</span>
 <span class="s">              &quot;beam and the scattered beam. If this is lower than some&quot;</span>
@@ -705,7 +699,7 @@
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Target function built&quot;</span><span class="p">)</span>
 
     <span class="c"># create parameterisations</span>
-    <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span> <span class="o">=</span> \
+    <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span><span class="p">,</span> <span class="n">restraints_parameterisation</span> <span class="o">=</span> \
             <span class="n">cls</span><span class="o">.</span><span class="n">config_parameterisation</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span>
 
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Prediction equation parameterisation built&quot;</span><span class="p">)</span>
@@ -713,8 +707,10 @@
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pred_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">()):</span>
       <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Parameter </span><span class="si">%03d</span><span class="s"> : </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
 
-    <span class="c"># Set the prediction equation parameterisation in the target object</span>
+    <span class="c"># Set the prediction equation and restraints parameterisations</span>
+    <span class="c"># in the target object</span>
     <span class="n">target</span><span class="o">.</span><span class="n">set_prediction_parameterisation</span><span class="p">(</span><span class="n">pred_param</span><span class="p">)</span>
+    <span class="n">target</span><span class="o">.</span><span class="n">set_restraints_parameterisation</span><span class="p">(</span><span class="n">restraints_parameterisation</span><span class="p">)</span>
 
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Building refinement engine&quot;</span><span class="p">)</span>
 
@@ -1166,15 +1162,10 @@
       <span class="n">det_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">det_params</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
 
     <span class="c"># Now we have the final list of model parameterisations, build a restraints</span>
-    <span class="c"># parameterisation (if requested)</span>
-    <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">beam_options</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span>
-            <span class="n">beam_options</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">,</span>
-            <span class="n">crystal_options</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span>
-            <span class="n">crystal_options</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">,</span>
-            <span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span>
-            <span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">,</span>
-            <span class="n">detector_options</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span>
-            <span class="n">detector_options</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">]):</span>
+    <span class="c"># parameterisation (if requested). Only unit cell restraints are supported</span>
+    <span class="c"># at the moment.</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span>
+            <span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">]):</span>
       <span class="n">restraints_param</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_restraints</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">det_params</span><span class="p">,</span> <span class="n">beam_params</span><span class="p">,</span>
         <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1229,12 +1220,24 @@
     <span class="n">param_reporter</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">ParameterReporter</span><span class="p">(</span><span class="n">det_params</span><span class="p">,</span> <span class="n">beam_params</span><span class="p">,</span>
                                            <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span>
+    <span class="k">return</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span><span class="p">,</span> <span class="n">restraints_param</span>
 </div>
   <span class="nd">@staticmethod</span>
 <div class="viewcode-block" id="RefinerFactory.config_restraints"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_restraints">[docs]</a>  <span class="k">def</span> <span class="nf">config_restraints</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">det_params</span><span class="p">,</span> <span class="n">beam_params</span><span class="p">,</span>
         <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;Given a set of user parameters plus model parameterisations, create a</span>
+<span class="sd">    restraints plus a parameterisation of these restraints</span>
+
+<span class="sd">    Params:</span>
+<span class="sd">        params The input parameters</span>
+<span class="sd">        det_params A list of detector parameterisations</span>
+<span class="sd">        beam_params A list of beam parameterisations,</span>
+<span class="sd">        xl_ori_params A list of crystal orientation parameterisations</span>
+<span class="sd">        xl_uc_params A list of crystal unit cell parameterisations</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A restraints parameterisation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.restraints</span> <span class="kn">import</span> <span class="n">RestraintsParameterisation</span>
     <span class="n">rp</span> <span class="o">=</span> <span class="n">RestraintsParameterisation</span><span class="p">(</span><span class="n">detector_parameterisations</span> <span class="o">=</span> <span class="n">det_params</span><span class="p">,</span>
@@ -1243,30 +1246,30 @@
                <span class="n">xl_unit_cell_parameterisations</span> <span class="o">=</span> <span class="n">xl_uc_params</span><span class="p">)</span>
 
     <span class="c"># Shorten params path</span>
-    <span class="n">beam_r</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">restraints</span>
-    <span class="n">cell_r</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">cell</span><span class="o">.</span><span class="n">restraints</span>
-    <span class="n">orientation_r</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">restraints</span>
-    <span class="n">detector_r</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">restraints</span>
-
-    <span class="c"># Only crystal unit cell restraints are considered currently</span>
-    <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">beam_r</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span> <span class="n">beam_r</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">,</span>
-            <span class="n">orientation_r</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span> <span class="n">orientation_r</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">,</span>
-            <span class="n">detector_r</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span> <span class="n">detector_r</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">]):</span>
-      <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;Only crystal unit cell restraints are currently available&quot;</span><span class="p">)</span>
+    <span class="c"># FIXME Only unit cell restraints currently supported</span>
+    <span class="c">#beam_r = params.refinement.parameterisation.beam.restraints</span>
+    <span class="n">cell_r</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span>
+    <span class="c">#orientation_r = params.refinement.parameterisation.crystal.orientation.restraints</span>
+    <span class="c">#detector_r = params.refinement.parameterisation.detector.restraints</span>
 
     <span class="k">for</span> <span class="n">tie</span> <span class="ow">in</span> <span class="n">cell_r</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">:</span>
       <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tie</span><span class="o">.</span><span class="n">values</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">6</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;6 cell parameters must be provided as the tie_to_target.values.&quot;</span><span class="p">)</span>
       <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tie</span><span class="o">.</span><span class="n">sigmas</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">6</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;6 sigmas must be provided as the tie_to_target.sigmas. &quot;</span>
-                    <span class="s">&quot;Note that individual sigmas of 0 or None will remove &quot;</span>
+                    <span class="s">&quot;Note that individual sigmas of 0.0 will remove &quot;</span>
                     <span class="s">&quot;the restraint for the corresponding cell parameter.&quot;</span><span class="p">)</span>
-      <span class="n">rp</span><span class="o">.</span><span class="n">add_restraints_to_target_xl_unit_cell</span><span class="p">(</span><span class="n">tie</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">sigmas</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">tie</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;At least one experiment id must be provided as the &quot;</span>
+                    <span class="s">&quot;tie_to_target.id&quot;</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">tie</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
+        <span class="n">rp</span><span class="o">.</span><span class="n">add_restraints_to_target_xl_unit_cell</span><span class="p">(</span><span class="n">exp_id</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">sigmas</span><span class="p">)</span>
 
+    <span class="c"># FIXME Group ties not available yet</span>
     <span class="k">for</span> <span class="n">tie</span> <span class="ow">in</span> <span class="n">cell_r</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">:</span>
       <span class="k">pass</span>
 
-    <span class="k">return</span>
+    <span class="k">return</span> <span class="n">rp</span>
 </div>
   <span class="nd">@staticmethod</span>
 <div class="viewcode-block" id="RefinerFactory.config_refinery"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_refinery">[docs]</a>  <span class="k">def</span> <span class="nf">config_refinery</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">verbosity</span><span class="p">):</span>
@@ -1470,11 +1473,16 @@
         <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target</span> \
           <span class="kn">import</span> <span class="n">LeastSquaresPositionalResidualWithRmsdCutoff</span> <span class="k">as</span> <span class="n">targ</span>
 
-    <span class="c"># Here we pass in None for the prediction_parameterisation, as this will</span>
-    <span class="c"># be linked to the object later</span>
-    <span class="n">target</span> <span class="o">=</span> <span class="n">targ</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">ref_predictor</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
-                    <span class="n">options</span><span class="o">.</span><span class="n">bin_size_fraction</span><span class="p">,</span> <span class="n">absolute_cutoffs</span><span class="p">,</span>
-                    <span class="n">options</span><span class="o">.</span><span class="n">gradient_calculation_blocksize</span><span class="p">)</span>
+    <span class="c"># Here we pass in None for prediction_parameterisation and</span>
+    <span class="c"># restraints_parameterisation, as these will be linked to the object later</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">targ</span><span class="p">(</span><span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
+                  <span class="n">reflection_predictor</span><span class="o">=</span><span class="n">ref_predictor</span><span class="p">,</span>
+                  <span class="n">ref_man</span><span class="o">=</span><span class="n">refman</span><span class="p">,</span>
+                  <span class="n">prediction_parameterisation</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">restraints_parameterisation</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">frac_binsize_cutoff</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">bin_size_fraction</span><span class="p">,</span>
+                  <span class="n">absolute_cutoffs</span><span class="o">=</span><span class="n">absolute_cutoffs</span><span class="p">,</span>
+                  <span class="n">gradient_calculation_blocksize</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">gradient_calculation_blocksize</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">target</span>
 </div></div>

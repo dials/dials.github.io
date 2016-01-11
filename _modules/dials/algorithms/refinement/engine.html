@@ -69,13 +69,12 @@
 <span class="sd">are the current concrete implementations&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
-<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span><span class="p">,</span> <span class="n">debug</span>
+<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">debug</span>
 
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">lbfgs</span>
 <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
 <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_mp</span>
-<span class="kn">import</span> <span class="nn">sys</span>
 
 <span class="c"># use lstbx classes</span>
 <span class="kn">from</span> <span class="nn">scitbx.lstbx</span> <span class="kn">import</span> <span class="n">normal_eqns</span><span class="p">,</span> <span class="n">normal_eqns_solving</span>
@@ -374,6 +373,7 @@
 
     <span class="bp">self</span><span class="o">.</span><span class="n">prepare_for_step</span><span class="p">()</span>
 
+    <span class="c"># observation terms</span>
     <span class="n">blocks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">split_matches_into_blocks</span><span class="p">(</span><span class="n">nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
       <span class="n">task_results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
@@ -392,7 +392,20 @@
     <span class="n">flist</span><span class="p">,</span> <span class="n">glist</span><span class="p">,</span> <span class="n">clist</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">task_results</span><span class="p">)</span>
     <span class="n">glist</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">glist</span><span class="p">)</span>
     <span class="n">clist</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">clist</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">flist</span><span class="p">),</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">glist</span><span class="p">],</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">clist</span><span class="p">]</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">flist</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">glist</span><span class="p">]</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">clist</span><span class="p">]</span>
+
+    <span class="c"># restraints terms</span>
+    <span class="n">restraints</span> <span class="o">=</span> \
+      <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">compute_restraints_functional_gradients_and_curvatures</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">restraints</span><span class="p">:</span>
+      <span class="n">f</span> <span class="o">+=</span> <span class="n">restraints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="n">g</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">restraints</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+      <span class="n">c</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">restraints</span><span class="p">[</span><span class="mi">2</span><span class="p">])]</span>
+
+    <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">c</span>
 </div>
 <div class="viewcode-block" id="AdaptLbfgs.callback_after_step"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLbfgs.callback_after_step">[docs]</a>  <span class="k">def</span> <span class="nf">callback_after_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minimizer</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -529,6 +542,7 @@
     <span class="c"># Reset the state to construction time, i.e. no equations accumulated</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 
+    <span class="c"># observation terms</span>
     <span class="k">if</span> <span class="n">objective_only</span><span class="p">:</span>
       <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">compute_residuals</span><span class="p">()</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">add_residuals</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
@@ -571,6 +585,14 @@
           <span class="n">residuals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> \
             <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">compute_residuals_and_gradients</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
           <span class="bp">self</span><span class="o">.</span><span class="n">add_equations</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+
+    <span class="c"># restraints terms</span>
+    <span class="n">restraints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">compute_restraints_residuals_and_gradients</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">restraints</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">objective_only</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_residuals</span><span class="p">(</span><span class="n">restraints</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">restraints</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_equations</span><span class="p">(</span><span class="n">restraints</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">restraints</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">restraints</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
     <span class="k">return</span>
 </div>
 <div class="viewcode-block" id="AdaptLstbx.step_forward"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.AdaptLstbx.step_forward">[docs]</a>  <span class="k">def</span> <span class="nf">step_forward</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>

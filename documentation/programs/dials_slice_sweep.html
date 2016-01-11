@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>dials.predict &mdash; DIALS  documentation</title>
+    <title>dials.slice_sweep &mdash; DIALS  documentation</title>
     
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -33,8 +33,8 @@
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="top" title="DIALS  documentation" href="../../index.html" />
     <link rel="up" title="Program documentation" href="index.html" />
-    <link rel="next" title="dials.merge_cbf" href="dials_merge_cbf.html" />
-    <link rel="prev" title="dials.estimate_gain" href="dials_estimate_gain.html" />
+    <link rel="next" title="dials.compare_orientation_matrices" href="dials_compare_orientation_matrices.html" />
+    <link rel="prev" title="dials.export_bitmaps" href="dials_export_bitmaps.html" />
    
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
@@ -56,151 +56,64 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="dials-predict">
-<h1>dials.predict<a class="headerlink" href="#dials-predict" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="dials-slice-sweep">
+<h1>dials.slice_sweep<a class="headerlink" href="#dials-slice-sweep" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="introduction">
 <h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
-<p>This program takes a set of experiments and predicts the reflections. The
-reflections are then saved to file.</p>
+<p>Slice a sweep to produce a smaller sweep within the bounds of the original. If
+experiments or datablocks are provided, modify the scan objects within these. If
+reflections are provided, remove reflections outside the provided scan ranges.
+Each scan_range parameter refers to a single experiment ID, counting up from
+zero. Any reflections with experiment ID not matched by a scan_range parameter
+are removed.</p>
 <p>Examples:</p>
-<p>dials.predict experiments.json</p>
-<p>dials.predict experiments.json force_static=True</p>
-<p>dials.predict experiments.json d_min=2.0</p>
+<div class="highlight-python"><div class="highlight"><pre>dials.slice_sweep experiments.json reflections.pickle &quot;scan_range=1 20&quot;
+
+dials.slice_sweep datablock.json &quot;scan_range=1 20&quot;
+
+# two experiments and reflections with IDs &#39;0&#39; and &#39;1&#39;
+dials.slice_sweep experiments.json reflections.pickle     &quot;scan_range=1 20&quot; &quot;scan_range=5 30&quot;
+</pre></div>
+</div>
 </div>
 <div class="section" id="basic-parameters">
 <h2>Basic parameters<a class="headerlink" href="#basic-parameters" title="Permalink to this headline">¶</a></h2>
-<pre class="literal-block">
-output = predicted.pickle
-force_static = False
-buffer_size = 0
-d_min = None
-profile {
-  algorithm = gaussian_rs *gaussian_rs
-  gaussian_rs {
-    scan_varying = False
-    min_spots = 100
-    filter {
-      min_zeta = 0.05
-    }
-    fitting {
-      scan_step = 5
-      grid_size = 5
-      threshold = 0.02
-      grid_method = single *regular_grid circular_grid
-      fit_method = *reciprocal_space detector_space
-    }
-  }
-  gaussian_rs {
-    scan_varying = False
-    min_spots = 100
-    filter {
-      min_zeta = 0.05
-    }
-    fitting {
-      scan_step = 5
-      grid_size = 5
-      threshold = 0.02
-      grid_method = single *regular_grid circular_grid
-      fit_method = *reciprocal_space detector_space
-    }
-  }
+<div class="highlight-python"><div class="highlight"><pre>output {
+  experiments_filename = None
+  reflections_filename = None
+  datablocks_filename = None
 }
-
-</pre>
+scan_range = None
+</pre></div>
+</div>
 </div>
 <div class="section" id="full-parameter-definitions">
 <h2>Full parameter definitions<a class="headerlink" href="#full-parameter-definitions" title="Permalink to this headline">¶</a></h2>
 <pre class="literal-block">
-output = predicted.pickle
-  .help = &quot;The filename for the predicted reflections&quot;
-  .type = str
-force_static = False
-  .help = &quot;For a scan varying model, force static prediction&quot;
-  .type = bool
-buffer_size = 0
-  .help = &quot;Calculate predictions within a buffer zone of n images either size&quot;
-          &quot;of the scan&quot;
-  .type = int
-d_min = None
-  .help = &quot;Minimum d-spacing of predicted reflections&quot;
-  .type = float
-profile
-  .help = &quot;
-     T h e   i n t e r f a c e   d e f i n i t i o n   f o r   a  &quot;
-          &quot;p r o f i l e   m o d e l . 
- 
-    &quot;
-{
-  algorithm = gaussian_rs *gaussian_rs
-    .help = &quot;The choice of algorithm&quot;
-    .type = choice
-  gaussian_rs
-    .help = &quot;An extension class implementing a reciprocal space gaussian&quot;
-            &quot;profile model.&quot;
-  {
-    scan_varying = False
-      .help = &quot;Calculate a scan varying model&quot;
-      .type = bool
-    min_spots = 100
-      .help = &quot;The minimum number of spots needed to do the profile modelling&quot;
-      .type = int(value_min=0)
-    filter {
-      min_zeta = 0.05
-        .help = &quot;Filter reflections by min zeta&quot;
-        .type = float
-    }
-    fitting {
-      scan_step = 5
-        .help = &quot;Space between profiles in degrees&quot;
-        .type = float
-      grid_size = 5
-        .help = &quot;The size of the profile grid.&quot;
-        .type = int
-      threshold = 0.02
-        .help = &quot;The threshold to use in reference profile&quot;
-        .type = float
-      grid_method = single *regular_grid circular_grid
-        .help = &quot;Select the profile grid method&quot;
-        .type = choice
-      fit_method = *reciprocal_space detector_space
-        .help = &quot;The fitting method&quot;
-        .type = choice
-    }
-  }
-  gaussian_rs
-    .help = &quot;An extension class implementing a reciprocal space gaussian&quot;
-            &quot;profile model.&quot;
-  {
-    scan_varying = False
-      .help = &quot;Calculate a scan varying model&quot;
-      .type = bool
-    min_spots = 100
-      .help = &quot;The minimum number of spots needed to do the profile modelling&quot;
-      .type = int(value_min=0)
-    filter {
-      min_zeta = 0.05
-        .help = &quot;Filter reflections by min zeta&quot;
-        .type = float
-    }
-    fitting {
-      scan_step = 5
-        .help = &quot;Space between profiles in degrees&quot;
-        .type = float
-      grid_size = 5
-        .help = &quot;The size of the profile grid.&quot;
-        .type = int
-      threshold = 0.02
-        .help = &quot;The threshold to use in reference profile&quot;
-        .type = float
-      grid_method = single *regular_grid circular_grid
-        .help = &quot;Select the profile grid method&quot;
-        .type = choice
-      fit_method = *reciprocal_space detector_space
-        .help = &quot;The fitting method&quot;
-        .type = choice
-    }
-  }
+output {
+  experiments_filename = None
+    .help = &quot;The filename for output experimental models with sliced scans.
+  &quot;
+            &quot;            By default generated automatically from the input&quot;
+            &quot;name&quot;
+    .type = str
+  reflections_filename = None
+    .help = &quot;The filename for output reflections sliced to remove those&quot;
+            &quot;outside the reduced scan range. By default generated&quot;
+            &quot;automatically from the input name&quot;
+    .type = str
+  datablocks_filename = None
+    .help = &quot;The filename for the output datablock with sliced scans.
+        &quot;
+            &quot;      By default generated automatically from the input name&quot;
+    .type = str
 }
+scan_range = None
+  .help = &quot;Scan range in images to slice a sweep. Number of arguments must be&quot;
+          &quot;a factor of two. Specifying  0 0&quot; will use all images&quot; by&quot;
+          &quot;default. The given range follows C conventions (e.g. j0 &lt;= j &lt; j1).&quot;
+  .type = ints(size=2)
+  .multiple = True
 
 </pre>
 </div>
