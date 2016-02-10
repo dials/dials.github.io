@@ -843,11 +843,12 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">ninvfg</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">foreground_includes_bad_pixels</span><span class="p">)</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">ntotal</span> <span class="o">-</span> <span class="n">nvalid</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.find_overlaps"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.find_overlaps">[docs]</a>  <span class="k">def</span> <span class="nf">find_overlaps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+<div class="viewcode-block" id="reflection_table_aux.find_overlaps"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.find_overlaps">[docs]</a>  <span class="k">def</span> <span class="nf">find_overlaps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">border</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Check for overlapping reflections.</span>
 
 <span class="sd">    :param experiments: The experiment list</span>
+<span class="sd">    :param tolerance: A positive integer specifying border around shoebox</span>
 <span class="sd">    :return: The overlap list</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
@@ -855,24 +856,47 @@
     <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">groupby</span>
     <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">shared</span>
 
-    <span class="c"># Group according to imageset</span>
-    <span class="n">groups</span> <span class="o">=</span> <span class="n">groupby</span><span class="p">(</span>
-      <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)),</span>
-      <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">experiments</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">imageset</span><span class="p">)</span>
+    <span class="c"># Expand the bbox if necessary</span>
+    <span class="k">if</span> <span class="n">border</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+      <span class="n">x0</span> <span class="o">-=</span> <span class="n">border</span>
+      <span class="n">x1</span> <span class="o">+=</span> <span class="n">border</span>
+      <span class="n">y0</span> <span class="o">-=</span> <span class="n">border</span>
+      <span class="n">y1</span> <span class="o">+=</span> <span class="n">border</span>
+      <span class="n">z0</span> <span class="o">-=</span> <span class="n">border</span>
+      <span class="n">z1</span> <span class="o">+=</span> <span class="n">border</span>
+      <span class="n">bbox</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">x0</span><span class="p">,</span><span class="n">x1</span><span class="p">,</span><span class="n">y0</span><span class="p">,</span><span class="n">y1</span><span class="p">,</span><span class="n">z0</span><span class="p">,</span><span class="n">z1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">bbox</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">]</span>
 
-    <span class="c"># Get the experiment ids we&#39;re to treat together</span>
-    <span class="n">group_ranges</span> <span class="o">=</span> <span class="n">shared</span><span class="o">.</span><span class="n">tiny_int_2</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
-      <span class="n">indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
-      <span class="n">i0</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-      <span class="n">i1</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
-      <span class="n">group_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i0</span><span class="p">,</span> <span class="n">i1</span><span class="p">))</span>
+    <span class="c"># Get the panel and id</span>
+    <span class="n">panel</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">]</span>
+    <span class="n">exp_id</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span>
+
+    <span class="c"># Group according to imageset</span>
+    <span class="k">if</span> <span class="n">experiments</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="n">groups</span> <span class="o">=</span> <span class="n">groupby</span><span class="p">(</span>
+        <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)),</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">experiments</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">imageset</span><span class="p">)</span>
+
+      <span class="c"># Get the experiment ids we&#39;re to treat together</span>
+      <span class="n">lookup</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">groups</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+          <span class="n">lookup</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span>
+      <span class="n">group_id</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">([</span><span class="n">lookup</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]])</span>
+    <span class="k">elif</span> <span class="s">&quot;imageset_id&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+      <span class="n">imageset_id</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;imageset_id&#39;</span><span class="p">]</span>
+      <span class="k">assert</span> <span class="n">imageset_id</span><span class="o">.</span><span class="n">all_ge</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+      <span class="n">group_id</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">imageset_id</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Either need to supply experiments or have imageset_id&#39;</span><span class="p">)</span>
 
     <span class="c"># Create the overlap finder</span>
-    <span class="n">find_overlapping</span> <span class="o">=</span> <span class="n">OverlapFinder</span><span class="p">(</span><span class="n">group_ranges</span><span class="p">)</span>
+    <span class="n">find_overlapping</span> <span class="o">=</span> <span class="n">OverlapFinder</span><span class="p">()</span>
 
     <span class="c"># Find the overlaps</span>
-    <span class="n">overlaps</span> <span class="o">=</span> <span class="n">find_overlapping</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;bbox&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">])</span>
+    <span class="n">overlaps</span> <span class="o">=</span> <span class="n">find_overlapping</span><span class="p">(</span><span class="n">group_id</span><span class="p">,</span> <span class="n">panel</span><span class="p">,</span> <span class="n">bbox</span><span class="p">)</span>
     <span class="k">assert</span><span class="p">(</span><span class="n">overlaps</span><span class="o">.</span><span class="n">num_vertices</span><span class="p">()</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
 
     <span class="c"># Return the overlaps</span>
