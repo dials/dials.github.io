@@ -75,6 +75,7 @@
 
 <span class="kn">from</span> <span class="nn">dxtbx.model.experiment.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentList</span><span class="p">,</span> <span class="n">Experiment</span>
 <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.refinement_helpers</span> <span class="kn">import</span> <span class="n">ordinal_number</span>
 <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
 <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
@@ -454,175 +455,10 @@
     <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">_build_components</span><span class="p">(</span><span class="n">params</span><span class="p">,</span>
                                  <span class="n">reflections</span><span class="p">,</span>
                                  <span class="n">experiments</span><span class="p">,</span>
-                                 <span class="n">crystal_ids</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)),</span>
                                  <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">)</span>
 </div>
   <span class="nd">@classmethod</span>
-<div class="viewcode-block" id="RefinerFactory.from_parameters_data_models"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.from_parameters_data_models">[docs]</a>  <span class="k">def</span> <span class="nf">from_parameters_data_models</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span>
-                                  <span class="n">params</span><span class="p">,</span>
-                                  <span class="n">reflections</span><span class="p">,</span>
-                                  <span class="n">sweep</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">beam</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">goniometer</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">detector</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">scan</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">image_width_rad</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">sweep_range_rad</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">crystal</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">crystals</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">crystal_ids</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                                  <span class="n">verbosity</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Given a set of parameters, reflections and experimental models for a</span>
-<span class="sd">    single Experiment, construct a refiner.</span>
-
-<span class="sd">    Mandatory arguments:</span>
-<span class="sd">      params - The input parameters as a phil scope_extract object</span>
-<span class="sd">      reflections - Input ReflectionList data</span>
-
-<span class="sd">    Argument alternatives:</span>
-<span class="sd">      sweep - Experimental models as a dxtbx sweep</span>
-<span class="sd">        or</span>
-<span class="sd">      /beam - A dxtbx Beam object</span>
-<span class="sd">      \detector - A dxtbx Detector object</span>
-<span class="sd">      crystal - A cctbx crystal_model object</span>
-<span class="sd">        or</span>
-<span class="sd">      /crystals - A list of cctbx crystal_model objects</span>
-<span class="sd">      \crystal_ids - A list of integer crystal ids to match to crystals</span>
-
-<span class="sd">    Optional arguments:</span>
-<span class="sd">      goniometer - A dxtbx Goniometer model</span>
-<span class="sd">      scan - A dxtbx Scan model</span>
-<span class="sd">        or</span>
-<span class="sd">      /image_width_rad - The &#39;width&#39; of one image in radians</span>
-<span class="sd">      \sweep_range_rad - Pair of rotation scan extremes in radians</span>
-<span class="sd">      verbosity - An integer verbosity level</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">      The Refiner instance.</span>
-
-<span class="sd">    Notes</span>
-<span class="sd">    -----</span>
-
-<span class="sd">    The interface is intended to be flexible by allowing input to be passed in</span>
-<span class="sd">    various forms. Some are incompatible, e.g. passing a sweep alongside any</span>
-<span class="sd">    other dxtbx model is disallowed. Either a crystal or a list of crystals must</span>
-<span class="sd">    be provided (but not both). A list of crystals must be associated with a</span>
-<span class="sd">    list of crystal id integers to associate with the crystals.</span>
-
-<span class="sd">    The optional arguments determine the behaviour of the refiner, alongside the</span>
-<span class="sd">    phil parameters. Of particular interest, the presence of a goniometer model</span>
-<span class="sd">    decides whether the refinement is of a rotation scan, with a target</span>
-<span class="sd">    expressed in (X, Y, Phi) space, or of a still image, with an (X, Y) target.</span>
-<span class="sd">    For a rotation scan, a Scan object is optional. It is only used for some</span>
-<span class="sd">    information, which may be provided instead by using the image_width_rad and</span>
-<span class="sd">    sweep_range_rad arguments. It is even possible to specify none of</span>
-<span class="sd">    image_width_rad, sweep_range_rad or scan and still do (X, Y, Phi)</span>
-<span class="sd">    refinement, but in such a case the phil params should not specify</span>
-<span class="sd">    reflections.reflections_per_degree and must specify</span>
-<span class="sd">    target.rmsd_cutoff=absolute. This is checked to avoid illegal construction</span>
-<span class="sd">    of the target and reflection manager objects.</span>
-
-<span class="sd">    The steps performed by this factory function are:</span>
-<span class="sd">    * check for consistent input</span>
-<span class="sd">    * copy the input models and reflections</span>
-<span class="sd">    * set beam vectors in the working copy of reflections if not already set</span>
-<span class="sd">    * create parameterisations of the models that were provided, depending on</span>
-<span class="sd">      phil preferences for choices such as fixing certain parameters</span>
-<span class="sd">    * create a reflection manager, depending on phil preferences for decisions</span>
-<span class="sd">      regarding inclusion and random sampling criteria</span>
-<span class="sd">    * create a target function using phil parameters to determine the &#39;target</span>
-<span class="sd">      achieved&#39; criterion, and the presence of a goniometer to determine whether</span>
-<span class="sd">      to include or ignore residuals in phi</span>
-<span class="sd">    * create a refinery (minimisation engine) using phil parameters to select a</span>
-<span class="sd">      particular algorithm, determine a maximum number of steps and to control</span>
-<span class="sd">      additional logging features</span>
-<span class="sd">    * package all the above together in a &#39;refiner&#39; object, which provides the</span>
-<span class="sd">      interface for running refinement</span>
-<span class="sd">    * return that refiner</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="c"># if no verbosity override is given, take from the parameters</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">verbosity</span><span class="p">:</span>
-      <span class="n">verbosity</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">verbosity</span>
-
-    <span class="c"># checks on the input</span>
-    <span class="k">if</span> <span class="n">sweep</span><span class="p">:</span>
-      <span class="k">if</span> <span class="p">[</span><span class="n">beam</span><span class="p">,</span> <span class="n">goniometer</span><span class="p">,</span> <span class="n">detector</span><span class="p">,</span> <span class="n">scan</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;You have a sweep but it is missing a beam, goniometer, &#39;</span>
-                    <span class="s">&#39;detector or scan model&#39;</span><span class="p">)</span>
-      <span class="n">beam</span> <span class="o">=</span> <span class="n">sweep</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span>
-      <span class="n">detector</span> <span class="o">=</span> <span class="n">sweep</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
-      <span class="n">goniometer</span> <span class="o">=</span> <span class="n">sweep</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span>
-      <span class="n">scan</span> <span class="o">=</span> <span class="n">sweep</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span>
-
-    <span class="c"># if either of these provided, both must be</span>
-    <span class="k">if</span> <span class="n">image_width_rad</span> <span class="ow">or</span> <span class="n">sweep_range_rad</span><span class="p">:</span>
-      <span class="k">assert</span> <span class="n">image_width_rad</span> <span class="ow">and</span> <span class="n">sweep_range_rad</span>
-
-    <span class="c"># only one of image_width_rad or scan should be provided (or neither)</span>
-    <span class="k">assert</span> <span class="p">[</span><span class="n">image_width_rad</span><span class="p">,</span> <span class="n">scan</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span>
-    <span class="c">#if scan:</span>
-      <span class="c">#image_width_rad = scan.get_oscillation(deg=False)[1]</span>
-      <span class="c">#sweep_range_rad = scan.get_oscillation_range(deg=False)</span>
-    <span class="k">if</span> <span class="n">image_width_rad</span><span class="p">:</span>
-      <span class="c"># create a dummy scan</span>
-      <span class="kn">from</span> <span class="nn">dxtbx.model.scan</span> <span class="kn">import</span> <span class="n">scan_factory</span>
-      <span class="n">sf</span> <span class="o">=</span> <span class="n">scan_factory</span><span class="p">()</span>
-      <span class="n">sweep_width</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sweep_range_rad</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sweep_range_rad</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-      <span class="n">nimages</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sweep_width</span> <span class="o">/</span> <span class="n">image_width_rad</span><span class="p">)</span>
-      <span class="n">scan</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">make_scan</span><span class="p">(</span><span class="n">image_range</span><span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nimages</span><span class="p">),</span>
-                          <span class="n">exposure_times</span> <span class="o">=</span> <span class="mf">0.</span><span class="p">,</span>
-                          <span class="n">oscillation</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">image_width_rad</span><span class="p">),</span>
-                          <span class="n">epochs</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">nimages</span><span class="p">),</span>
-                          <span class="n">deg</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">goniometer</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">image_width_rad</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">scan</span><span class="p">:</span>
-      <span class="c"># This is not to be supported any more. Now we state we must have enough</span>
-      <span class="c"># information to make a scan</span>
-      <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;Goniometer provided, but not enough information about a scan!&quot;</span><span class="p">)</span>
-      <span class="c"># if there was neither a scan nor the image width provided,</span>
-      <span class="c"># the target rmsd must be provided in absolute terms</span>
-      <span class="c">#assert params.refinement.target.rmsd_cutoff == &quot;absolute&quot;</span>
-      <span class="c"># also there is no sweep range, so the reflection manager</span>
-      <span class="c"># cannot sample by number of reflections per degree</span>
-      <span class="c">#assert params.refinement.reflections.reflections_per_degree is None</span>
-
-    <span class="c"># do we have the essential models?</span>
-    <span class="k">assert</span> <span class="p">[</span><span class="n">beam</span><span class="p">,</span> <span class="n">detector</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
-    <span class="k">assert</span> <span class="p">[</span><span class="n">crystal</span><span class="p">,</span> <span class="n">crystals</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
-    <span class="k">if</span> <span class="n">crystals</span><span class="p">:</span> <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">crystals</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">crystal_ids</span><span class="p">)</span>
-
-    <span class="c"># copy the models</span>
-    <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="n">Beam</span>
-    <span class="kn">import</span> <span class="nn">copy</span>
-    <span class="c"># use copy constructor</span>
-    <span class="n">beam</span> <span class="o">=</span> <span class="n">Beam</span><span class="p">(</span><span class="n">beam</span><span class="p">)</span>
-    <span class="n">detector</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">crystal</span><span class="p">:</span>
-      <span class="n">crystals</span> <span class="o">=</span> <span class="p">[</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">crystal</span><span class="p">)]</span>
-      <span class="n">crystal_ids</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">crystals</span><span class="p">:</span> <span class="n">crystals</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">crystals</span><span class="p">)</span>
-
-    <span class="c"># build an experiment list with the copied models</span>
-    <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">crystal</span> <span class="ow">in</span> <span class="n">crystals</span><span class="p">:</span>
-      <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Experiment</span><span class="p">(</span>
-        <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span> <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span> <span class="n">goniometer</span><span class="o">=</span><span class="n">goniometer</span><span class="p">,</span>
-        <span class="n">scan</span><span class="o">=</span><span class="n">scan</span><span class="p">,</span> <span class="n">crystal</span><span class="o">=</span><span class="n">crystal</span><span class="p">,</span> <span class="n">imageset</span><span class="o">=</span><span class="bp">None</span><span class="p">))</span>
-
-    <span class="c"># copy and filter the reflections</span>
-    <span class="n">reflections</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_filter_reflections</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
-
-    <span class="c"># Build components and return</span>
-    <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">_build_components</span><span class="p">(</span><span class="n">params</span><span class="p">,</span>
-                                 <span class="n">reflections</span><span class="p">,</span>
-                                 <span class="n">experiments</span><span class="p">,</span>
-                                 <span class="n">crystal_ids</span><span class="p">,</span>
-                                 <span class="n">verbosity</span><span class="p">)</span>
-</div>
-  <span class="nd">@classmethod</span>
-  <span class="k">def</span> <span class="nf">_build_components</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">crystal_ids</span><span class="p">,</span>
+  <span class="k">def</span> <span class="nf">_build_components</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span>
                         <span class="n">verbosity</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;low level build&quot;&quot;&quot;</span>
 
@@ -705,7 +541,7 @@
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Prediction equation parameterisation built&quot;</span><span class="p">)</span>
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Parameter order : name mapping&quot;</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pred_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">()):</span>
-      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Parameter </span><span class="si">%03d</span><span class="s"> : </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Parameter </span><span class="si">%03d</span><span class="s"> : </span><span class="si">%s</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
 
     <span class="c"># Set the prediction equation and restraints parameterisations</span>
     <span class="c"># in the target object</span>
@@ -720,7 +556,7 @@
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Refinement engine built&quot;</span><span class="p">)</span>
 
     <span class="c"># build refiner interface and return</span>
-    <span class="k">return</span> <span class="n">Refiner</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">crystal_ids</span><span class="p">,</span>
+    <span class="k">return</span> <span class="n">Refiner</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span>
                     <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">refinery</span><span class="p">,</span>
                     <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">)</span>
 
@@ -983,19 +819,19 @@
         <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
           <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
           <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
-          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_ori_params</span><span class="p">):</span>
         <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
           <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
           <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
-          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_uc_params</span><span class="p">):</span>
         <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
           <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
           <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
-          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">det_params</span><span class="p">):</span>
         <span class="k">try</span><span class="p">:</span>
           <span class="n">pnl_groups</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_panel_ids_by_group</span><span class="p">()</span>
@@ -1006,7 +842,7 @@
               <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
               <span class="n">panels</span> <span class="o">=</span> <span class="n">gp</span>
               <span class="n">pnl_gp</span> <span class="o">=</span> <span class="n">igp</span>
-              <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Detector{0}PanelGroup{1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">pnl_gp</span><span class="p">)</span>
+              <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Detector{0}PanelGroup{1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">pnl_gp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
         <span class="k">except</span><span class="p">:</span>
           <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
           <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
@@ -1014,7 +850,7 @@
             <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
             <span class="n">panels</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="n">pnl_gp</span> <span class="o">=</span> <span class="bp">None</span>
-            <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
       <span class="k">return</span> <span class="p">{</span><span class="s">&#39;parameterisation&#39;</span><span class="p">:</span><span class="n">weak</span><span class="p">,</span>
               <span class="s">&#39;panels&#39;</span><span class="p">:</span><span class="n">panels</span><span class="p">,</span>
               <span class="s">&#39;panel_group_id&#39;</span><span class="p">:</span><span class="n">pnl_gp</span><span class="p">,</span>
@@ -1025,19 +861,19 @@
       <span class="n">failmsg</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Try modifying refinement.parameterisation.auto_reduction options&#39;</span>
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">beam_params</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
           <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
           <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xlo</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_ori_params</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xlo</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
           <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
           <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xluc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_uc_params</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xluc</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
           <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
           <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
@@ -1047,12 +883,12 @@
           <span class="k">for</span> <span class="n">igp</span><span class="p">,</span> <span class="n">gp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pnl_groups</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">gp</span><span class="p">,</span> <span class="n">igp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
               <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise Detector{0} panel group {1}&#39;</span>
-              <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">igp</span><span class="p">)</span>
+              <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">igp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
               <span class="n">msg</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Try modifying refinement.parameterisation.auto_reduction options&#39;</span>
               <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
           <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
             <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
@@ -1063,7 +899,7 @@
         <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
           <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bp</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Beam{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
           <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
           <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
       <span class="n">beam_params</span> <span class="o">=</span> <span class="n">tmp</span>
@@ -1073,7 +909,7 @@
         <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xlo</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
           <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xlo</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
           <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
           <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
       <span class="n">xl_ori_params</span> <span class="o">=</span> <span class="n">tmp</span>
@@ -1083,7 +919,7 @@
         <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xluc</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
           <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xluc</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+          <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
           <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
           <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
       <span class="n">xl_uc_params</span> <span class="o">=</span> <span class="n">tmp</span>
@@ -1096,7 +932,7 @@
           <span class="k">for</span> <span class="n">igp</span><span class="p">,</span> <span class="n">gp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pnl_groups</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">gp</span><span class="p">,</span> <span class="n">igp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
               <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise Detector{0}PanelGroup{1}&#39;</span>
-              <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">igp</span><span class="p">)</span>
+              <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">igp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
               <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
               <span class="n">gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">gp</span> <span class="o">==</span> <span class="n">igp</span> <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="n">dp</span><span class="o">.</span><span class="n">get_param_panel_groups</span><span class="p">()]</span>
               <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">gp_params</span><span class="p">):</span>
@@ -1105,13 +941,13 @@
           <span class="k">if</span> <span class="n">dp</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dp</span><span class="p">)</span>
           <span class="k">else</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;No parameters remain free for Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;No parameters remain free for Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
             <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
           <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dp</span><span class="p">)</span>
           <span class="k">else</span><span class="p">:</span>
-            <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
             <span class="n">msg</span> <span class="o">=</span> <span class="n">warnmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
             <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
       <span class="n">det_params</span> <span class="o">=</span> <span class="n">tmp</span>
@@ -1509,12 +1345,6 @@
 <span class="sd">    run</span>
 <span class="sd">    rmsds</span>
 <span class="sd">    get_experiments</span>
-<span class="sd">    get_beam</span>
-<span class="sd">    get_crystal</span>
-<span class="sd">    get_crystals</span>
-<span class="sd">    get_detector</span>
-<span class="sd">    get_goniometer</span>
-<span class="sd">    get_scan</span>
 <span class="sd">    get_matches</span>
 <span class="sd">    get_param_reporter</span>
 <span class="sd">    parameter_correlation_plot</span>
@@ -1534,15 +1364,13 @@
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">crystal_ids</span><span class="p">,</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span>
                <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">refinery</span><span class="p">,</span>
                <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Mandatory arguments:</span>
 <span class="sd">      reflections - Input ReflectionList data</span>
-<span class="sd">      beam - A dxtbx Beam object</span>
-<span class="sd">      crystals - A list of cctbx crystal_model objects</span>
-<span class="sd">      detector - A dxtbx Detector object</span>
+<span class="sd">      experiments - a dxtbx ExperimentList object</span>
 <span class="sd">      pred_param - An object derived from the PredictionParameterisation class</span>
 <span class="sd">      param_reporter -A ParameterReporter object</span>
 <span class="sd">      refman - A ReflectionManager object</span>
@@ -1550,31 +1378,12 @@
 <span class="sd">      refinery - An object derived from the Refinery class</span>
 
 <span class="sd">    Optional arguments:</span>
-<span class="sd">      goniometer - A dxtbx Goniometer object</span>
-<span class="sd">      scan - A dxtbx Scan object</span>
 <span class="sd">      verbosity - An integer verbosity level</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="c"># FIXME only models from the first Experiment are kept here</span>
-    <span class="n">detector</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector</span>
-    <span class="n">beam</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span>
-    <span class="n">crystals</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()</span>
-    <span class="n">goniometer</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">goniometer</span>
-    <span class="n">scan</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span>
-
-    <span class="c"># keep the data and models public for access after refinement</span>
+    <span class="c"># the experimental models</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span> <span class="o">=</span> <span class="n">experiments</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_beam</span> <span class="o">=</span> <span class="n">beam</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span> <span class="o">=</span> <span class="n">crystals</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_crystal_ids</span> <span class="o">=</span> <span class="n">crystal_ids</span>
-    <span class="c"># only keep crystal if there is indeed only one</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_crystal</span> <span class="o">=</span> <span class="n">crystals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">crystals</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="bp">None</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_detector</span> <span class="o">=</span> <span class="n">detector</span>
-
-    <span class="c"># these could be None (for stills/XFEL)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_goniometer</span> <span class="o">=</span> <span class="n">goniometer</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span> <span class="o">=</span> <span class="n">scan</span>
 
     <span class="c"># refinement module main objects</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_pred_param</span> <span class="o">=</span> <span class="n">pred_param</span>
@@ -1593,51 +1402,6 @@
 
     <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
     <span class="k">return</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="Refiner.get_beam"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_beam">[docs]</a>  <span class="k">def</span> <span class="nf">get_beam</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return a copy of the beam model&quot;&quot;&quot;</span>
-
-    <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="n">Beam</span>
-    <span class="k">return</span> <span class="n">Beam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="Refiner.get_crystal"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_crystal">[docs]</a>  <span class="k">def</span> <span class="nf">get_crystal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return a copy of the crystal model, if present&quot;&quot;&quot;</span>
-
-    <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_crystal</span><span class="p">:</span>
-      <span class="k">return</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_crystal</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="k">return</span> <span class="bp">None</span>
-</div>
-<div class="viewcode-block" id="Refiner.get_crystals"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_crystals">[docs]</a>  <span class="k">def</span> <span class="nf">get_crystals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return a copy of the crystal models (always present)&quot;&quot;&quot;</span>
-
-    <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
-    <span class="k">return</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="Refiner.get_detector"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_detector">[docs]</a>  <span class="k">def</span> <span class="nf">get_detector</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return a copy of the detector model&quot;&quot;&quot;</span>
-
-    <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
-    <span class="k">return</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_detector</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="Refiner.get_goniometer"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_goniometer">[docs]</a>  <span class="k">def</span> <span class="nf">get_goniometer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return the goniometer model, if present&quot;&quot;&quot;</span>
-
-    <span class="c"># this is unmodified by refinement, so safe to return directly without copy</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_goniometer</span><span class="p">:</span>
-      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_goniometer</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="k">return</span> <span class="bp">None</span>
-</div>
-<div class="viewcode-block" id="Refiner.get_scan"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_scan">[docs]</a>  <span class="k">def</span> <span class="nf">get_scan</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return the scan model, if present&quot;&quot;&quot;</span>
-
-    <span class="c"># this is unmodified by refinement, so safe to return directly without copy</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">:</span>
-      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="k">return</span> <span class="bp">None</span>
 </div>
 <div class="viewcode-block" id="Refiner.rmsds"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.rmsds">[docs]</a>  <span class="k">def</span> <span class="nf">rmsds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Return rmsds of the current model&quot;&quot;&quot;</span>
@@ -1855,51 +1619,56 @@
     <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">pi</span>
     <span class="n">rad2deg</span> <span class="o">=</span> <span class="mi">180</span><span class="o">/</span><span class="n">pi</span>
 
-    <span class="n">info</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">RMSDs by panel:&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">idetector</span><span class="p">,</span> <span class="n">detector</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()):</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">info</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Detector {0} RMSDs by panel:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idetector</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
 
-    <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;Panel&quot;</span><span class="p">,</span> <span class="s">&quot;Nref&quot;</span><span class="p">]</span>
-    <span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">units</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_units</span><span class="p">):</span>
-      <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_X&quot;</span> <span class="ow">or</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_Y&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;mm&quot;</span><span class="p">:</span>
-        <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">(px)&quot;</span><span class="p">)</span>
-      <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_Phi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;rad&quot;</span><span class="p">:</span> <span class="c"># convert radians to images for reporting of scans</span>
-        <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;RMSD_Z&quot;</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">(images)&quot;</span><span class="p">)</span>
-      <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_DeltaPsi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;rad&quot;</span><span class="p">:</span> <span class="c"># convert radians to degrees for reporting of stills</span>
-        <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">(deg)&quot;</span><span class="p">)</span>
-      <span class="k">else</span><span class="p">:</span> <span class="c"># skip RMSDs that cannot be expressed in image/scan space</span>
-        <span class="k">pass</span>
+      <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;Panel&quot;</span><span class="p">,</span> <span class="s">&quot;Nref&quot;</span><span class="p">]</span>
+      <span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">units</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_units</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_X&quot;</span> <span class="ow">or</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_Y&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;mm&quot;</span><span class="p">:</span>
+          <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">(px)&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_Phi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;rad&quot;</span><span class="p">:</span> <span class="c"># convert radians to images for reporting of scans</span>
+          <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;RMSD_Z&quot;</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">(images)&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_DeltaPsi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;rad&quot;</span><span class="p">:</span> <span class="c"># convert radians to degrees for reporting of stills</span>
+          <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">(deg)&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c"># skip RMSDs that cannot be expressed in image/scan space</span>
+          <span class="k">pass</span>
 
-    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">ipanel</span><span class="p">,</span> <span class="n">panel</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_detector</span><span class="p">):</span>
+      <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">ipanel</span><span class="p">,</span> <span class="n">panel</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">detector</span><span class="p">):</span>
 
-      <span class="n">px_size</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span>
-      <span class="n">px_per_mm</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.</span><span class="o">/</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">px_size</span><span class="p">]</span>
+        <span class="n">px_size</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span>
+        <span class="n">px_per_mm</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.</span><span class="o">/</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">px_size</span><span class="p">]</span>
 
-      <span class="n">scan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span>
-      <span class="k">try</span><span class="p">:</span>
-        <span class="n">temp</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-        <span class="n">images_per_rad</span>  <span class="o">=</span> <span class="mf">1.</span><span class="o">/</span><span class="nb">abs</span><span class="p">(</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
-      <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-        <span class="n">images_per_rad</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="n">warning</span><span class="p">(</span><span class="s">&#39;Multiple scans present. Only the first scan will be used &#39;</span>
+             <span class="s">&#39;to determine the image width for reporting RMSDs&#39;</span><span class="p">)</span>
+        <span class="n">scan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">temp</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+          <span class="n">images_per_rad</span>  <span class="o">=</span> <span class="mf">1.</span><span class="o">/</span><span class="nb">abs</span><span class="p">(</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+          <span class="n">images_per_rad</span> <span class="o">=</span> <span class="bp">None</span>
 
-      <span class="n">num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">get_num_matches_for_panel</span><span class="p">(</span><span class="n">ipanel</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">num</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span> <span class="k">continue</span>
-      <span class="n">raw_rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsds_for_panel</span><span class="p">(</span><span class="n">ipanel</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">raw_rmsds</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">continue</span> <span class="c"># skip panels where rmsd cannot be calculated</span>
-      <span class="n">rmsds</span> <span class="o">=</span> <span class="p">[]</span>
-      <span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">units</span><span class="p">,</span> <span class="n">rmsd</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_units</span><span class="p">,</span> <span class="n">raw_rmsds</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_X&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;mm&quot;</span><span class="p">:</span>
-          <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">px_per_mm</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_Y&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;mm&quot;</span><span class="p">:</span>
-          <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">px_per_mm</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_Phi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;rad&quot;</span><span class="p">:</span>
-          <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">images_per_rad</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_DeltaPsi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;rad&quot;</span><span class="p">:</span>
-          <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">rad2deg</span><span class="p">)</span>
-      <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">ipanel</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">num</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.5g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rmsds</span><span class="p">])</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">get_num_matches_for_panel</span><span class="p">(</span><span class="n">ipanel</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span> <span class="k">continue</span>
+        <span class="n">raw_rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsds_for_panel</span><span class="p">(</span><span class="n">ipanel</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">raw_rmsds</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">continue</span> <span class="c"># skip panels where rmsd cannot be calculated</span>
+        <span class="n">rmsds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">units</span><span class="p">,</span> <span class="n">rmsd</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_units</span><span class="p">,</span> <span class="n">raw_rmsds</span><span class="p">):</span>
+          <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_X&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;mm&quot;</span><span class="p">:</span>
+            <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">px_per_mm</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+          <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_Y&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;mm&quot;</span><span class="p">:</span>
+            <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">px_per_mm</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+          <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_Phi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;rad&quot;</span><span class="p">:</span>
+            <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">images_per_rad</span><span class="p">)</span>
+          <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;RMSD_DeltaPsi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s">&quot;rad&quot;</span><span class="p">:</span>
+            <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">rad2deg</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">ipanel</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">num</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;</span><span class="si">%.5g</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rmsds</span><span class="p">])</span>
 
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-      <span class="n">st</span> <span class="o">=</span> <span class="n">simple_table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
-      <span class="n">info</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">st</span> <span class="o">=</span> <span class="n">simple_table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
+        <span class="n">info</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
 
     <span class="k">return</span>
 </div>
@@ -1911,14 +1680,18 @@
     <span class="c">####################################</span>
 
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Experimental models before refinement:&quot;</span><span class="p">)</span>
-    <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="p">))</span>
-    <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_detector</span><span class="p">))</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_goniometer</span><span class="p">:</span> <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_goniometer</span><span class="p">))</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">:</span> <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">))</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_crystal_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span><span class="p">):</span>
-      <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s"> &quot;</span> <span class="o">%</span> <span class="n">i</span>
-      <span class="n">msg</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-      <span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">beam</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()):</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">beam</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">detector</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()):</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">detector</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">goniometer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">goniometers</span><span class="p">()):</span>
+      <span class="k">if</span> <span class="n">goniometer</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">goniometer</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">scan</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">()):</span>
+      <span class="k">if</span> <span class="n">scan</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">scan</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">crystal</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()):</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">crystal</span><span class="p">))</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_refinery</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
@@ -1926,7 +1699,8 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">print_out_of_sample_rmsd_table</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">print_exp_rmsd_table</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_detector</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="n">det_npanels</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()]</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">det_npanels</span><span class="p">]):</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">print_panel_rmsd_table</span><span class="p">()</span>
 
     <span class="c"># write scan varying setting matrices back to crystal models</span>
@@ -1956,14 +1730,18 @@
           <span class="n">u_cov_list</span><span class="p">,</span> <span class="n">b_cov_list</span><span class="p">,</span> <span class="n">iexp</span><span class="p">)</span>
 
     <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Experimental models after refinement:&quot;</span><span class="p">)</span>
-    <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beam</span><span class="p">))</span>
-    <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_detector</span><span class="p">))</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_goniometer</span><span class="p">:</span> <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_goniometer</span><span class="p">))</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">:</span> <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">))</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_crystal_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span><span class="p">):</span>
-      <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s"> &quot;</span> <span class="o">%</span> <span class="n">i</span>
-      <span class="n">msg</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-      <span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">beam</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()):</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">beam</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">detector</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()):</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">detector</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">goniometer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">goniometers</span><span class="p">()):</span>
+      <span class="k">if</span> <span class="n">goniometer</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">goniometer</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">scan</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">()):</span>
+      <span class="k">if</span> <span class="n">scan</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">scan</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">crystal</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()):</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">ordinal_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">crystal</span><span class="p">))</span>
 
     <span class="c"># Report on the refined parameters</span>
     <span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_param_report</span><span class="p">))</span>
