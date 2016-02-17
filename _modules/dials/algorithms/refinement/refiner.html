@@ -154,8 +154,9 @@
 <span class="s">        .type = choice(multi=True)</span>
 
 <span class="s">      fix_list = None</span>
-<span class="s">        .type = ints(value_min=0)</span>
-<span class="s">        .help = &quot;Fix specified parameters by a list of indices&quot;</span>
+<span class="s">        .type = strings</span>
+<span class="s">        .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
+<span class="s">                &quot;partial names to match&quot;</span>
 <span class="s">        .expert_level = 1</span>
 <span class="s">    }</span>
 
@@ -169,8 +170,9 @@
 <span class="s">      unit_cell</span>
 <span class="s">      {</span>
 <span class="s">        fix_list = None</span>
-<span class="s">          .type = ints(value_min=0)</span>
-<span class="s">          .help = &quot;Fix specified parameters by a list of indices&quot;</span>
+<span class="s">          .type = strings</span>
+<span class="s">          .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
+<span class="s">                  &quot;partial names to match&quot;</span>
 <span class="s">          .expert_level = 1</span>
 
 <span class="s">        </span><span class="si">%(uc_restraints_phil)s</span><span class="s"></span>
@@ -179,8 +181,9 @@
 <span class="s">      orientation</span>
 <span class="s">      {</span>
 <span class="s">        fix_list = None</span>
-<span class="s">          .type = ints(value_min=0)</span>
-<span class="s">          .help = &quot;Fix specified parameters by a list of indices&quot;</span>
+<span class="s">          .type = strings</span>
+<span class="s">          .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
+<span class="s">                  &quot;partial names to match&quot;</span>
 <span class="s">          .expert_level = 1</span>
 <span class="s">      }</span>
 
@@ -238,8 +241,9 @@
 <span class="s">        .type = choice</span>
 
 <span class="s">      fix_list = None</span>
-<span class="s">        .type = ints(value_min=0)</span>
-<span class="s">        .help = &quot;Fix specified parameters by a list of indices&quot;</span>
+<span class="s">        .type = strings</span>
+<span class="s">        .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
+<span class="s">                &quot;partial names to match&quot;</span>
 <span class="s">        .expert_level = 1</span>
 <span class="s">    }</span>
 
@@ -608,9 +612,35 @@
     <span class="c"># Get the working set of reflections</span>
     <span class="n">reflections</span> <span class="o">=</span> <span class="n">refman</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
 
+    <span class="c"># function to convert fix_lists into to_fix selections</span>
+    <span class="k">def</span> <span class="nf">fixlist2sel</span><span class="p">(</span><span class="n">fix_list</span><span class="p">,</span> <span class="n">parameter_names</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">):</span>
+      <span class="sd">&#39;&#39;&#39;fix_list is a list of strings consisting either of indices or partial</span>
+<span class="sd">      names of parameters that should be fixed. These are compared with a list</span>
+<span class="sd">      of parameter names, with an optional prefix, to determine which parameters</span>
+<span class="sd">      should be fixed. The selection is returned as a boolean list.&#39;&#39;&#39;</span>
+
+      <span class="n">sel</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">parameter_names</span><span class="p">)</span>
+      <span class="n">parameter_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parameter_names</span><span class="p">]</span>
+
+      <span class="c"># expand elements of the list that are comma separated strings</span>
+      <span class="n">fix_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">fix_list</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)]</span>
+
+      <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">fix_list</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+          <span class="n">sel</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+          <span class="k">pass</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+          <span class="k">pass</span>
+        <span class="n">sel</span> <span class="o">=</span> <span class="p">[</span><span class="bp">True</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">name</span> <span class="k">else</span> <span class="n">s</span> <span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> \
+          <span class="nb">zip</span><span class="p">(</span><span class="n">parameter_names</span><span class="p">,</span> <span class="n">sel</span><span class="p">)]</span>
+
+      <span class="k">return</span> <span class="n">sel</span>
+
     <span class="c"># Parameterise unique Beams</span>
     <span class="n">beam_params</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">beam</span> <span class="ow">in</span> <span class="n">experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">ibeam</span><span class="p">,</span> <span class="n">beam</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()):</span>
       <span class="c"># The Beam is parameterised with reference to a goniometer axis (or None).</span>
       <span class="c"># Use the first (if any) Goniometers this Beam is associated with.</span>
       <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span><span class="n">beam</span><span class="p">)</span>
@@ -633,8 +663,9 @@
         <span class="n">beam_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">fix_list</span><span class="p">)</span>
 
       <span class="k">if</span> <span class="n">beam_options</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="p">[</span><span class="bp">True</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">beam_options</span><span class="o">.</span><span class="n">fix_list</span> <span class="k">else</span> <span class="bp">False</span> \
-                  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">beam_param</span><span class="o">.</span><span class="n">num_total</span><span class="p">())]</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">fixlist2sel</span><span class="p">(</span><span class="n">beam_options</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
+                             <span class="n">beam_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+                             <span class="s">&quot;Beam{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ibeam</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">beam_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
 
       <span class="k">if</span> <span class="n">beam_param</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -643,7 +674,7 @@
     <span class="c"># Parameterise unique Crystals</span>
     <span class="n">xl_ori_params</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">xl_uc_params</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">crystal</span> <span class="ow">in</span> <span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">icrystal</span><span class="p">,</span> <span class="n">crystal</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()):</span>
       <span class="c"># This crystal can only ever appear either in scans or in stills</span>
       <span class="c"># (otherwise it requires a different crystal model)</span>
       <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span><span class="n">crystal</span><span class="p">)</span>
@@ -712,13 +743,15 @@
           <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;crystal_options.fix value not recognised&quot;</span><span class="p">)</span>
 
       <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="p">[</span><span class="bp">True</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">cell</span><span class="o">.</span><span class="n">fix_list</span> <span class="k">else</span> <span class="bp">False</span> \
-                  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_uc</span><span class="p">)]</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">fixlist2sel</span><span class="p">(</span><span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
+                             <span class="n">xl_uc_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+                             <span class="s">&quot;Crystal{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icrystal</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">xl_uc_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
 
       <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="p">[</span><span class="bp">True</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">fix_list</span> <span class="k">else</span> <span class="bp">False</span> \
-                  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_ori</span><span class="p">)]</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">fixlist2sel</span><span class="p">(</span><span class="n">crystal_options</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
+                             <span class="n">xl_ori_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+                             <span class="s">&quot;Crystal{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icrystal</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">xl_ori_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
 
       <span class="k">if</span> <span class="n">xl_ori_param</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -728,7 +761,7 @@
 
     <span class="c"># Parameterise unique Detectors</span>
     <span class="n">det_params</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">detector</span> <span class="ow">in</span> <span class="n">experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">idetector</span><span class="p">,</span> <span class="n">detector</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()):</span>
 
       <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span>
       <span class="c"># Detector</span>
@@ -771,8 +804,9 @@
           <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;detector_options.fix value not recognised&quot;</span><span class="p">)</span>
 
       <span class="k">if</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="p">[</span><span class="bp">True</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">fix_list</span> <span class="k">else</span> <span class="bp">False</span> \
-                  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">det_param</span><span class="o">.</span><span class="n">num_total</span><span class="p">())]</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">fixlist2sel</span><span class="p">(</span><span class="n">detector_options</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
+                             <span class="n">det_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+                             <span class="s">&quot;Detector{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idetector</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
 
       <span class="k">if</span> <span class="n">det_param</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
