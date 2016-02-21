@@ -73,7 +73,7 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
 <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span><span class="p">,</span> <span class="n">debug</span><span class="p">,</span> <span class="n">warning</span>
 
-<span class="kn">from</span> <span class="nn">dxtbx.model.experiment.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentList</span><span class="p">,</span> <span class="n">Experiment</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model.experiment.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentList</span>
 <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.refinement_helpers</span> <span class="kn">import</span> <span class="n">ordinal_number</span>
 <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
@@ -574,8 +574,11 @@
       <span class="k">else</span><span class="p">:</span>
         <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="bp">False</span>
       <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="c"># sparse vectors cannot be pickled, so can&#39;t use easy_mp here</span>
-        <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">refinery</span><span class="o">.</span><span class="n">engine</span> <span class="o">!=</span> <span class="s">&quot;SparseLevMar&quot;</span><span class="p">:</span>
+          <span class="c"># sparse vectors cannot be pickled, so can&#39;t use easy_mp here</span>
+          <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">pass</span> <span class="c"># but SparseLevMar requires sparse jacobian; does not implement mp</span>
     <span class="c"># Check incompatible selection</span>
     <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="ow">and</span> \
       <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
@@ -877,7 +880,7 @@
               <span class="n">panels</span> <span class="o">=</span> <span class="n">gp</span>
               <span class="n">pnl_gp</span> <span class="o">=</span> <span class="n">igp</span>
               <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Detector{0}PanelGroup{1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">pnl_gp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">except</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
           <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
           <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
             <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
