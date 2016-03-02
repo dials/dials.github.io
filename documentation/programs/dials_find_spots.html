@@ -104,13 +104,23 @@ spotfinder {
   region_of_interest = None
   filter {
     min_spot_size = Auto
+    max_spot_size = 100
+    max_strong_pixel_fraction = 0.25
+    border = 0
+    use_trusted_range = True
     d_min = None
     d_max = None
-    max_strong_pixel_fraction = 0.25
+    resolution_range = None
+    untrusted {
+      panel = 0
+      circle = None
+      rectangle = None
+      polygon = None
+    }
     ice_rings {
       filter = False
+      d_min = None
     }
-    untrusted_polygon = None
   }
   mp {
     method = *multiprocessing sge lsf pbs
@@ -189,20 +199,16 @@ spotfinder
     min_spot_size = Auto
       .help = &quot;The minimum number of contiguous pixels for a spot to be&quot;
               &quot;accepted by the filtering algorithm.&quot;
-      .type = int(value_min=0)
+      .type = int(value_min=1)
+    max_spot_size = 100
+      .help = &quot;The maximum number of contiguous pixels for a spot to be&quot;
+              &quot;accepted by the filtering algorithm.&quot;
+      .type = int(value_min=1)
     max_separation = 2
       .help = &quot;The maximum peak-to-centroid separation (in pixels) for a spot&quot;
               &quot;to be accepted by the filtering algorithm.&quot;
       .type = float(value_min=0)
       .expert_level = 1
-    d_min = None
-      .help = &quot;The high resolution limit in Angstrom for a spot to be accepted&quot;
-              &quot;by the filtering algorithm.&quot;
-      .type = float(value_min=0)
-    d_max = None
-      .help = &quot;The low resolution limit in Angstrom for a spot to be accepted&quot;
-              &quot;by the filtering algorithm.&quot;
-      .type = float(value_min=0)
     max_strong_pixel_fraction = 0.25
       .help = &quot;If the fraction of pixels in an image marked as strong is&quot;
               &quot;greater than this value, throw an exception&quot;
@@ -223,6 +229,42 @@ spotfinder
       filter = False
         .type = bool
     }
+    border = 0
+      .help = &quot;The border around the edge of the image.&quot;
+      .type = int
+    use_trusted_range = True
+      .help = &quot;Use the trusted range to mask bad pixels.&quot;
+      .type = bool
+    d_min = None
+      .help = &quot;The high resolution limit in Angstrom for a pixel to be&quot;
+              &quot;accepted by the filtering algorithm.&quot;
+      .type = float(value_min=0)
+    d_max = None
+      .help = &quot;The low resolution limit in Angstrom for a pixel to be accepted&quot;
+              &quot;by the filtering algorithm.&quot;
+      .type = float(value_min=0)
+    resolution_range = None
+      .help = &quot;an untrusted resolution range&quot;
+      .type = floats(size=2)
+      .multiple = True
+    untrusted
+      .multiple = True
+    {
+      panel = 0
+        .help = &quot;The panel number&quot;
+        .type = int
+      circle = None
+        .help = &quot;An untrusted circle (xc, yc, r)&quot;
+        .type = ints(size=3)
+      rectangle = None
+        .help = &quot;An untrusted rectangle (x0, x1, y0, y1)&quot;
+        .type = ints(size=4)
+      polygon = None
+        .help = &quot;The pixel coordinates (fast, slow) that define the corners &quot;
+                &quot;of the untrusted polygon. Spots whose centroids fall within &quot;
+                &quot;the bounds of the untrusted polygon will be rejected.&quot;
+        .type = ints(value_min=0)
+    }
     ice_rings {
       filter = False
         .type = bool
@@ -238,13 +280,10 @@ spotfinder
         .help = &quot;The width of an ice ring (in d-spacing).&quot;
         .type = float(value_min=0)
         .expert_level = 1
+      d_min = None
+        .help = &quot;The high resolution limit (otherwise use detector d_min)&quot;
+        .type = float(value_min=0)
     }
-    untrusted_polygon = None
-      .help = &quot;The pixel coordinates (fast, slow) that define the corners  of&quot;
-              &quot;the untrusted polygon. Spots whose centroids fall within  the&quot;
-              &quot;bounds of the untrusted polygon will be rejected.&quot;
-      .type = ints(value_min=0)
-      .multiple = True
   }
   mp {
     method = *multiprocessing sge lsf pbs
