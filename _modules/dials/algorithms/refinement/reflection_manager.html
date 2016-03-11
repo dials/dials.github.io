@@ -217,7 +217,6 @@
                      <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
 
     <span class="c"># set verbosity</span>
-    <span class="c"># FIXME verbosity is deprecated now we use logging</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">=</span> <span class="n">verbosity</span>
 
     <span class="c"># keep track of models</span>
@@ -269,10 +268,10 @@
     <span class="sd">&quot;&quot;&quot;Complete initialisation by performing outlier rejection and any</span>
 <span class="sd">    requested subsetting. This function to be called by a Target object&quot;&quot;&quot;</span>
 
-    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Finalising the Reflection Manager&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Finalising the Reflection Manager&quot;</span><span class="p">)</span>
 
     <span class="c"># print summary before outlier rejection</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">print_stats_on_matches</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">print_stats_on_matches</span><span class="p">()</span>
 
     <span class="c"># reset centroid_outlier flags in both the working reflections and the</span>
     <span class="c"># original indexed reflections</span>
@@ -292,25 +291,28 @@
     <span class="n">ioutliers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">[</span><span class="s">&#39;iobs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">ioutliers</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">ioutliers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">centroid_outlier</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Removing reflections not matched to predictions&quot;</span>
+      <span class="k">if</span> <span class="n">rejection_occurred</span><span class="p">:</span> <span class="n">msg</span> <span class="o">+=</span> <span class="s">&quot; or marked as outliers&quot;</span>
+      <span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
     <span class="c"># delete all reflections from the manager that do not have a prediction</span>
     <span class="c"># or were flagged as outliers</span>
-    <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Removing reflections not matched to predictions&quot;</span>
-    <span class="k">if</span> <span class="n">rejection_occurred</span><span class="p">:</span> <span class="n">msg</span> <span class="o">+=</span> <span class="s">&quot; or marked as outliers&quot;</span>
-    <span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-
     <span class="n">has_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
     <span class="n">inlier</span> <span class="o">=</span> <span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">centroid_outlier</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">has_pred</span> <span class="o">&amp;</span> <span class="n">inlier</span><span class="p">)</span>
 
-    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%d</span><span class="s"> reflections remain in the manager&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">))</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%d</span><span class="s"> reflections remain in the manager&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">))</span>
 
     <span class="c"># print summary after outlier rejection</span>
-    <span class="k">if</span> <span class="n">rejection_occurred</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">print_stats_on_matches</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">rejection_occurred</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">print_stats_on_matches</span><span class="p">()</span>
 
     <span class="c"># form working and free subsets</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_create_working_set</span><span class="p">()</span>
 
-    <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Working set size = </span><span class="si">%d</span><span class="s"> observations&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sample_size</span><span class="p">())</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Working set size = </span><span class="si">%d</span><span class="s"> observations&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sample_size</span><span class="p">())</span>
 
     <span class="k">return</span>
 </div>
@@ -485,6 +487,10 @@
     <span class="n">info</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
 
+    <span class="c"># sorting is expensive and the following table is only of interest in</span>
+    <span class="c"># special cases, so return now if verbosity is not high</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span> <span class="k">return</span>
+
     <span class="k">if</span> <span class="n">nref</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">:</span>
       <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Fewer than 20 reflections matched!&quot;</span><span class="p">)</span>
       <span class="k">return</span>
@@ -602,6 +608,10 @@
     <span class="n">st</span> <span class="o">=</span> <span class="n">simple_table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
     <span class="n">info</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c"># sorting is expensive and the following table is only of interest in</span>
+    <span class="c"># special cases, so return now if verbosity is not high</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span> <span class="k">return</span>
 
     <span class="k">if</span> <span class="n">nref</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">:</span>
       <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Fewer than 20 reflections matched!&quot;</span><span class="p">)</span>
