@@ -641,7 +641,7 @@
           <span class="n">expr</span><span class="o">.</span><span class="n">scan</span><span class="p">))</span>
     <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.compute_mask"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_mask">[docs]</a>  <span class="k">def</span> <span class="nf">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">overlaps</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="reflection_table_aux.compute_mask"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_mask">[docs]</a>  <span class="k">def</span> <span class="nf">compute_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">image_volume</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">overlaps</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Apply a mask to the shoeboxes.</span>
 
@@ -650,13 +650,18 @@
 
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="k">for</span> <span class="n">expr</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iterate_experiments_and_indices</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
-      <span class="n">expr</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">compute_mask</span><span class="p">(</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">expr</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">compute_mask</span><span class="p">(</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span>
         <span class="n">expr</span><span class="o">.</span><span class="n">crystal</span><span class="p">,</span>
         <span class="n">expr</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
         <span class="n">expr</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span>
         <span class="n">expr</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span>
-        <span class="n">expr</span><span class="o">.</span><span class="n">scan</span><span class="p">)</span>
+        <span class="n">expr</span><span class="o">.</span><span class="n">scan</span><span class="p">,</span>
+        <span class="n">image_volume</span><span class="o">=</span><span class="n">image_volume</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s">&#39;fraction&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+          <span class="bp">self</span><span class="p">[</span><span class="s">&#39;fraction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s">&#39;fraction&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="reflection_table_aux.iterate_experiments_and_indices"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.iterate_experiments_and_indices">[docs]</a>  <span class="k">def</span> <span class="nf">iterate_experiments_and_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -674,33 +679,35 @@
     <span class="k">for</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">index_list</span><span class="p">):</span>
       <span class="k">yield</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">indices</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.compute_background"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_background">[docs]</a>  <span class="k">def</span> <span class="nf">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+<div class="viewcode-block" id="reflection_table_aux.compute_background"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_background">[docs]</a>  <span class="k">def</span> <span class="nf">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">image_volume</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Helper function to compute the background.</span>
 
 <span class="sd">    :param experiments: The list of experiments</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_background_algorithm</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="n">success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_background_algorithm</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span><span class="o">.</span><span class="n">compute_background</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">image_volume</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="o">~</span><span class="n">success</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">failed_during_background_modelling</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.compute_centroid"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_centroid">[docs]</a>  <span class="k">def</span> <span class="nf">compute_centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+<div class="viewcode-block" id="reflection_table_aux.compute_centroid"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_centroid">[docs]</a>  <span class="k">def</span> <span class="nf">compute_centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">image_volume</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Helper function to compute the centroid.</span>
 
 <span class="sd">    :param experiments: The list of experiments</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_centroid_algorithm</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span><span class="o">.</span><span class="n">compute_centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_centroid_algorithm</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span><span class="o">.</span><span class="n">compute_centroid</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">image_volume</span><span class="o">=</span><span class="n">image_volume</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="reflection_table_aux.compute_summed_intensity"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_summed_intensity">[docs]</a>  <span class="k">def</span> <span class="nf">compute_summed_intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="reflection_table_aux.compute_summed_intensity"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_summed_intensity">[docs]</a>  <span class="k">def</span> <span class="nf">compute_summed_intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_volume</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Compute intensity via summation integration.</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="kn">from</span> <span class="nn">dials.algorithms.integration.sum</span> <span class="kn">import</span> <span class="n">IntegrationAlgorithm</span>
     <span class="n">algorithm</span> <span class="o">=</span> <span class="n">IntegrationAlgorithm</span><span class="p">()</span>
-    <span class="n">success</span> <span class="o">=</span> <span class="n">algorithm</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="n">success</span> <span class="o">=</span> <span class="n">algorithm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_volume</span><span class="o">=</span><span class="n">image_volume</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="o">~</span><span class="n">success</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">failed_during_summation</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="reflection_table_aux.compute_fitted_intensity"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.compute_fitted_intensity">[docs]</a>  <span class="k">def</span> <span class="nf">compute_fitted_intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fitter</span><span class="p">):</span>
