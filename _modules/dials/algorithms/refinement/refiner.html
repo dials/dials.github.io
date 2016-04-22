@@ -261,6 +261,12 @@
 <span class="s">              &quot;oscillation width as a still&quot;</span>
 <span class="s">      .type = bool</span>
 <span class="s">      .expert_level = 1</span>
+
+<span class="s">    spherical_relp_model = False</span>
+<span class="s">      .help = &quot;For stills refinement, set true to use the spherical relp model&quot;</span>
+<span class="s">              &quot;for prediction and gradients.&quot;</span>
+<span class="s">      .type = bool</span>
+<span class="s">      .expert_level = 1</span>
 <span class="s">  }</span>
 
 <span class="s">  refinery</span>
@@ -609,6 +615,7 @@
     <span class="n">crystal_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span>
     <span class="n">detector_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">detector</span>
     <span class="n">sparse</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span>
+    <span class="n">spher_relp</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">spherical_relp_model</span>
     <span class="n">auto_reduction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">auto_reduction</span>
 
     <span class="c"># Shorten module paths</span>
@@ -1025,11 +1032,19 @@
     <span class="c"># Prediction equation parameterisation</span>
     <span class="k">if</span> <span class="n">do_stills</span><span class="p">:</span> <span class="c"># doing stills</span>
       <span class="k">if</span> <span class="n">sparse</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
+        <span class="k">if</span> <span class="n">spher_relp</span><span class="p">:</span>
+          <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
+            <span class="kn">import</span> <span class="n">SphericalRelpStillsPredictionParameterisationSparse</span> <span class="k">as</span> <span class="n">StillsPredictionParameterisation</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
             <span class="kn">import</span> <span class="n">StillsPredictionParameterisationSparse</span> <span class="k">as</span> <span class="n">StillsPredictionParameterisation</span>
       <span class="k">else</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
-            <span class="kn">import</span> <span class="n">StillsPredictionParameterisation</span>
+        <span class="k">if</span> <span class="n">spher_relp</span><span class="p">:</span>
+          <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
+            <span class="kn">import</span> <span class="n">SphericalRelpStillsPredictionParameterisation</span> <span class="k">as</span> <span class="n">StillsPredictionParameterisation</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
+              <span class="kn">import</span> <span class="n">StillsPredictionParameterisation</span>
       <span class="n">pred_param</span> <span class="o">=</span> <span class="n">StillsPredictionParameterisation</span><span class="p">(</span>
           <span class="n">experiments</span><span class="p">,</span>
           <span class="n">det_params</span><span class="p">,</span> <span class="n">beam_params</span><span class="p">,</span> <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">)</span>
@@ -1305,6 +1320,7 @@
     <span class="c"># Shorten parameter paths</span>
     <span class="n">options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">target</span>
     <span class="n">sparse</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span>
+    <span class="n">srm</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">spherical_relp_model</span>
 
     <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">rmsd_cutoff</span> <span class="o">==</span> <span class="s">&quot;fraction_of_bin_size&quot;</span><span class="p">:</span>
       <span class="n">absolute_cutoffs</span> <span class="o">=</span> <span class="bp">None</span>
@@ -1316,7 +1332,8 @@
 
     <span class="c"># build managed reflection predictors</span>
     <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.prediction</span> <span class="kn">import</span> <span class="n">ExperimentsPredictor</span>
-    <span class="n">ref_predictor</span> <span class="o">=</span> <span class="n">ExperimentsPredictor</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span>
+    <span class="n">ref_predictor</span> <span class="o">=</span> <span class="n">ExperimentsPredictor</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">,</span>
+                                         <span class="n">spherical_relp</span><span class="o">=</span><span class="n">srm</span><span class="p">)</span>
 
     <span class="c"># Determine whether the target is in X, Y, Phi space or just X, Y.</span>
     <span class="k">if</span> <span class="n">do_stills</span><span class="p">:</span>
