@@ -422,29 +422,36 @@
 
     <span class="c"># Extract the pixel lists into a list of reflections</span>
     <span class="n">shoeboxes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">shoebox</span><span class="p">()</span>
+    <span class="n">spotsizes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSweep</span><span class="p">):</span>
       <span class="n">twod</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="n">twod</span> <span class="o">=</span> <span class="bp">True</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pixel_labeller</span><span class="p">):</span>
       <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">num_pixels</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">shoeboxes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-          <span class="n">flex</span><span class="o">.</span><span class="n">shoebox</span><span class="p">(</span>
+        <span class="n">creator</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">PixelListShoeboxCreator</span><span class="p">(</span>
             <span class="n">p</span><span class="p">,</span>
             <span class="n">i</span><span class="p">,</span>                   <span class="c"># panel</span>
             <span class="mi">0</span><span class="p">,</span>                   <span class="c"># zrange</span>
             <span class="n">twod</span><span class="p">,</span>                <span class="c"># twod</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">min_spot_size</span><span class="p">,</span>  <span class="c"># min_pixels</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">max_spot_size</span><span class="p">))</span> <span class="c"># max_pixels</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_spot_size</span><span class="p">)</span>  <span class="c"># max_pixels</span>
+        <span class="n">shoeboxes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">creator</span><span class="o">.</span><span class="n">result</span><span class="p">())</span>
+        <span class="n">spotsizes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">creator</span><span class="o">.</span><span class="n">spot_size</span><span class="p">())</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
     <span class="n">info</span><span class="p">(</span><span class="s">&#39;Extracted {0} spots&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoeboxes</span><span class="p">)))</span>
 
     <span class="c"># Get the unallocated spots and print some info</span>
     <span class="n">selection</span> <span class="o">=</span> <span class="n">shoeboxes</span><span class="o">.</span><span class="n">is_allocated</span><span class="p">()</span>
     <span class="n">shoeboxes</span> <span class="o">=</span> <span class="n">shoeboxes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">selection</span><span class="p">)</span>
-    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Removed </span><span class="si">%d</span><span class="s"> spots with size &lt; </span><span class="si">%d</span><span class="s"> or &gt; </span><span class="si">%d</span><span class="s"> pixels&#39;</span> <span class="o">%</span> <span class="p">(</span>
-      <span class="n">selection</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">False</span><span class="p">),</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">min_spot_size</span><span class="p">,</span>
+    <span class="n">ntoosmall</span> <span class="o">=</span> <span class="p">(</span><span class="n">spotsizes</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_spot_size</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">ntoolarge</span> <span class="o">=</span> <span class="p">(</span><span class="n">spotsizes</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_spot_size</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">ntoosmall</span> <span class="o">+</span> <span class="n">ntoolarge</span> <span class="o">==</span> <span class="n">selection</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Removed </span><span class="si">%d</span><span class="s"> spots with size &lt; </span><span class="si">%d</span><span class="s"> pixels&#39;</span> <span class="o">%</span> <span class="p">(</span>
+      <span class="n">ntoosmall</span><span class="p">,</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">min_spot_size</span><span class="p">))</span>
+    <span class="n">info</span><span class="p">(</span><span class="s">&#39;Removed </span><span class="si">%d</span><span class="s"> spots with size &gt; </span><span class="si">%d</span><span class="s"> pixels&#39;</span> <span class="o">%</span> <span class="p">(</span>
+      <span class="n">ntoolarge</span><span class="p">,</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">max_spot_size</span><span class="p">))</span>
 
     <span class="c"># Return the shoeboxes</span>
