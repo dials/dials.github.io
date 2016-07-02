@@ -90,7 +90,11 @@
   <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">outlier_phil_str</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.restraints.restraints_parameterisation</span> \
   <span class="kn">import</span> <span class="n">uc_phil_str</span> <span class="k">as</span> <span class="n">uc_restraints_phil_str</span>
-<span class="n">format_data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;outlier_phil&#39;</span><span class="p">:</span><span class="n">outlier_phil_str</span><span class="p">,</span> <span class="s">&#39;uc_restraints_phil&#39;</span><span class="p">:</span><span class="n">uc_restraints_phil_str</span><span class="p">}</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.scan_varying_model_parameters</span> \
+  <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">sv_phil_str</span>
+<span class="n">format_data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;outlier_phil&#39;</span><span class="p">:</span><span class="n">outlier_phil_str</span><span class="p">,</span>
+               <span class="s">&#39;uc_restraints_phil&#39;</span><span class="p">:</span><span class="n">uc_restraints_phil_str</span><span class="p">,</span>
+               <span class="s">&#39;sv_phil_str&#39;</span><span class="p">:</span><span class="n">sv_phil_str</span><span class="p">}</span>
 <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
 
 <span class="s">refinement</span>
@@ -144,6 +148,20 @@
 <span class="s">        .type = choice</span>
 <span class="s">    }</span>
 
+<span class="s">    scan_varying = False</span>
+<span class="s">      .help = &quot;Allow models that are not forced to be static to vary during the</span>
+<span class="s">               scan&quot;</span>
+<span class="s">      .type = bool</span>
+
+<span class="s">    compose_model_per = reflection image *block</span>
+<span class="s">      .help = &quot;For scan-varying parameterisations, compose a new model either&quot;</span>
+<span class="s">              &quot;every reflection (slow), every image (faster, less accurate) or&quot;</span>
+<span class="s">              &quot;within blocks of a width specified in the reflections&quot;</span>
+<span class="s">              &quot;parameters. When this block width is larger than the image width&quot;</span>
+<span class="s">              &quot;the result is faster again, with another trade-off in accuracy&quot;</span>
+<span class="s">      .type = choice</span>
+<span class="s">      .expert_level = 1</span>
+
 <span class="s">    beam</span>
 <span class="s">      .help = &quot;beam parameters&quot;</span>
 <span class="s">    {</span>
@@ -162,6 +180,14 @@
 <span class="s">        .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
 <span class="s">                &quot;partial names to match&quot;</span>
 <span class="s">        .expert_level = 1</span>
+
+<span class="s">      force_static = True</span>
+<span class="s">        .type = bool</span>
+<span class="s">        .help = &quot;Force a static parameterisation for the beam when doing&quot;</span>
+<span class="s">                &quot;scan-varying refinement&quot;</span>
+<span class="s">        .expert_level = 1</span>
+
+<span class="s">      </span><span class="si">%(sv_phil_str)s</span><span class="s"></span>
 <span class="s">    }</span>
 
 <span class="s">    crystal</span>
@@ -172,6 +198,7 @@
 <span class="s">        .type = choice</span>
 
 <span class="s">      unit_cell</span>
+<span class="s">        .expert_level = 1</span>
 <span class="s">      {</span>
 <span class="s">        fix_list = None</span>
 <span class="s">          .type = strings</span>
@@ -180,47 +207,34 @@
 <span class="s">          .expert_level = 1</span>
 
 <span class="s">        </span><span class="si">%(uc_restraints_phil)s</span><span class="s"></span>
+
+<span class="s">      force_static = False</span>
+<span class="s">        .type = bool</span>
+<span class="s">        .help = &quot;Force a static parameterisation for the crystal orientation&quot;</span>
+<span class="s">                &quot;when doing scan-varying refinement&quot;</span>
+<span class="s">        .expert_level = 1</span>
+
+<span class="s">        </span><span class="si">%(sv_phil_str)s</span><span class="s"></span>
 <span class="s">      }</span>
 
 <span class="s">      orientation</span>
+<span class="s">        .expert_level = 1</span>
 <span class="s">      {</span>
 <span class="s">        fix_list = None</span>
 <span class="s">          .type = strings</span>
 <span class="s">          .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
 <span class="s">                  &quot;partial names to match&quot;</span>
 <span class="s">          .expert_level = 1</span>
-<span class="s">      }</span>
 
-<span class="s">      scan_varying = False</span>
-<span class="s">        .help = &quot;Parameterise the crystal to vary during the scan&quot;</span>
+<span class="s">      force_static = False</span>
 <span class="s">        .type = bool</span>
-
-<span class="s">      num_intervals = *fixed_width absolute</span>
-<span class="s">        .help = &quot;Choose the way to determine the number of intervals for scan-&quot;</span>
-<span class="s">                &quot;varying refinement&quot;</span>
-<span class="s">        .type = choice</span>
+<span class="s">        .help = &quot;Force a static parameterisation for the crystal unit cell&quot;</span>
+<span class="s">                &quot;when doing scan-varying refinement&quot;</span>
 <span class="s">        .expert_level = 1</span>
 
-<span class="s">      interval_width_degrees = 36.0</span>
-<span class="s">        .help = &quot;Width of scan between checkpoints in degrees&quot;</span>
-<span class="s">        .type = float(value_min=0.)</span>
-<span class="s">        .expert_level = 1</span>
-
-<span class="s">      absolute_num_intervals = 5</span>
-<span class="s">        .help = &quot;Number of intervals between checkpoints if scan_varying&quot;</span>
-<span class="s">                &quot;refinement is requested&quot;</span>
-<span class="s">        .type = int(value_min=1)</span>
-<span class="s">        .expert_level = 1</span>
-
-<span class="s">      UB_model_per = reflection image *block</span>
-<span class="s">        .help = &quot;Compose a new crystal model either every reflection (slow),&quot;</span>
-<span class="s">                &quot;every image (faster, less accurate) or within blocks of a&quot;</span>
-<span class="s">                &quot;width specified in the reflections parameters. When this block&quot;</span>
-<span class="s">                &quot;width is larger than the image width the result is faster&quot;</span>
-<span class="s">                &quot;again, with another trade-off in accuracy&quot;</span>
-<span class="s">        .type = choice</span>
-<span class="s">        .expert_level = 1</span>
-<span class="s">     }</span>
+<span class="s">        </span><span class="si">%(sv_phil_str)s</span><span class="s"></span>
+<span class="s">      }</span>
+<span class="s">    }</span>
 
 <span class="s">    detector</span>
 <span class="s">      .help = &quot;detector parameters&quot;</span>
@@ -381,7 +395,7 @@
 <span class="s">      .help = &quot;Width of a reflection &#39;block&#39; (in degrees) determining how fine-&quot;</span>
 <span class="s">              &quot;grained the model used for scan-varying prediction during&quot;</span>
 <span class="s">              &quot;refinement is. Currently only has any effect if the crystal&quot;</span>
-<span class="s">              &quot;parameterisation is set to use UB_model_per=block&quot;</span>
+<span class="s">              &quot;parameterisation is set to use compose_model_per=block&quot;</span>
 <span class="s">      .type = float(value_min = 0.)</span>
 <span class="s">      .expert_level = 1</span>
 
@@ -610,13 +624,8 @@
 <span class="sd">        parameter reporter.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="c"># Shorten parameter paths</span>
-    <span class="n">beam_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">beam</span>
-    <span class="n">crystal_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span>
-    <span class="n">detector_options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">detector</span>
-    <span class="n">sparse</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span>
-    <span class="n">spher_relp</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">spherical_relp_model</span>
-    <span class="n">auto_reduction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">auto_reduction</span>
+    <span class="c"># Shorten options path</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span>
 
     <span class="c"># Shorten module paths</span>
     <span class="kn">import</span> <span class="nn">dials.algorithms.refinement.parameterisation</span> <span class="kn">as</span> <span class="nn">par</span>
@@ -638,20 +647,20 @@
       <span class="c"># Parameterise, passing the goniometer (but accepts None)</span>
       <span class="n">beam_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">BeamParameterisation</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">goniometer</span><span class="p">,</span>
                                                        <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">beam_options</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
         <span class="n">fix_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="bp">False</span><span class="p">]</span>
-        <span class="k">if</span> <span class="s">&quot;all&quot;</span> <span class="ow">in</span> <span class="n">beam_options</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s">&quot;all&quot;</span> <span class="ow">in</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
           <span class="n">fix_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">True</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">True</span><span class="p">]</span>
-        <span class="k">if</span> <span class="s">&quot;in_spindle_plane&quot;</span> <span class="ow">in</span> <span class="n">beam_options</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s">&quot;in_spindle_plane&quot;</span> <span class="ow">in</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
           <span class="n">fix_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
-        <span class="k">if</span> <span class="s">&quot;out_spindle_plane&quot;</span> <span class="ow">in</span> <span class="n">beam_options</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s">&quot;out_spindle_plane&quot;</span> <span class="ow">in</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
           <span class="n">fix_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
-        <span class="k">if</span> <span class="s">&quot;wavelength&quot;</span> <span class="ow">in</span> <span class="n">beam_options</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s">&quot;wavelength&quot;</span> <span class="ow">in</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
           <span class="n">fix_list</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="n">beam_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">fix_list</span><span class="p">)</span>
 
-      <span class="k">if</span> <span class="n">beam_options</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">beam_options</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
                             <span class="n">beam_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
                             <span class="s">&quot;Beam{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ibeam</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">beam_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
@@ -674,35 +683,54 @@
           <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A crystal model appears in a mixture of scan and still &#39;</span>
                       <span class="s">&#39;experiments, which is not supported&#39;</span><span class="p">)</span>
 
-      <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
-        <span class="c"># If a crystal is scan-varying, then it must always be found alongside</span>
-        <span class="c"># the same Scan and Goniometer in any Experiments in which it appears</span>
-        <span class="k">if</span> <span class="p">[</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">scan</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-          <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A scan-varying crystal model cannot be created because &#39;</span>
-                      <span class="s">&#39;a scan or goniometer model is missing&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">g</span> <span class="ow">is</span> <span class="n">goniometer</span> <span class="ow">and</span> <span class="n">s</span> <span class="ow">is</span> <span class="n">scan</span> <span class="k">for</span> <span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="n">assoc_models</span><span class="p">):</span>
-          <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A single scan-varying crystal model cannot be refined &#39;</span>
-                      <span class="s">&#39;when associated with more than one scan or goniometer&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">force_static</span> <span class="ow">or</span>
+            <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">force_static</span><span class="p">):</span>
+          <span class="c"># If a crystal is scan-varying, then it must always be found alongside</span>
+          <span class="c"># the same Scan and Goniometer in any Experiments in which it appears</span>
+          <span class="k">if</span> <span class="p">[</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">scan</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A scan-varying crystal model cannot be created because &#39;</span>
+                        <span class="s">&#39;a scan or goniometer model is missing&#39;</span><span class="p">)</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">g</span> <span class="ow">is</span> <span class="n">goniometer</span> <span class="ow">and</span> <span class="n">s</span> <span class="ow">is</span> <span class="n">scan</span> <span class="k">for</span> <span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="n">assoc_models</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A single scan-varying crystal model cannot be refined &#39;</span>
+                        <span class="s">&#39;when associated with more than one scan or goniometer&#39;</span><span class="p">)</span>
+        <span class="n">sweep_range_deg</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">array_range</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">num_intervals</span> <span class="o">==</span> <span class="s">&quot;fixed_width&quot;</span><span class="p">:</span>
-          <span class="n">sweep_range_deg</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-          <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">interval_width_degrees</span>
-          <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
-            <span class="nb">abs</span><span class="p">(</span><span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">deg_per_interval</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-          <span class="n">n_intervals</span> <span class="o">=</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">absolute_num_intervals</span>
+        <span class="c"># orientation parameterisation</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">force_static</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">num_intervals</span> <span class="o">==</span> <span class="s">&quot;fixed_width&quot;</span><span class="p">:</span>
+            <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
+            <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
+              <span class="nb">abs</span><span class="p">(</span><span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">deg_per_interval</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">n_intervals</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">absolute_num_intervals</span>
+          <span class="n">xl_ori_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">ScanVaryingCrystalOrientationParameterisation</span><span class="p">(</span>
+                                              <span class="n">crystal</span><span class="p">,</span>
+                                              <span class="n">array_range</span><span class="p">,</span>
+                                              <span class="n">n_intervals</span><span class="p">,</span>
+                                              <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c"># force model to be static</span>
+          <span class="n">xl_ori_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">CrystalOrientationParameterisation</span><span class="p">(</span><span class="n">crystal</span><span class="p">,</span>
+                                                          <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
 
-        <span class="n">xl_ori_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">ScanVaryingCrystalOrientationParameterisation</span><span class="p">(</span>
-                                            <span class="n">crystal</span><span class="p">,</span>
-                                            <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">(),</span>
-                                            <span class="n">n_intervals</span><span class="p">,</span>
-                                            <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
-        <span class="n">xl_uc_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">ScanVaryingCrystalUnitCellParameterisation</span><span class="p">(</span>
-                                            <span class="n">crystal</span><span class="p">,</span>
-                                            <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">(),</span>
-                                            <span class="n">n_intervals</span><span class="p">,</span>
-                                            <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
-      <span class="k">else</span><span class="p">:</span>
+        <span class="c"># unit cell parameterisation</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">force_static</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">num_intervals</span> <span class="o">==</span> <span class="s">&quot;fixed_width&quot;</span><span class="p">:</span>
+            <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
+            <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
+              <span class="nb">abs</span><span class="p">(</span><span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">deg_per_interval</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">n_intervals</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">absolute_num_intervals</span>
+          <span class="n">xl_uc_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">ScanVaryingCrystalUnitCellParameterisation</span><span class="p">(</span>
+                                              <span class="n">crystal</span><span class="p">,</span>
+                                              <span class="n">array_range</span><span class="p">,</span>
+                                              <span class="n">n_intervals</span><span class="p">,</span>
+                                              <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c"># force model to be static</span>
+          <span class="n">xl_uc_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">CrystalUnitCellParameterisation</span><span class="p">(</span><span class="n">crystal</span><span class="p">,</span>
+                                                          <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span> <span class="c"># all models scan-static</span>
         <span class="n">xl_ori_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">CrystalOrientationParameterisation</span><span class="p">(</span><span class="n">crystal</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
         <span class="n">xl_uc_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">CrystalUnitCellParameterisation</span><span class="p">(</span><span class="n">crystal</span><span class="p">,</span>
@@ -719,25 +747,25 @@
       <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
         <span class="n">num_uc</span> <span class="o">=</span> <span class="n">xl_uc_param</span><span class="o">.</span><span class="n">num_total</span><span class="p">()</span>
 
-      <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;all&quot;</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;all&quot;</span><span class="p">:</span>
           <span class="n">xl_ori_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">([</span><span class="bp">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_ori</span><span class="p">)</span>
           <span class="n">xl_uc_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">([</span><span class="bp">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_uc</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;cell&quot;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;cell&quot;</span><span class="p">:</span>
           <span class="n">xl_uc_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">([</span><span class="bp">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_uc</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;orientation&quot;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;orientation&quot;</span><span class="p">:</span>
           <span class="n">xl_ori_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">([</span><span class="bp">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_ori</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span> <span class="c"># can only get here if refinement.phil is broken</span>
-          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;crystal_options.fix value not recognised&quot;</span><span class="p">)</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;crystal.fix value not recognised&quot;</span><span class="p">)</span>
 
-      <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
                             <span class="n">xl_uc_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
                             <span class="s">&quot;Crystal{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icrystal</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">xl_uc_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
 
-      <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">crystal_options</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
                             <span class="n">xl_ori_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
                             <span class="s">&quot;Crystal{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icrystal</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">xl_ori_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
@@ -753,46 +781,46 @@
 
       <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span>
       <span class="c"># Detector</span>
-      <span class="k">if</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;automatic&quot;</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;automatic&quot;</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
           <span class="k">try</span><span class="p">:</span>
             <span class="n">h</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">hierarchy</span><span class="p">()</span>
             <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationHierarchical</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span>
-                <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">detector_options</span><span class="o">.</span><span class="n">hierarchy_level</span><span class="p">)</span>
+                <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">hierarchy_level</span><span class="p">)</span>
           <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
             <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationMultiPanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
           <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationSinglePanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
-      <span class="k">elif</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;single&quot;</span><span class="p">:</span>
+      <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;single&quot;</span><span class="p">:</span>
         <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationSinglePanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
-      <span class="k">elif</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;multiple&quot;</span><span class="p">:</span>
+      <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;multiple&quot;</span><span class="p">:</span>
         <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationMultiPanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
-      <span class="k">elif</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;hierarchical&quot;</span><span class="p">:</span>
+      <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;hierarchical&quot;</span><span class="p">:</span>
         <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationHierarchical</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span>
-                <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">detector_options</span><span class="o">.</span><span class="n">hierarchy_level</span><span class="p">)</span>
+                <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">hierarchy_level</span><span class="p">)</span>
       <span class="k">else</span><span class="p">:</span> <span class="c"># can only get here if refinement.phil is broken</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;detector_options.panels value not recognised&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;detector.panels value not recognised&quot;</span><span class="p">)</span>
 
-      <span class="k">if</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;all&quot;</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;all&quot;</span><span class="p">:</span>
           <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">([</span><span class="bp">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">det_param</span><span class="o">.</span><span class="n">num_total</span><span class="p">())</span>
-        <span class="k">elif</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;position&quot;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;position&quot;</span><span class="p">:</span>
           <span class="n">to_fix</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">param_type</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;length&#39;</span><span class="p">)</span> \
                     <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">det_param</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="n">only_free</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)]</span>
           <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;orientation&quot;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;orientation&quot;</span><span class="p">:</span>
           <span class="n">to_fix</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">param_type</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;angle&#39;</span><span class="p">)</span> \
                     <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">det_param</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="n">only_free</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)]</span>
           <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span> <span class="c"># can only get here if refinement.phil is broken</span>
-          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;detector_options.fix value not recognised&quot;</span><span class="p">)</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;detector.fix value not recognised&quot;</span><span class="p">)</span>
 
-      <span class="k">if</span> <span class="n">detector_options</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">detector_options</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
                             <span class="n">det_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
                             <span class="s">&quot;Detector{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idetector</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
@@ -805,7 +833,7 @@
       <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
       <span class="c"># Do we have enough reflections to support this parameterisation?</span>
       <span class="n">nparam</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span>
-      <span class="n">cutoff</span> <span class="o">=</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">nparam</span>
+      <span class="n">cutoff</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">nparam</span>
       <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
       <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
         <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">())</span>
@@ -819,7 +847,7 @@
       <span class="n">fixlist</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_fixed</span><span class="p">()</span>
       <span class="n">free_gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">gp_params</span><span class="p">,</span> <span class="n">fixlist</span><span class="p">)]</span>
       <span class="n">nparam</span> <span class="o">=</span> <span class="n">free_gp_params</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
-      <span class="n">cutoff</span> <span class="o">=</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">nparam</span>
+      <span class="n">cutoff</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">nparam</span>
       <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
       <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
         <span class="n">subsel</span> <span class="o">=</span> <span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
@@ -878,7 +906,7 @@
               <span class="s">&#39;panel_group_id&#39;</span><span class="p">:</span><span class="n">pnl_gp</span><span class="p">,</span>
               <span class="s">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">}</span>
 
-    <span class="k">if</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;fail&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;fail&#39;</span><span class="p">:</span>
       <span class="n">failmsg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise {0}&#39;</span>
       <span class="n">failmsg</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Try modifying refinement.parameterisation.auto_reduction options&#39;</span>
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">beam_params</span><span class="p">):</span>
@@ -914,7 +942,7 @@
             <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
-    <span class="k">elif</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;fix&#39;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;fix&#39;</span><span class="p">:</span>
       <span class="n">warnmsg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise {0}&#39;</span>
       <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">beam_params</span><span class="p">):</span>
@@ -974,7 +1002,7 @@
             <span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
       <span class="n">det_params</span> <span class="o">=</span> <span class="n">tmp</span>
 
-    <span class="k">elif</span> <span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;remove&#39;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;remove&#39;</span><span class="p">:</span>
       <span class="n">warnmsg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise {0}&#39;</span>
       <span class="n">warnmsg</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Associated reflections will be removed from the Reflection Manager&#39;</span>
       <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
@@ -1022,8 +1050,8 @@
     <span class="c"># Now we have the final list of model parameterisations, build a restraints</span>
     <span class="c"># parameterisation (if requested). Only unit cell restraints are supported</span>
     <span class="c"># at the moment.</span>
-    <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span>
-            <span class="n">crystal_options</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">]):</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_target</span><span class="p">,</span>
+            <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_group</span><span class="p">]):</span>
       <span class="n">restraints_param</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_restraints</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">det_params</span><span class="p">,</span> <span class="n">beam_params</span><span class="p">,</span>
         <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1031,15 +1059,15 @@
 
     <span class="c"># Prediction equation parameterisation</span>
     <span class="k">if</span> <span class="n">do_stills</span><span class="p">:</span> <span class="c"># doing stills</span>
-      <span class="k">if</span> <span class="n">sparse</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">spher_relp</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">spherical_relp_model</span><span class="p">:</span>
           <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
             <span class="kn">import</span> <span class="n">SphericalRelpStillsPredictionParameterisationSparse</span> <span class="k">as</span> <span class="n">StillsPredictionParameterisation</span>
         <span class="k">else</span><span class="p">:</span>
           <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
             <span class="kn">import</span> <span class="n">StillsPredictionParameterisationSparse</span> <span class="k">as</span> <span class="n">StillsPredictionParameterisation</span>
       <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">spher_relp</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">spherical_relp_model</span><span class="p">:</span>
           <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters_stills</span> \
             <span class="kn">import</span> <span class="n">SphericalRelpStillsPredictionParameterisation</span> <span class="k">as</span> <span class="n">StillsPredictionParameterisation</span>
         <span class="k">else</span><span class="p">:</span>
@@ -1050,29 +1078,29 @@
           <span class="n">det_params</span><span class="p">,</span> <span class="n">beam_params</span><span class="p">,</span> <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">)</span>
 
     <span class="k">else</span><span class="p">:</span> <span class="c"># doing scans</span>
-      <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">UB_model_per</span> <span class="o">==</span> <span class="s">&quot;reflection&quot;</span><span class="p">:</span>
-          <span class="k">if</span> <span class="n">sparse</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">compose_model_per</span> <span class="o">==</span> <span class="s">&quot;reflection&quot;</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.scan_varying_prediction_parameters</span> \
               <span class="kn">import</span> <span class="n">ScanVaryingPredictionParameterisationSparse</span> <span class="k">as</span> <span class="n">PredParam</span>
           <span class="k">else</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.scan_varying_prediction_parameters</span> \
               <span class="kn">import</span> <span class="n">ScanVaryingPredictionParameterisation</span> <span class="k">as</span> <span class="n">PredParam</span>
-        <span class="k">elif</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">UB_model_per</span> <span class="o">==</span> <span class="s">&quot;image&quot;</span> <span class="ow">or</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">UB_model_per</span> <span class="o">==</span> <span class="s">&quot;block&quot;</span><span class="p">:</span>
-          <span class="k">if</span> <span class="n">sparse</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">compose_model_per</span> <span class="o">==</span> <span class="s">&quot;image&quot;</span> <span class="ow">or</span> <span class="n">options</span><span class="o">.</span><span class="n">compose_model_per</span> <span class="o">==</span> <span class="s">&quot;block&quot;</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.scan_varying_prediction_parameters</span> \
               <span class="kn">import</span> <span class="n">ScanVaryingPredictionParameterisationFastSparse</span> <span class="k">as</span> <span class="n">PredParam</span>
           <span class="k">else</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.scan_varying_prediction_parameters</span> \
               <span class="kn">import</span> <span class="n">ScanVaryingPredictionParameterisationFast</span> <span class="k">as</span> <span class="n">PredParam</span>
         <span class="k">else</span><span class="p">:</span>
-          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;UB_model_per=&quot;</span> <span class="o">+</span> <span class="n">crystal_options</span><span class="o">.</span><span class="n">scan_varying</span> <span class="o">+</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;UB_model_per=&quot;</span> <span class="o">+</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span> <span class="o">+</span>
                              <span class="s">&quot; is not a recognised option&quot;</span><span class="p">)</span>
         <span class="n">pred_param</span> <span class="o">=</span> <span class="n">PredParam</span><span class="p">(</span>
               <span class="n">experiments</span><span class="p">,</span>
               <span class="n">det_params</span><span class="p">,</span> <span class="n">beam_params</span><span class="p">,</span> <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">)</span>
       <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">sparse</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
           <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.prediction_parameters</span> \
             <span class="kn">import</span> <span class="n">XYPhiPredictionParameterisationSparse</span> <span class="k">as</span> <span class="n">PredParam</span>
         <span class="k">else</span><span class="p">:</span>
@@ -1288,12 +1316,12 @@
         <span class="o">*</span><span class="n">options</span><span class="o">.</span><span class="n">weighting_strategy</span><span class="o">.</span><span class="n">constants</span><span class="p">,</span> <span class="n">stills</span><span class="o">=</span><span class="n">do_stills</span><span class="p">)</span>
 
     <span class="c"># calculate reflection block_width?</span>
-    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
       <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.reflection_manager</span> <span class="kn">import</span> <span class="n">BlockCalculator</span>
       <span class="n">block_calculator</span> <span class="o">=</span> <span class="n">BlockCalculator</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">UB_model_per</span> <span class="o">==</span> <span class="s">&quot;block&quot;</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">compose_model_per</span> <span class="o">==</span> <span class="s">&quot;block&quot;</span><span class="p">:</span>
         <span class="n">reflections</span> <span class="o">=</span> <span class="n">block_calculator</span><span class="o">.</span><span class="n">per_width</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">block_width</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-      <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">UB_model_per</span> <span class="o">==</span> <span class="s">&quot;image&quot;</span><span class="p">:</span>
+      <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">compose_model_per</span> <span class="o">==</span> <span class="s">&quot;image&quot;</span><span class="p">:</span>
         <span class="n">reflections</span> <span class="o">=</span> <span class="n">block_calculator</span><span class="o">.</span><span class="n">per_image</span><span class="p">()</span>
 
     <span class="k">return</span> <span class="n">refman</span><span class="p">(</span><span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
@@ -1744,7 +1772,15 @@
         <span class="n">state_cov_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_pred_param</span><span class="o">.</span><span class="n">calculate_model_state_uncertainties</span><span class="p">(</span>
           <span class="n">obs_image_number</span><span class="o">=</span><span class="n">t</span><span class="p">,</span> <span class="n">experiment_id</span><span class="o">=</span><span class="n">iexp</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ar_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
                                                             <span class="n">ar_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
-        <span class="n">u_cov_list</span><span class="p">,</span> <span class="n">b_cov_list</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">state_cov_list</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s">&#39;U_cov&#39;</span> <span class="ow">in</span> <span class="n">state_cov_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+          <span class="n">u_cov_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;U_cov&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">state_cov_list</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">u_cov_list</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="s">&#39;B_cov&#39;</span> <span class="ow">in</span> <span class="n">state_cov_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+          <span class="n">b_cov_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;B_cov&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">state_cov_list</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">b_cov_list</span> <span class="o">=</span> <span class="bp">None</span>
 
         <span class="c"># return these to the model parameterisations to be set in the models</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_pred_param</span><span class="o">.</span><span class="n">set_model_state_uncertainties</span><span class="p">(</span>

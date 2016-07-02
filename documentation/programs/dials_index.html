@@ -143,16 +143,12 @@ refinement {
       min_nref_per_parameter = 5
       action = *fail fix remove
     }
+    scan_varying = False
     beam {
       fix = all *in_spindle_plane out_spindle_plane *wavelength
     }
     crystal {
       fix = all cell orientation
-      unit_cell {
-      }
-      orientation {
-      }
-      scan_varying = False
     }
     detector {
       fix = all position orientation
@@ -545,6 +541,20 @@ refinement
                 &quot;refinement.&quot;
         .type = choice
     }
+    scan_varying = False
+      .help = &quot;Allow models that are not forced to be static to vary during&quot;
+              &quot;the
+               scan&quot;
+      .type = bool
+    compose_model_per = reflection image *block
+      .help = &quot;For scan-varying parameterisations, compose a new model either&quot;
+              &quot;every reflection (slow), every image (faster, less accurate) or&quot;
+              &quot;within blocks of a width specified in the reflections&quot;
+              &quot;parameters. When this block width is larger than the image&quot;
+              &quot;width the result is faster again, with another trade-off in&quot;
+              &quot;accuracy&quot;
+      .type = choice
+      .expert_level = 1
     beam
       .help = &quot;beam parameters&quot;
     {
@@ -561,6 +571,27 @@ refinement
                 &quot;partial names to match&quot;
         .type = strings
         .expert_level = 1
+      force_static = True
+        .help = &quot;Force a static parameterisation for the beam when doing&quot;
+                &quot;scan-varying refinement&quot;
+        .type = bool
+        .expert_level = 1
+      smoother
+        .help = &quot;Options that affect scan-varying parameterisation&quot;
+        .expert_level = 1
+      {
+        num_intervals = *fixed_width absolute
+          .help = &quot;Choose the way to determine the number of intervals for&quot;
+                  &quot;scan- varying refinement&quot;
+          .type = choice
+        interval_width_degrees = 36.0
+          .help = &quot;Width of scan between checkpoints in degrees&quot;
+          .type = float(value_min=0)
+        absolute_num_intervals = 5
+          .help = &quot;Number of intervals between checkpoints if scan_varying&quot;
+                  &quot;refinement is requested&quot;
+          .type = int(value_min=1)
+      }
     }
     crystal
       .help = &quot;crystal parameters&quot;
@@ -568,7 +599,9 @@ refinement
       fix = all cell orientation
         .help = &quot;Fix crystal parameters&quot;
         .type = choice
-      unit_cell {
+      unit_cell
+        .expert_level = 1
+      {
         fix_list = None
           .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;
                   &quot;partial names to match&quot;
@@ -629,39 +662,58 @@ refinement
               .type = bool
           }
         }
+        force_static = False
+          .help = &quot;Force a static parameterisation for the crystal orientation&quot;
+                  &quot;when doing scan-varying refinement&quot;
+          .type = bool
+          .expert_level = 1
+        smoother
+          .help = &quot;Options that affect scan-varying parameterisation&quot;
+          .expert_level = 1
+        {
+          num_intervals = *fixed_width absolute
+            .help = &quot;Choose the way to determine the number of intervals for&quot;
+                    &quot;scan- varying refinement&quot;
+            .type = choice
+          interval_width_degrees = 36.0
+            .help = &quot;Width of scan between checkpoints in degrees&quot;
+            .type = float(value_min=0)
+          absolute_num_intervals = 5
+            .help = &quot;Number of intervals between checkpoints if scan_varying&quot;
+                    &quot;refinement is requested&quot;
+            .type = int(value_min=1)
+        }
       }
-      orientation {
+      orientation
+        .expert_level = 1
+      {
         fix_list = None
           .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;
                   &quot;partial names to match&quot;
           .type = strings
           .expert_level = 1
+        force_static = False
+          .help = &quot;Force a static parameterisation for the crystal unit cell&quot;
+                  &quot;when doing scan-varying refinement&quot;
+          .type = bool
+          .expert_level = 1
+        smoother
+          .help = &quot;Options that affect scan-varying parameterisation&quot;
+          .expert_level = 1
+        {
+          num_intervals = *fixed_width absolute
+            .help = &quot;Choose the way to determine the number of intervals for&quot;
+                    &quot;scan- varying refinement&quot;
+            .type = choice
+          interval_width_degrees = 36.0
+            .help = &quot;Width of scan between checkpoints in degrees&quot;
+            .type = float(value_min=0)
+          absolute_num_intervals = 5
+            .help = &quot;Number of intervals between checkpoints if scan_varying&quot;
+                    &quot;refinement is requested&quot;
+            .type = int(value_min=1)
+        }
       }
-      scan_varying = False
-        .help = &quot;Parameterise the crystal to vary during the scan&quot;
-        .type = bool
-      num_intervals = *fixed_width absolute
-        .help = &quot;Choose the way to determine the number of intervals for scan-&quot;
-                &quot;varying refinement&quot;
-        .type = choice
-        .expert_level = 1
-      interval_width_degrees = 36.0
-        .help = &quot;Width of scan between checkpoints in degrees&quot;
-        .type = float(value_min=0)
-        .expert_level = 1
-      absolute_num_intervals = 5
-        .help = &quot;Number of intervals between checkpoints if scan_varying&quot;
-                &quot;refinement is requested&quot;
-        .type = int(value_min=1)
-        .expert_level = 1
-      UB_model_per = reflection image *block
-        .help = &quot;Compose a new crystal model either every reflection (slow),&quot;
-                &quot;every image (faster, less accurate) or within blocks of a&quot;
-                &quot;width specified in the reflections parameters. When this&quot;
-                &quot;block width is larger than the image width the result is&quot;
-                &quot;faster again, with another trade-off in accuracy&quot;
-        .type = choice
-        .expert_level = 1
     }
     detector
       .help = &quot;detector parameters&quot;
@@ -796,7 +848,7 @@ refinement
       .help = &quot;Width of a reflection 'block' (in degrees) determining how&quot;
               &quot;fine- grained the model used for scan-varying prediction during&quot;
               &quot;refinement is. Currently only has any effect if the crystal&quot;
-              &quot;parameterisation is set to use UB_model_per=block&quot;
+              &quot;parameterisation is set to use compose_model_per=block&quot;
       .type = float(value_min=0)
       .expert_level = 1
     weighting_strategy
