@@ -208,11 +208,11 @@
 
 <span class="s">        </span><span class="si">%(uc_restraints_phil)s</span><span class="s"></span>
 
-<span class="s">      force_static = False</span>
-<span class="s">        .type = bool</span>
-<span class="s">        .help = &quot;Force a static parameterisation for the crystal orientation&quot;</span>
-<span class="s">                &quot;when doing scan-varying refinement&quot;</span>
-<span class="s">        .expert_level = 1</span>
+<span class="s">        force_static = False</span>
+<span class="s">          .type = bool</span>
+<span class="s">          .help = &quot;Force a static parameterisation for the crystal unit cell&quot;</span>
+<span class="s">                  &quot;when doing scan-varying refinement&quot;</span>
+<span class="s">          .expert_level = 1</span>
 
 <span class="s">        </span><span class="si">%(sv_phil_str)s</span><span class="s"></span>
 <span class="s">      }</span>
@@ -226,11 +226,11 @@
 <span class="s">                  &quot;partial names to match&quot;</span>
 <span class="s">          .expert_level = 1</span>
 
-<span class="s">      force_static = False</span>
-<span class="s">        .type = bool</span>
-<span class="s">        .help = &quot;Force a static parameterisation for the crystal unit cell&quot;</span>
-<span class="s">                &quot;when doing scan-varying refinement&quot;</span>
-<span class="s">        .expert_level = 1</span>
+<span class="s">        force_static = False</span>
+<span class="s">          .type = bool</span>
+<span class="s">          .help = &quot;Force a static parameterisation for the crystal orientation&quot;</span>
+<span class="s">                  &quot;when doing scan-varying refinement&quot;</span>
+<span class="s">          .expert_level = 1</span>
 
 <span class="s">        </span><span class="si">%(sv_phil_str)s</span><span class="s"></span>
 <span class="s">      }</span>
@@ -263,6 +263,14 @@
 <span class="s">        .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
 <span class="s">                &quot;partial names to match&quot;</span>
 <span class="s">        .expert_level = 1</span>
+
+<span class="s">      force_static = True</span>
+<span class="s">        .type = bool</span>
+<span class="s">        .help = &quot;Force a static parameterisation for the detector&quot;</span>
+<span class="s">                &quot;when doing scan-varying refinement&quot;</span>
+<span class="s">        .expert_level = 1</span>
+
+<span class="s">      </span><span class="si">%(sv_phil_str)s</span><span class="s"></span>
 <span class="s">    }</span>
 
 <span class="s">    sparse = Auto</span>
@@ -636,8 +644,7 @@
       <span class="n">goniometer</span><span class="p">,</span> <span class="n">scan</span> <span class="o">=</span> <span class="n">assoc_models</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
       <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
-        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">force_static</span> <span class="ow">or</span>
-            <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">force_static</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">force_static</span><span class="p">:</span>
           <span class="c"># If a beam is scan-varying, then it must always be found alongside</span>
           <span class="c"># the same Scan and Goniometer in any Experiments in which it appears</span>
           <span class="k">if</span> <span class="p">[</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">scan</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
@@ -824,11 +831,17 @@
     <span class="c"># Parameterise unique Detectors</span>
     <span class="n">det_params</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">idetector</span><span class="p">,</span> <span class="n">detector</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()):</span>
-
+      <span class="c"># keep associated gonio and scan in case we are scan-varying</span>
       <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span>
-      <span class="c"># Detector</span>
+      <span class="n">assoc_models</span> <span class="o">=</span> <span class="p">[(</span><span class="n">experiments</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">experiments</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span><span class="p">)</span> \
+                      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">]</span>
+      <span class="n">goniometer</span><span class="p">,</span> <span class="n">scan</span> <span class="o">=</span> <span class="n">assoc_models</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
       <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;automatic&quot;</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">force_static</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;Scan-varying multiple panel detectors are not &#39;</span>
+                        <span class="s">&#39;currently supported&#39;</span><span class="p">)</span>
           <span class="k">try</span><span class="p">:</span>
             <span class="n">h</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">hierarchy</span><span class="p">()</span>
             <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationHierarchical</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span>
@@ -836,38 +849,98 @@
           <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
             <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationMultiPanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">force_static</span><span class="p">:</span>
+          <span class="c"># If a detector is scan-varying, then it must always be found alongside</span>
+          <span class="c"># the same Scan and Goniometer in any Experiments in which it appears</span>
+          <span class="k">if</span> <span class="p">[</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">scan</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A scan-varying detector model cannot be created &#39;</span>
+                        <span class="s">&#39;because a scan or goniometer model is missing&#39;</span><span class="p">)</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">g</span> <span class="ow">is</span> <span class="n">goniometer</span> <span class="ow">and</span> <span class="n">s</span> <span class="ow">is</span> <span class="n">scan</span> <span class="k">for</span> <span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="n">assoc_models</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A single scan-varying detector model cannot be &#39;</span>
+              <span class="s">&#39;refined when associated with more than one scan or goniometer&#39;</span><span class="p">)</span>
+          <span class="n">sweep_range_deg</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+          <span class="n">array_range</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+          <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">num_intervals</span> <span class="o">==</span> <span class="s">&quot;fixed_width&quot;</span><span class="p">:</span>
+            <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
+            <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
+              <span class="nb">abs</span><span class="p">(</span><span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">deg_per_interval</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">n_intervals</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">absolute_num_intervals</span>
+          <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">ScanVaryingDetectorParameterisationSinglePanel</span><span class="p">(</span>
+              <span class="n">detector</span><span class="p">,</span>
+              <span class="n">array_range</span><span class="p">,</span>
+              <span class="n">n_intervals</span><span class="p">,</span>
+              <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
           <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationSinglePanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
       <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;single&quot;</span><span class="p">:</span>
-        <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationSinglePanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">force_static</span><span class="p">:</span>
+          <span class="c"># If a detector is scan-varying, then it must always be found alongside</span>
+          <span class="c"># the same Scan and Goniometer in any Experiments in which it appears</span>
+          <span class="k">if</span> <span class="p">[</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">scan</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A scan-varying detector model cannot be created &#39;</span>
+                        <span class="s">&#39;because a scan or goniometer model is missing&#39;</span><span class="p">)</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">g</span> <span class="ow">is</span> <span class="n">goniometer</span> <span class="ow">and</span> <span class="n">s</span> <span class="ow">is</span> <span class="n">scan</span> <span class="k">for</span> <span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="n">assoc_models</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;A single scan-varying detector model cannot be &#39;</span>
+              <span class="s">&#39;refined when associated with more than one scan or goniometer&#39;</span><span class="p">)</span>
+          <span class="n">sweep_range_deg</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+          <span class="n">array_range</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+          <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">num_intervals</span> <span class="o">==</span> <span class="s">&quot;fixed_width&quot;</span><span class="p">:</span>
+            <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
+            <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
+              <span class="nb">abs</span><span class="p">(</span><span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">sweep_range_deg</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">deg_per_interval</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">n_intervals</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">absolute_num_intervals</span>
+          <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">ScanVaryingDetectorParameterisationSinglePanel</span><span class="p">(</span>
+              <span class="n">detector</span><span class="p">,</span>
+              <span class="n">array_range</span><span class="p">,</span>
+              <span class="n">n_intervals</span><span class="p">,</span>
+              <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationSinglePanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
       <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;multiple&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">force_static</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;Scan-varying multiple panel detectors are not &#39;</span>
+                      <span class="s">&#39;currently supported&#39;</span><span class="p">)</span>
         <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationMultiPanel</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span>
                                                         <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">)</span>
       <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panels</span> <span class="o">==</span> <span class="s">&quot;hierarchical&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">force_static</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;Scan-varying hierarchical detectors are not &#39;</span>
+                      <span class="s">&#39;currently supported&#39;</span><span class="p">)</span>
         <span class="n">det_param</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">DetectorParameterisationHierarchical</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span>
                 <span class="n">experiment_ids</span><span class="o">=</span><span class="n">exp_ids</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">hierarchy_level</span><span class="p">)</span>
       <span class="k">else</span><span class="p">:</span> <span class="c"># can only get here if refinement.phil is broken</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;detector.panels value not recognised&quot;</span><span class="p">)</span>
 
+      <span class="c"># get number of fixable units, either parameters or parameter sets in</span>
+      <span class="c"># the scan-varying case</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">num_det</span> <span class="o">=</span> <span class="n">det_param</span><span class="o">.</span><span class="n">num_sets</span><span class="p">()</span>
+      <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="n">num_det</span> <span class="o">=</span> <span class="n">det_param</span><span class="o">.</span><span class="n">num_total</span><span class="p">()</span>
+
+      <span class="n">fix_list</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
+        <span class="n">fix_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix_list</span><span class="p">)</span>
+
       <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;all&quot;</span><span class="p">:</span>
-          <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">([</span><span class="bp">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">det_param</span><span class="o">.</span><span class="n">num_total</span><span class="p">())</span>
+          <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">([</span><span class="bp">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_det</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;position&quot;</span><span class="p">:</span>
-          <span class="n">to_fix</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">param_type</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;length&#39;</span><span class="p">)</span> \
-                    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">det_param</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="n">only_free</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)]</span>
-          <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
+          <span class="n">fix_list</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;Dist&#39;</span><span class="p">,</span> <span class="s">&#39;Shift1&#39;</span><span class="p">,</span> <span class="s">&#39;Shift2&#39;</span><span class="p">])</span>
         <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s">&quot;orientation&quot;</span><span class="p">:</span>
-          <span class="n">to_fix</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">param_type</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;angle&#39;</span><span class="p">)</span> \
-                    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">det_param</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="n">only_free</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)]</span>
-          <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
+          <span class="n">fix_list</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s">&#39;Tau&#39;</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span> <span class="c"># can only get here if refinement.phil is broken</span>
           <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;detector.fix value not recognised&quot;</span><span class="p">)</span>
 
-      <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix_list</span><span class="p">:</span>
-        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix_list</span><span class="p">,</span>
-                            <span class="n">det_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">(</span><span class="n">only_free</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+      <span class="k">if</span> <span class="n">fix_list</span><span class="p">:</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="n">filter_parameter_names</span><span class="p">(</span><span class="n">det_param</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">==</span> <span class="n">num_det</span>
+        <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">fix_list</span><span class="p">,</span>
+                            <span class="n">names</span><span class="p">,</span>
                             <span class="s">&quot;Detector{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idetector</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">det_param</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
 
