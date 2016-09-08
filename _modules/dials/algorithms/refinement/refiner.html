@@ -146,6 +146,26 @@
 <span class="s">                &quot;still form residuals and will contribute to detector and beam&quot;</span>
 <span class="s">                &quot;refinement.&quot;</span>
 <span class="s">        .type = choice</span>
+
+<span class="s">      detector_reduce = False</span>
+<span class="s">        .type = bool</span>
+<span class="s">        .help = &quot;Special case designed for detector metrology refinement&quot;</span>
+<span class="s">                &quot;(particularly of the CSPAD). See detector_reduce_list for&quot;</span>
+<span class="s">                &quot;details.&quot;</span>
+<span class="s">        .expert_level = 1</span>
+
+<span class="s">      detector_reduce_list = Dist Tau2 Tau3</span>
+<span class="s">        .type = strings</span>
+<span class="s">        .help = &quot;Partial names to match to detector parameters to try fixing.&quot;</span>
+<span class="s">                &quot;If there are still not&quot;</span>
+<span class="s">                &quot;enough parameters for refinement after fixing these, then&quot;</span>
+<span class="s">                &quot;fail. This is to ensure that metrology refinement never&quot;</span>
+<span class="s">                &quot;completes if it is not able to refine some panels. The default&quot;</span>
+<span class="s">                &quot;is to try fixing the distance as well as Tau2 and Tau3&quot;</span>
+<span class="s">                &quot;rotations of detector panel, leaving the in-plane shifts and&quot;</span>
+<span class="s">                &quot;the rotation around the detector normal for refinement.&quot;</span>
+<span class="s">                &quot;groups only.&quot;</span>
+<span class="s">        .expert_level = 1</span>
 <span class="s">    }</span>
 
 <span class="s">    scan_varying = False</span>
@@ -581,6 +601,8 @@
         <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="bp">True</span>
       <span class="k">else</span><span class="p">:</span>
         <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="bp">False</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">refinery</span><span class="o">.</span><span class="n">engine</span> <span class="o">==</span> <span class="s">&quot;SparseLevMar&quot;</span><span class="p">:</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="bp">True</span>
       <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">refinery</span><span class="o">.</span><span class="n">engine</span> <span class="o">!=</span> <span class="s">&quot;SparseLevMar&quot;</span><span class="p">:</span>
           <span class="c"># sparse vectors cannot be pickled, so can&#39;t use easy_mp here</span>
@@ -960,7 +982,7 @@
       <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
       <span class="k">return</span> <span class="n">nref</span> <span class="o">-</span> <span class="n">cutoff</span>
 
-    <span class="k">def</span> <span class="nf">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">pnl_ids</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">pnl_ids</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
       <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
       <span class="c"># Do we have enough reflections to support this parameterisation?</span>
       <span class="n">gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">gp</span> <span class="o">==</span> <span class="n">group</span> <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">get_param_panel_groups</span><span class="p">()]</span>
@@ -975,7 +997,10 @@
         <span class="k">for</span> <span class="n">pnl</span> <span class="ow">in</span> <span class="n">pnl_ids</span><span class="p">:</span>
           <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">subsel</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">panels</span> <span class="o">==</span> <span class="n">pnl</span><span class="p">))</span>
       <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
-      <span class="k">return</span> <span class="n">nref</span> <span class="o">-</span> <span class="n">cutoff</span>
+      <span class="n">surplus</span> <span class="o">=</span> <span class="n">nref</span> <span class="o">-</span> <span class="n">cutoff</span>
+      <span class="k">if</span> <span class="n">surplus</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="n">warning</span><span class="p">(</span><span class="s">&#39;{0} reflections on panels {1} with a cutoff of {2}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">pnl_ids</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">surplus</span>
 
     <span class="k">def</span> <span class="nf">weak_parameterisation_search</span><span class="p">(</span>
       <span class="n">beam_params</span><span class="p">,</span> <span class="n">xl_ori_params</span><span class="p">,</span> <span class="n">xl_uc_params</span><span class="p">,</span> <span class="n">det_params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
@@ -1025,6 +1050,37 @@
               <span class="s">&#39;panels&#39;</span><span class="p">:</span><span class="n">panels</span><span class="p">,</span>
               <span class="s">&#39;panel_group_id&#39;</span><span class="p">:</span><span class="n">pnl_gp</span><span class="p">,</span>
               <span class="s">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">}</span>
+
+    <span class="c"># As a special case for detector metrology, try reducing the number of</span>
+    <span class="c"># detector parameters if there are too few for some panel group. If this is</span>
+    <span class="c"># unsuccessful, fail outright.</span>
+    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">detector_reduce</span><span class="p">:</span>
+      <span class="n">reduce_list</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">detector_reduce_list</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">det_params</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span> <span class="c"># test for hierarchical detector parameterisation</span>
+          <span class="n">pnl_groups</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">get_panel_ids_by_group</span><span class="p">()</span>
+          <span class="k">for</span> <span class="n">igp</span><span class="p">,</span> <span class="n">gp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pnl_groups</span><span class="p">):</span>
+            <span class="n">surplus</span> <span class="o">=</span> <span class="n">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">gp</span><span class="p">,</span> <span class="n">igp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">surplus</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+              <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;Require {0} more reflections to parameterise Detector{1} &#39;</span>
+                     <span class="s">&#39;panel group {2}&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="o">*</span><span class="n">surplus</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">igp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+              <span class="n">warning</span><span class="p">(</span><span class="n">msg</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Attempting reduction of non-essential parameters&#39;</span><span class="p">)</span>
+              <span class="n">names</span> <span class="o">=</span> <span class="n">filter_parameter_names</span><span class="p">(</span><span class="n">dp</span><span class="p">)</span>
+              <span class="n">prefix</span> <span class="o">=</span> <span class="s">&#39;Group{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">igp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+              <span class="n">reduce_this_group</span> <span class="o">=</span> <span class="p">[</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">reduce_list</span><span class="p">]</span>
+              <span class="n">to_fix</span> <span class="o">=</span> <span class="n">string_sel</span><span class="p">(</span><span class="n">reduce_this_group</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+              <span class="n">dp</span><span class="o">.</span><span class="n">set_fixed</span><span class="p">(</span><span class="n">to_fix</span><span class="p">)</span>
+              <span class="c"># try again, and fail if still unsuccessful</span>
+              <span class="n">surplus</span> <span class="o">=</span> <span class="n">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">gp</span><span class="p">,</span> <span class="n">igp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+              <span class="k">if</span> <span class="n">surplus</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="o">*</span><span class="n">surplus</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">igp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">Failing.&#39;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Detector{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;fail&#39;</span><span class="p">:</span>
       <span class="n">failmsg</span> <span class="o">=</span> <span class="s">&#39;Too few reflections to parameterise {0}&#39;</span>
