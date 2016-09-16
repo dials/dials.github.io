@@ -75,9 +75,12 @@
 <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">pi</span>
 <span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">info</span><span class="p">,</span> <span class="n">debug</span><span class="p">,</span> <span class="n">warning</span>
 
+<span class="kn">import</span> <span class="nn">libtbx</span>
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
 <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement</span> <span class="kn">import</span> <span class="n">weighting_strategies</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.analysis.centroid_analysis</span> <span class="kn">import</span> \
+  <span class="n">CentroidAnalyser</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.refinement_helpers</span> <span class="kn">import</span> \
   <span class="n">calculate_frame_numbers</span><span class="p">,</span> <span class="n">set_obs_s1</span>
 
@@ -166,7 +169,6 @@
                                           <span class="p">(</span><span class="n">exp_phi</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">b_start</span> <span class="o">+</span> <span class="n">_width</span><span class="p">)))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">[</span><span class="s">&#39;block&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sub_isel</span><span class="p">,</span> <span class="n">b_num</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">[</span><span class="s">&#39;block_centre&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sub_isel</span><span class="p">,</span> <span class="n">b_cent</span><span class="p">)</span>
-
 
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span></div>
 
@@ -277,9 +279,16 @@
 
     <span class="k">return</span>
 
-<div class="viewcode-block" id="ReflectionManager.finalise"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.reflection_manager.ReflectionManager.finalise">[docs]</a>  <span class="k">def</span> <span class="nf">finalise</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ReflectionManager.get_centroid_analyser"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.reflection_manager.ReflectionManager.get_centroid_analyser">[docs]</a>  <span class="k">def</span> <span class="nf">get_centroid_analyser</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create a CentroidAnalysis object for the current reflections&quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">CentroidAnalyser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ReflectionManager.finalise"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.reflection_manager.ReflectionManager.finalise">[docs]</a>  <span class="k">def</span> <span class="nf">finalise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">analysis</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Complete initialisation by performing outlier rejection and any</span>
-<span class="sd">    requested subsetting. This function to be called by a Target object&quot;&quot;&quot;</span>
+<span class="sd">    requested subsetting. If a list of results from a CentroidAnalysis</span>
+<span class="sd">    object is provided, these may be used to determine outlier rejection</span>
+<span class="sd">    block widths&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">debug</span><span class="p">(</span><span class="s">&quot;Finalising the Reflection Manager&quot;</span><span class="p">)</span>
 
@@ -297,6 +306,16 @@
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
       <span class="n">rejection_occurred</span> <span class="o">=</span> <span class="bp">False</span>
     <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span><span class="o">.</span><span class="n">get_block_width</span><span class="p">()</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">analysis</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+          <span class="c"># without analysis available, set 18.0 degrees universally</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span><span class="o">.</span><span class="n">set_block_width</span><span class="p">(</span><span class="mf">18.0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="c"># with analysis, choose the maximum of 18 degrees or the block size</span>
+          <span class="c"># for each experiment</span>
+          <span class="n">widths</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;block_size&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">analysis</span><span class="p">]</span>
+          <span class="n">widths</span> <span class="o">=</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="mf">18.0</span><span class="p">)</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="k">else</span> <span class="bp">None</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">widths</span><span class="p">]</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span><span class="o">.</span><span class="n">set_block_width</span><span class="p">(</span><span class="n">widths</span><span class="p">)</span>
       <span class="n">rejection_occurred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reflections</span><span class="p">)</span>
 
     <span class="c"># set the centroid_outlier flag in the original indexed reflections</span>
