@@ -98,40 +98,6 @@
     <span class="nb">super</span><span class="p">(</span><span class="n">indexer_fft3d</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">imagesets</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
 <div class="viewcode-block" id="indexer_fft3d.find_lattices"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_lattices">[docs]</a>  <span class="k">def</span> <span class="nf">find_lattices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
-      <span class="c"># rough calculation of suitable d_min based on max cell</span>
-      <span class="c"># see also Campbell, J. (1998). J. Appl. Cryst., 31(3), 407-413.</span>
-      <span class="c"># fft_cell should be greater than twice max_cell, so say:</span>
-      <span class="c">#   fft_cell = 2.5 * max_cell</span>
-      <span class="c"># then:</span>
-      <span class="c">#   fft_cell = n_points * d_min/2</span>
-      <span class="c">#   2.5 * max_cell = n_points * d_min/2</span>
-      <span class="c"># a little bit of rearrangement:</span>
-      <span class="c">#   d_min = 5 * max_cell/n_points</span>
-
-      <span class="n">max_cell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span>
-      <span class="n">d_min</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="mi">5</span> <span class="o">*</span> <span class="n">max_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">n_points</span><span class="p">)</span>
-      <span class="n">d_spacings</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;rlp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
-        <span class="n">d_min</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">d_spacings</span><span class="p">))</span>
-      <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Setting d_min: </span><span class="si">%.2f</span><span class="s">&quot;</span> <span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span><span class="p">)</span>
-    <span class="n">n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">n_points</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">gridding</span> <span class="o">=</span> <span class="n">fftpack</span><span class="o">.</span><span class="n">adjust_gridding_triple</span><span class="p">(</span>
-      <span class="p">(</span><span class="n">n_points</span><span class="p">,</span><span class="n">n_points</span><span class="p">,</span><span class="n">n_points</span><span class="p">),</span> <span class="n">max_prime</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-    <span class="n">n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">map_centroids_to_reciprocal_space_grid</span><span class="p">()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">d_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span>
-
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Number of centroids used: </span><span class="si">%i</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span>
-      <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)))</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">fft</span><span class="p">()</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">debug_write_ccp4_map</span><span class="p">(</span><span class="n">map_data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">grid_real</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s">&quot;fft3d.map&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_search</span> <span class="o">==</span> <span class="s">&#39;flood_fill&#39;</span><span class="p">:</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">find_peaks</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_search</span> <span class="o">==</span> <span class="s">&#39;clean&#39;</span><span class="p">:</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">find_peaks_clean</span><span class="p">()</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">cluster_analysis_search</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">find_basis_vector_combinations_cluster_analysis</span><span class="p">()</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">debug_show_candidate_basis_vectors</span><span class="p">()</span>
@@ -197,6 +163,34 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">reflections_used_for_indexing</span> <span class="o">=</span> <span class="n">reflections_used_for_indexing</span></div>
 
 <div class="viewcode-block" id="indexer_fft3d.fft"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.fft">[docs]</a>  <span class="k">def</span> <span class="nf">fft</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+      <span class="c"># rough calculation of suitable d_min based on max cell</span>
+      <span class="c"># see also Campbell, J. (1998). J. Appl. Cryst., 31(3), 407-413.</span>
+      <span class="c"># fft_cell should be greater than twice max_cell, so say:</span>
+      <span class="c">#   fft_cell = 2.5 * max_cell</span>
+      <span class="c"># then:</span>
+      <span class="c">#   fft_cell = n_points * d_min/2</span>
+      <span class="c">#   2.5 * max_cell = n_points * d_min/2</span>
+      <span class="c"># a little bit of rearrangement:</span>
+      <span class="c">#   d_min = 5 * max_cell/n_points</span>
+
+      <span class="n">max_cell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span>
+      <span class="n">d_min</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mi">5</span> <span class="o">*</span> <span class="n">max_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">n_points</span><span class="p">)</span>
+      <span class="n">d_spacings</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;rlp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+        <span class="n">d_min</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">d_spacings</span><span class="p">))</span>
+      <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Setting d_min: </span><span class="si">%.2f</span><span class="s">&quot;</span> <span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span><span class="p">)</span>
+    <span class="n">n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">n_points</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gridding</span> <span class="o">=</span> <span class="n">fftpack</span><span class="o">.</span><span class="n">adjust_gridding_triple</span><span class="p">(</span>
+      <span class="p">(</span><span class="n">n_points</span><span class="p">,</span><span class="n">n_points</span><span class="p">,</span><span class="n">n_points</span><span class="p">),</span> <span class="n">max_prime</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">map_centroids_to_reciprocal_space_grid</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">d_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Number of centroids used: </span><span class="si">%i</span><span class="s">&quot;</span> <span class="o">%</span><span class="p">(</span>
+      <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)))</span>
+
     <span class="c">#gb_to_bytes = 1073741824</span>
     <span class="c">#bytes_to_gb = 1/gb_to_bytes</span>
     <span class="c">#(128**3)*8*2*bytes_to_gb</span>
@@ -214,7 +208,14 @@
     <span class="c">#self.grid_real = flex.pow2(flex.abs(grid_transformed))</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">grid_real</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">grid_transformed</span><span class="p">))</span>
     <span class="c">#self.grid_real = flex.pow2(flex.imag(self.grid_transformed))</span>
-    <span class="k">del</span> <span class="n">grid_transformed</span></div>
+    <span class="k">del</span> <span class="n">grid_transformed</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">debug_write_ccp4_map</span><span class="p">(</span><span class="n">map_data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">grid_real</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s">&quot;fft3d.map&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_search</span> <span class="o">==</span> <span class="s">&#39;flood_fill&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">find_peaks</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_search</span> <span class="o">==</span> <span class="s">&#39;clean&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">find_peaks_clean</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="indexer_fft3d.find_peaks"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_peaks">[docs]</a>  <span class="k">def</span> <span class="nf">find_peaks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="n">grid_real_binary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_real</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
@@ -262,6 +263,8 @@
       <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="indexer_fft3d.find_candidate_basis_vectors"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_candidate_basis_vectors">[docs]</a>  <span class="k">def</span> <span class="nf">find_candidate_basis_vectors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fft</span><span class="p">()</span>
+
     <span class="c"># hijack the xray.structure class to facilitate calculation of distances</span>
     <span class="n">xs</span> <span class="o">=</span> <span class="n">xray</span><span class="o">.</span><span class="n">structure</span><span class="p">(</span><span class="n">crystal_symmetry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sites</span><span class="p">):</span>
@@ -359,9 +362,12 @@
     <span class="c">#for i, (v, volume) in enumerate(zip(vectors, volumes)):</span>
       <span class="c">#logger.debug(&quot;%s %s %s&quot; %(i, v.length(), volume))</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span> <span class="o">=</span> <span class="n">vectors</span></div>
+    <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span> <span class="o">=</span> <span class="n">vectors</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span></div>
 
 <div class="viewcode-block" id="indexer_fft3d.find_basis_vector_combinations_cluster_analysis"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.fft3d.indexer_fft3d.find_basis_vector_combinations_cluster_analysis">[docs]</a>  <span class="k">def</span> <span class="nf">find_basis_vector_combinations_cluster_analysis</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fft</span><span class="p">()</span>
+
     <span class="c"># hijack the xray.structure class to facilitate calculation of distances</span>
     <span class="n">xs</span> <span class="o">=</span> <span class="n">xray</span><span class="o">.</span><span class="n">structure</span><span class="p">(</span><span class="n">crystal_symmetry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sites</span><span class="p">):</span>
