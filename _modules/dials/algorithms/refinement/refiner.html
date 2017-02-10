@@ -1000,6 +1000,35 @@
       <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
       <span class="k">return</span> <span class="n">nref</span> <span class="o">-</span> <span class="n">cutoff</span>
 
+    <span class="k">def</span> <span class="nf">unit_cell_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+      <span class="sd">&#39;&#39;&#39;Special version of model_nparam_minus_nref for crystal unit cell</span>
+<span class="sd">      parameterisations. In some cases certain parameters of a unit cell</span>
+<span class="sd">      parameterisation may affect only some subset of the total number of</span>
+<span class="sd">      reflections. For example, for an orthorhombic cell the g_param_0 parameter</span>
+<span class="sd">      has no effect on predictions in the plane (0,k,l). Here, take the number</span>
+<span class="sd">      of affected reflections for each parameter into account.&#39;&#39;&#39;</span>
+      <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
+      <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
+      <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
+        <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">())</span>
+      <span class="n">ref</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+      <span class="n">h</span> <span class="o">=</span> <span class="n">ref</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span>
+      <span class="n">dB_dp</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_ds_dp</span><span class="p">()</span>
+      <span class="c"># if no free parameters, do as model_nparam_minus_nref</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dB_dp</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+      <span class="n">nref_each_param</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">min_nref</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span>
+      <span class="k">for</span> <span class="n">der</span> <span class="ow">in</span> <span class="n">dB_dp</span><span class="p">:</span>
+        <span class="n">der_mat</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mat3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">h</span><span class="p">),</span> <span class="n">der</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+        <span class="n">tst</span> <span class="o">=</span> <span class="p">(</span><span class="n">der_mat</span> <span class="o">*</span> <span class="n">h</span><span class="p">)</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="n">nref_each_param</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tst</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">))</span>
+      <span class="k">return</span> <span class="nb">min</span><span class="p">([</span><span class="n">nref</span> <span class="o">-</span> <span class="n">min_nref</span> <span class="k">for</span> <span class="n">nref</span> <span class="ow">in</span> <span class="n">nref_each_param</span><span class="p">])</span>
+
+    <span class="c"># In the scan-varying case we can&#39;t calculate dB_dp before composing the</span>
+    <span class="c"># model, so revert to the original function</span>
+    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">scan_varying</span><span class="p">:</span>
+      <span class="n">unit_cell_nparam_minus_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span>
+
     <span class="k">def</span> <span class="nf">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">pnl_ids</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
       <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
       <span class="c"># Do we have enough reflections to support this parameterisation?</span>
@@ -1040,7 +1069,7 @@
           <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
           <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} orientation&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_uc_params</span><span class="p">):</span>
-        <span class="n">net_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
+        <span class="n">net_nref</span> <span class="o">=</span> <span class="n">unit_cell_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">net_nref</span> <span class="o">&lt;</span> <span class="n">nref_deficit</span><span class="p">:</span>
           <span class="n">nref_deficit</span> <span class="o">=</span> <span class="n">net_nref</span>
           <span class="n">weak</span> <span class="o">=</span> <span class="n">p</span>
@@ -1116,7 +1145,7 @@
           <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xluc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_uc_params</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xluc</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">unit_cell_nparam_minus_nref</span><span class="p">(</span><span class="n">xluc</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
           <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
           <span class="n">msg</span> <span class="o">=</span> <span class="n">failmsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mdl</span><span class="p">)</span>
           <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
@@ -1160,7 +1189,7 @@
 
       <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xluc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">xl_uc_params</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">model_nparam_minus_nref</span><span class="p">(</span><span class="n">xluc</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">unit_cell_nparam_minus_nref</span><span class="p">(</span><span class="n">xluc</span><span class="p">,</span> <span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
           <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xluc</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
           <span class="n">mdl</span> <span class="o">=</span> <span class="s">&#39;Crystal{0} unit cell&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
