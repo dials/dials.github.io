@@ -93,10 +93,12 @@
   <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">outlier_phil_str</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.restraints.restraints_parameterisation</span> \
   <span class="kn">import</span> <span class="n">uc_phil_str</span> <span class="k">as</span> <span class="n">uc_restraints_phil_str</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.constraints</span> <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">constr_phil_str</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.scan_varying_model_parameters</span> \
   <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">sv_phil_str</span>
 <span class="n">format_data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;outlier_phil&#39;</span><span class="p">:</span><span class="n">outlier_phil_str</span><span class="p">,</span>
                <span class="s">&#39;uc_restraints_phil&#39;</span><span class="p">:</span><span class="n">uc_restraints_phil_str</span><span class="p">,</span>
+               <span class="s">&#39;constr_phil&#39;</span><span class="p">:</span><span class="n">constr_phil_str</span><span class="p">,</span>
                <span class="s">&#39;sv_phil_str&#39;</span><span class="p">:</span><span class="n">sv_phil_str</span><span class="p">}</span>
 <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
 
@@ -206,6 +208,8 @@
 <span class="s">                &quot;partial names to match&quot;</span>
 <span class="s">        .expert_level = 1</span>
 
+<span class="s">      </span><span class="si">%(constr_phil)s</span><span class="s"></span>
+
 <span class="s">      force_static = True</span>
 <span class="s">        .type = bool</span>
 <span class="s">        .help = &quot;Force a static parameterisation for the beam when doing&quot;</span>
@@ -233,6 +237,8 @@
 
 <span class="s">        </span><span class="si">%(uc_restraints_phil)s</span><span class="s"></span>
 
+<span class="s">        </span><span class="si">%(constr_phil)s</span><span class="s"></span>
+
 <span class="s">        force_static = False</span>
 <span class="s">          .type = bool</span>
 <span class="s">          .help = &quot;Force a static parameterisation for the crystal unit cell&quot;</span>
@@ -250,6 +256,8 @@
 <span class="s">          .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
 <span class="s">                  &quot;partial names to match&quot;</span>
 <span class="s">          .expert_level = 1</span>
+
+<span class="s">        </span><span class="si">%(constr_phil)s</span><span class="s"></span>
 
 <span class="s">        force_static = False</span>
 <span class="s">          .type = bool</span>
@@ -288,6 +296,8 @@
 <span class="s">        .help = &quot;Fix specified parameters by a list of 0-based indices or&quot;</span>
 <span class="s">                &quot;partial names to match&quot;</span>
 <span class="s">        .expert_level = 1</span>
+
+<span class="s">      </span><span class="si">%(constr_phil)s</span><span class="s"></span>
 
 <span class="s">      force_static = True</span>
 <span class="s">        .type = bool</span>
@@ -598,10 +608,14 @@
     <span class="n">target</span><span class="o">.</span><span class="n">set_prediction_parameterisation</span><span class="p">(</span><span class="n">pred_param</span><span class="p">)</span>
     <span class="n">target</span><span class="o">.</span><span class="n">set_restraints_parameterisation</span><span class="p">(</span><span class="n">restraints_parameterisation</span><span class="p">)</span>
 
+    <span class="c"># Build a constraints manager, if requested</span>
+    <span class="n">constraints_manager</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_constraints</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">verbosity</span><span class="p">)</span>
+
     <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Building refinement engine&quot;</span><span class="p">)</span>
 
     <span class="c"># create refinery</span>
-    <span class="n">refinery</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_refinery</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">verbosity</span><span class="p">)</span>
+    <span class="n">refinery</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_refinery</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span>
+      <span class="n">constraints_manager</span><span class="p">,</span> <span class="n">verbosity</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Refinement engine built&quot;</span><span class="p">)</span>
 
@@ -1376,12 +1390,9 @@
         <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;6 sigmas must be provided as the tie_to_target.sigmas. &quot;</span>
                     <span class="s">&quot;Note that individual sigmas of 0.0 will remove &quot;</span>
                     <span class="s">&quot;the restraint for the corresponding cell parameter.&quot;</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">tie</span><span class="o">.</span><span class="n">apply_to_all</span><span class="p">:</span>
-        <span class="c"># get one experiment id for each parameterisation</span>
+      <span class="k">if</span> <span class="n">tie</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="c"># get one experiment id for each parameterisation to apply to all</span>
         <span class="n">tie</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">xl_uc_params</span><span class="p">]</span>
-      <span class="k">if</span> <span class="ow">not</span> <span class="n">tie</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;At least one experiment id must be provided as the &quot;</span>
-                    <span class="s">&quot;tie_to_target.id&quot;</span><span class="p">)</span>
       <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">tie</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
         <span class="n">rp</span><span class="o">.</span><span class="n">add_restraints_to_target_xl_unit_cell</span><span class="p">(</span><span class="n">exp_id</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">sigmas</span><span class="p">)</span>
 
@@ -1390,20 +1401,124 @@
         <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;6 sigmas must be provided as the tie_to_group.sigmas. &quot;</span>
                     <span class="s">&quot;Note that individual sigmas of 0.0 will remove &quot;</span>
                     <span class="s">&quot;the restraint for the corresponding cell parameter.&quot;</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">tie</span><span class="o">.</span><span class="n">apply_to_all</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">tie</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
         <span class="n">rp</span><span class="o">.</span><span class="n">add_restraints_to_group_xl_unit_cell</span><span class="p">(</span><span class="n">tie</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="s">&quot;all&quot;</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">sigmas</span><span class="p">)</span>
       <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">tie</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
-          <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;At least one experiment id must be provided as the &quot;</span>
-                      <span class="s">&quot;tie_to_group.id, or use apply_to_all&quot;</span><span class="p">)</span>
         <span class="n">rp</span><span class="o">.</span><span class="n">add_restraints_to_group_xl_unit_cell</span><span class="p">(</span><span class="n">tie</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">tie</span><span class="o">.</span><span class="n">sigmas</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">rp</span></div>
 
   <span class="nd">@staticmethod</span>
-<div class="viewcode-block" id="RefinerFactory.config_refinery"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_refinery">[docs]</a>  <span class="k">def</span> <span class="nf">config_refinery</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">verbosity</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Given a set of parameters, a target class, and a prediction</span>
-<span class="sd">    parameterisation class, build a refinery</span>
+<div class="viewcode-block" id="RefinerFactory.config_constraints"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_constraints">[docs]</a>  <span class="k">def</span> <span class="nf">config_constraints</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;If equal shift constraints are requested, build them and package into</span>
+<span class="sd">    a constraints manager to be linked to the Refinery&quot;&quot;&quot;</span>
+
+    <span class="c"># shorten options path</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span>
+
+    <span class="c"># shorten options paths further for individual parameterisation types</span>
+    <span class="n">detector_c</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">constraints</span>
+    <span class="n">beam_c</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">constraints</span>
+    <span class="n">orientation_c</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">constraints</span>
+    <span class="n">cell_c</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">constraints</span>
+
+    <span class="c"># quit early if there are no constraints to apply</span>
+    <span class="n">n_constraints</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">[</span><span class="n">detector_c</span><span class="p">,</span> <span class="n">beam_c</span><span class="p">,</span> <span class="n">orientation_c</span><span class="p">,</span>
+      <span class="n">cell_c</span><span class="p">]])</span>
+    <span class="k">if</span> <span class="n">n_constraints</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Configuring constraints&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">sparse</span><span class="p">:</span>
+      <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.constraints</span> \
+        <span class="kn">import</span> <span class="n">SparseConstraintManager</span> <span class="k">as</span> <span class="n">ConstraintManager</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.constraints</span> <span class="kn">import</span> <span class="n">ConstraintManager</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.constraints</span> <span class="kn">import</span> <span class="n">EqualShiftConstraint</span>
+
+    <span class="c"># get full parameter names and values</span>
+    <span class="n">all_names</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">()</span>
+    <span class="n">all_vals</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_param_vals</span><span class="p">()</span>
+
+    <span class="c"># list of constraint objects to build up</span>
+    <span class="n">constraints</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">detector_p</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_detector_parameterisations</span><span class="p">()</span>
+    <span class="n">beam_p</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_beam_parameterisations</span><span class="p">()</span>
+    <span class="n">orientation_p</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_crystal_orientation_parameterisations</span><span class="p">()</span>
+    <span class="n">cell_p</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_crystal_unit_cell_parameterisations</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">build_constraints</span><span class="p">(</span><span class="n">constraint_scope</span><span class="p">,</span> <span class="n">parameterisation</span><span class="p">,</span> <span class="n">model_type</span><span class="p">):</span>
+      <span class="kn">import</span> <span class="nn">re</span>
+      <span class="k">if</span> <span class="n">constraint_scope</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="c"># get one experiment id for each parameterisation to apply to all</span>
+        <span class="n">constraint_scope</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">parameterisation</span><span class="p">]</span>
+
+      <span class="c"># find which parameterisations are involved, and if any are scan-varying</span>
+      <span class="c"># how many sample points there are</span>
+      <span class="n">prefixes</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">n_samples</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">parameterisation</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s">&#39;num_samples&#39;</span><span class="p">):</span>
+          <span class="n">ns</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">num_samples</span><span class="p">()</span>
+          <span class="k">if</span> <span class="n">n_samples</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="n">n_samples</span> <span class="o">=</span> <span class="n">ns</span>
+          <span class="k">if</span> <span class="n">ns</span> <span class="o">!=</span> <span class="n">n_samples</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;Constraints cannot be created between scan-varying &quot;</span>
+              <span class="s">&quot;parameterisations when these have a different number of &quot;</span>
+              <span class="s">&quot;sample points.&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">():</span>
+          <span class="k">if</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">constraint_scope</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
+            <span class="n">prefixes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model_type</span> <span class="o">+</span> <span class="s">&#39;{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+            <span class="k">break</span>
+
+      <span class="c"># set up constraints for each type of parameter</span>
+      <span class="n">constraints</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">patt1</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;^&quot;</span> <span class="o">+</span> <span class="n">model_type</span> <span class="o">+</span> <span class="s">&quot;[0-9]+&quot;</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">pname</span> <span class="ow">in</span> <span class="n">constraint_scope</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+        <span class="c"># ignore model name prefixes</span>
+        <span class="n">pname</span> <span class="o">=</span> <span class="n">patt1</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">pname</span><span class="p">)</span>
+
+        <span class="c"># Use a regex to find parameters to constrain from a list of all the</span>
+        <span class="c"># parameter names. There are multiple parts to this. The first part</span>
+        <span class="c"># identifies the relevant model type and parameterisation ordinal index,</span>
+        <span class="c"># accepting those that were chosen according to the supplied experiment</span>
+        <span class="c"># ids. The next part allows for additional text, like &#39;Group1&#39; that may</span>
+        <span class="c"># be used by a multi-panel detector parameterisation. Then the parameter</span>
+        <span class="c"># name itself, like &#39;Dist&#39;. Finally, to accommodate scan-varying</span>
+        <span class="c"># parameterisations, suffixes like &#39;_sample0&#39; and &#39;_sample1&#39; are</span>
+        <span class="c"># distinguished so that these are constrained separately.</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="mi">1</span><span class="p">)):</span>
+          <span class="n">patt2</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;^(&quot;</span> <span class="o">+</span> <span class="s">&quot;|&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">prefixes</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot;){1}(?![0-9])(\w*&quot;</span> <span class="o">+</span> \
+            <span class="n">pname</span> <span class="o">+</span> <span class="s">&quot;)(_sample{0})?$&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+          <span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">all_names</span><span class="p">)</span> <span class="k">if</span> <span class="n">patt2</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">s</span><span class="p">)]</span>
+          <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="k">continue</span>
+          <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">The following parameters will be constrained &#39;</span>
+              <span class="s">&#39;to enforce equal shifts at each step of refinement:&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">all_names</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+          <span class="n">constraints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">EqualShiftConstraint</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">all_vals</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">constraints</span>
+
+    <span class="k">for</span> <span class="n">constr</span> <span class="ow">in</span> <span class="n">detector_c</span><span class="p">:</span>
+      <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">build_constraints</span><span class="p">(</span><span class="n">constr</span><span class="p">,</span> <span class="n">detector_p</span><span class="p">,</span> <span class="s">&#39;Detector&#39;</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">constr</span> <span class="ow">in</span> <span class="n">beam_c</span><span class="p">:</span>
+      <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">build_constraints</span><span class="p">(</span><span class="n">constr</span><span class="p">,</span> <span class="n">beam_p</span><span class="p">,</span> <span class="s">&#39;Beam&#39;</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">constr</span> <span class="ow">in</span> <span class="n">orientation_c</span><span class="p">:</span>
+      <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">build_constraints</span><span class="p">(</span><span class="n">constr</span><span class="p">,</span> <span class="n">orientation_p</span><span class="p">,</span> <span class="s">&#39;Crystal&#39;</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">constr</span> <span class="ow">in</span> <span class="n">cell_c</span><span class="p">:</span>
+      <span class="n">constraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">build_constraints</span><span class="p">(</span><span class="n">constr</span><span class="p">,</span> <span class="n">cell_p</span><span class="p">,</span> <span class="s">&#39;Crystal&#39;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">constraints</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="c"># return constraints manager</span>
+    <span class="k">return</span> <span class="n">ConstraintManager</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_vals</span><span class="p">))</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="RefinerFactory.config_refinery"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_refinery">[docs]</a>  <span class="k">def</span> <span class="nf">config_refinery</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">constraints_manager</span><span class="p">,</span>
+    <span class="n">verbosity</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given a set of parameters, a target class, a prediction</span>
+<span class="sd">    parameterisation class and a constraints_manager (which could be None),</span>
+<span class="sd">    build a refinery</span>
 
 <span class="sd">    Params:</span>
 <span class="sd">        params The input parameters</span>
@@ -1433,6 +1548,7 @@
 
     <span class="n">engine</span> <span class="o">=</span> <span class="n">refinery</span><span class="p">(</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span><span class="p">,</span>
             <span class="n">prediction_parameterisation</span> <span class="o">=</span> <span class="n">pred_param</span><span class="p">,</span>
+            <span class="n">constraints_manager</span><span class="o">=</span><span class="n">constraints_manager</span><span class="p">,</span>
             <span class="n">log</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">log</span><span class="p">,</span>
             <span class="n">verbosity</span> <span class="o">=</span> <span class="n">verbosity</span><span class="p">,</span>
             <span class="n">track_step</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">track_step</span><span class="p">,</span>
