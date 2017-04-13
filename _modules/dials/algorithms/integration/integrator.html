@@ -101,7 +101,6 @@
 
 <span class="s">    integration {</span>
 
-<span class="s">      include scope dials.data.multiprocessing.phil_scope</span>
 <span class="s">      include scope dials.data.lookup.phil_scope</span>
 
 <span class="s">      block {</span>
@@ -224,6 +223,21 @@
 <span class="s">          .help = &quot;Set the ice ring flags&quot;</span>
 <span class="s">          .type = bool</span>
 <span class="s">      }</span>
+
+<span class="s">      mp {</span>
+<span class="s">        method = *none drmaa sge lsf pbs</span>
+<span class="s">          .type = choice</span>
+<span class="s">          .help = &quot;The cluster method to use&quot;</span>
+
+<span class="s">        njobs = 1</span>
+<span class="s">          .type = int(value_min=1)</span>
+<span class="s">          .help = &quot;The number of cluster jobs to use&quot;</span>
+
+<span class="s">        nproc = 1</span>
+<span class="s">          .type = int(value_min=1)</span>
+<span class="s">          .help = &quot;The number of processes to use per cluster job&quot;</span>
+<span class="s">      }</span>
+
 <span class="s">    }</span>
 <span class="s">  &#39;&#39;&#39;</span><span class="p">,</span> <span class="n">process_includes</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
   <span class="n">main_scope</span> <span class="o">=</span> <span class="n">phil_scope</span><span class="o">.</span><span class="n">get_without_substitution</span><span class="p">(</span><span class="s">&quot;integration&quot;</span><span class="p">)</span>
@@ -367,17 +381,17 @@
     <span class="n">result</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
 
     <span class="c"># Create the multi processing parameters</span>
-    <span class="n">mp</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="o">.</span><span class="n">MultiProcessing</span><span class="p">()</span>
+    <span class="n">mp</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">MultiProcessing</span><span class="p">()</span>
     <span class="n">mp</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span>
     <span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span>
-    <span class="n">mp</span><span class="o">.</span><span class="n">nthreads</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nthreads</span>
+    <span class="n">mp</span><span class="o">.</span><span class="n">njobs</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">njobs</span>
 
     <span class="c"># Set the lookup parameters</span>
-    <span class="n">lookup</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="o">.</span><span class="n">Lookup</span><span class="p">()</span>
+    <span class="n">lookup</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Lookup</span><span class="p">()</span>
     <span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span>
 
     <span class="c"># Set the block parameters</span>
-    <span class="n">block</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="o">.</span><span class="n">Block</span><span class="p">()</span>
+    <span class="n">block</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Block</span><span class="p">()</span>
     <span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span>
     <span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span>
     <span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span>
@@ -640,7 +654,15 @@
 <span class="sd">    :return: the modeller</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span></div></div>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span></div>
+
+  <span class="k">def</span> <span class="nf">__getinitargs__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Support for pickling</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span><span class="p">)</span></div>
+
 
 
 <div class="viewcode-block" id="ProfileValidatorExecutor"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileValidatorExecutor">[docs]</a><span class="k">class</span> <span class="nc">ProfileValidatorExecutor</span><span class="p">(</span><span class="n">Executor</span><span class="p">):</span>
@@ -743,7 +765,14 @@
 <span class="sd">    :return: the modeller</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span></div></div>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span></div>
+
+  <span class="k">def</span> <span class="nf">__getinitargs__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Support for pickling</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="IntegratorExecutor"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorExecutor">[docs]</a><span class="k">class</span> <span class="nc">IntegratorExecutor</span><span class="p">(</span><span class="n">Executor</span><span class="p">):</span>
@@ -887,7 +916,14 @@
 <span class="sd">    Return data</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">return</span> <span class="bp">None</span></div></div>
+    <span class="k">return</span> <span class="bp">None</span></div>
+
+  <span class="k">def</span> <span class="nf">__getinitargs__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Support for pickling</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_fitter</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Integrator"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator">[docs]</a><span class="k">class</span> <span class="nc">Integrator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
