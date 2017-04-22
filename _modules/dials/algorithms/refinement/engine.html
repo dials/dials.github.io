@@ -256,18 +256,44 @@
       <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;gradient&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_g</span><span class="p">)</span>
     <span class="k">if</span> <span class="s">&quot;parameter_correlation&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">:</span>
       <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">,</span>
-          <span class="bp">self</span><span class="o">.</span><span class="n">_packed_corr_mat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="p">))</span>
+        <span class="n">resid_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;RMSD_&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">]</span>
+        <span class="c"># split Jacobian into dense matrix blocks corresponding to each residual</span>
+        <span class="n">jblocks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_jacobian_into_blocks</span><span class="p">()</span>
+        <span class="n">corrmats</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">j</span>  <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">resid_names</span><span class="p">,</span> <span class="n">jblocks</span><span class="p">):</span>
+          <span class="n">corrmats</span><span class="p">[</span><span class="n">r</span><span class="p">]</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_packed_corr_mat</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">,</span> <span class="n">corrmats</span><span class="p">)</span>
     <span class="k">if</span> <span class="s">&quot;out_of_sample_rmsd&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">:</span>
       <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">predict_for_free_reflections</span><span class="p">()</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;out_of_sample_rmsd&quot;</span><span class="p">,</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsds_for_reflection_table</span><span class="p">(</span><span class="n">preds</span><span class="p">))</span>
     <span class="k">return</span></div>
 
+<div class="viewcode-block" id="Refinery.split_jacobian_into_blocks"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.split_jacobian_into_blocks">[docs]</a>  <span class="k">def</span> <span class="nf">split_jacobian_into_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Split the Jacobian into blocks each corresponding to a separate</span>
+<span class="sd">    residual&quot;&quot;&quot;</span>
+
+    <span class="n">nblocks</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c"># The Jacobian might be a sparse matrix</span>
+      <span class="n">j</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="o">.</span><span class="n">as_dense_matrix</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+      <span class="n">j</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span>
+
+    <span class="n">nr</span><span class="p">,</span> <span class="n">nc</span> <span class="o">=</span> <span class="n">j</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="n">nr_block</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nr</span><span class="o">/</span><span class="n">nblocks</span><span class="p">)</span>
+    <span class="n">row_start</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="o">*</span> <span class="n">nr_block</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nblocks</span><span class="p">)]</span>
+    <span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">j</span><span class="o">.</span><span class="n">matrix_copy_block</span><span class="p">(</span><span class="n">rs</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">nr_block</span><span class="p">,</span> <span class="n">nc</span><span class="p">)</span> <span class="k">for</span> <span class="n">rs</span> <span class="ow">in</span> <span class="n">row_start</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">blocks</span></div>
+
   <span class="nd">@staticmethod</span>
   <span class="k">def</span> <span class="nf">_packed_corr_mat</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Return a 1D flex array containing the upper diagonal values of the</span>
 <span class="sd">    correlation matrix calculated between columns of 2D matrix m&quot;&quot;&quot;</span>
+
+    <span class="n">nr</span><span class="p">,</span> <span class="n">nc</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
     <span class="k">try</span><span class="p">:</span> <span class="c"># convert a flex.double matrix to sparse</span>
       <span class="n">nr</span><span class="p">,</span> <span class="n">nc</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
@@ -291,25 +317,33 @@
     <span class="k">return</span> <span class="n">tmp</span>
 
 <div class="viewcode-block" id="Refinery.get_correlation_matrix_for_step"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.get_correlation_matrix_for_step">[docs]</a>  <span class="k">def</span> <span class="nf">get_correlation_matrix_for_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Decompress and return the full 2D correlation matrix between columns of</span>
-<span class="sd">    the Jacobian that was stored in the journal at the given step number. If</span>
-<span class="sd">    not available, return None&quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;For each type of residual (e.g. X, Y, Phi), decompress and return the</span>
+<span class="sd">    full 2D correlation matrix between columns of the Jacobian that was</span>
+<span class="sd">    stored in the journal at the given step number. If not available, return</span>
+<span class="sd">    None&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="s">&quot;parameter_correlation&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
     <span class="k">try</span><span class="p">:</span>
-      <span class="n">packed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">][</span><span class="n">step</span><span class="p">]</span>
+      <span class="n">packed_mats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">][</span><span class="n">step</span><span class="p">]</span>
     <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
       <span class="k">return</span> <span class="bp">None</span>
-    <span class="k">if</span> <span class="n">packed</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
+    <span class="k">if</span> <span class="n">packed_mats</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+    <span class="n">packed_mats</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">packed_mats</span><span class="p">)</span>
+
     <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span><span class="p">)</span>
-    <span class="n">corr_mat</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">nparam</span><span class="p">,</span> <span class="n">nparam</span><span class="p">))</span>
-    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparam</span><span class="p">):</span>
-      <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">nparam</span><span class="p">):</span>
-        <span class="n">corr_mat</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">packed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
-    <span class="n">corr_mat</span><span class="o">.</span><span class="n">matrix_copy_upper_to_lower_triangle_in_place</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">corr_mat</span></div>
+
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">packed_mats</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">corr_mat</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">nparam</span><span class="p">,</span> <span class="n">nparam</span><span class="p">))</span>
+      <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparam</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">nparam</span><span class="p">):</span>
+          <span class="n">corr_mat</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+          <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="n">corr_mat</span><span class="o">.</span><span class="n">matrix_copy_upper_to_lower_triangle_in_place</span><span class="p">()</span>
+      <span class="n">packed_mats</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">corr_mat</span>
+    <span class="k">return</span> <span class="n">packed_mats</span></div>
 
 <div class="viewcode-block" id="Refinery.test_for_termination"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.test_for_termination">[docs]</a>  <span class="k">def</span> <span class="nf">test_for_termination</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Return True if refinement should be terminated&quot;&quot;&quot;</span>
