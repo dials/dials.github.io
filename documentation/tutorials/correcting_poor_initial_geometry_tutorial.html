@@ -43,7 +43,7 @@
     <link rel="prev" title="Processing in Detail" href="processing_in_detail_tutorial.html" />
    
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
 
   </head>
   <body role="document">
@@ -74,19 +74,28 @@ including:</p>
 <ul class="simple">
 <li>A &#8216;reversed&#8217; rotation axis</li>
 <li>Incorrect beam centre recorded in the image headers</li>
-<li>Multiple lattices confounding lattice symmetry determination</li>
+<li>Split spots</li>
+<li>Multiple lattices</li>
+<li>Systematically weak spots that may correspond to pseudocentring</li>
 </ul>
 <p>Despite these issues, the diffraction data is of reasonable quality and was
-used to <a href="#id3"><span class="problematic" id="id4">`solve the structure`_</span></a> after processing by XDS.</p>
-<p>.._solve the structure: <a class="reference external" href="http://www.rcsb.org/pdb/explore/explore.do?structureId=5I3L">http://www.rcsb.org/pdb/explore/explore.do?structureId=5I3L</a></p>
+used to <a class="reference external" href="http://www.rcsb.org/pdb/explore/explore.do?structureId=5I3L">solve the structure</a> after processing by XDS.</p>
 <p>In this tutorial we will look at how to use the DIALS toolkit to address these
 issues. The first problem, namely the inverted rotation axis, is trivially dealt
-with. However the following issues are particularly pernicious in this case.
-Rather than resulting in outright failures to process, we instead may obtain
-incorrect indexing solutions, which, if we were being careless, could have
-lead to the integration of a useless data set. This tutorial is a cautionary
-tale, the moral of which is that the user is still required to read the
-output of the programs they run and to make use of the diagnostic tools!</p>
+with. However the incorrect beam centre is particularly pernicious in this case.
+Rather than resulting in an outright failure to process, we instead may obtain
+an incorrect indexing solution, which, if we were being careless, could have
+lead to the integration of a useless data set.</p>
+<p>The presence of split spots and minor lattices indicate some disorder in the
+sample. However, these do not cause great difficulties in processing. More
+thought is required when considering the issue of possible pseudocentring.
+The structure can be solved in more than one space group. In cases such as
+this, the true symmetry may not be known until late stages of refinement. Even
+then, it might not be completely clear. Here we will investigate some features
+of the images that warn us of the challenges that lie ahead.</p>
+<p>This tutorial is a cautionary tale, the moral of which is that the user is
+still required to read the output of the programs they run and to make use
+of the diagnostic tools!</p>
 </div>
 <div class="section" id="import">
 <h2>Import<a class="headerlink" href="#import" title="Permalink to this headline">¶</a></h2>
@@ -106,7 +115,7 @@ the beamline geometry. You can inspect this model using <strong class="program">
 </pre></div>
 </div>
 <p>Note how the goniometer rotation axis is given by <code class="docutils literal"><span class="pre">{-1,0,0}</span></code> rather than
-<a href="#id1"><span class="problematic" id="id2">``</span></a>{1,0,0}`. This is because DIALS recognises that these images as being
+<code class="docutils literal"><span class="pre">{1,0,0}</span></code>. This is because DIALS recognises that these images as being
 from beamline 19-ID at the APS, which is known to have an inverted axis of
 rotation compared with the more common direction. Settings such as inverse
 <img class="math" src="../../_images/math/10e009bdb83f96c5f47c58b34d5d4b12ef268d5b.png" alt="\phi"/>, or vertical goniometers, can be the cause of problems with
@@ -140,7 +149,7 @@ seems sufficient to clean up some of the spurious peak positions. The gain
 setting we select here will only affect spot finding and not other stages of
 processing. Our focus here is empirical. We want to produce a good spot list
 for indexing, we are not worried about setting the detector gain to its true
-value (for an ADSC Q315r detector this is expected to be about 2.4 ADU per
+value (for an ADSC Q315r detector this is reported to be about 2.4 ADU per
 12 keV X-ray).</p>
 <p>Once we are satisfied with the spot-finding settings we can write them out
 to <code class="file docutils literal"><span class="pre">find_spots.phil</span></code> by clicking the <code class="docutils literal"><span class="pre">Save</span></code> button on the
@@ -240,7 +249,7 @@ of these are right. First look at the <code class="docutils literal"><span class
 the <a class="reference external" href="http://dx.doi.org/10.1107/S0021889882011959">Le Page</a> <img class="math" src="../../_images/math/b35a9439ad8c8657b1b1d792ad5c2d77a52c0aef.png" alt="\delta"/>
 value. For a correct indexing solution with a good dataset this should be a
 small number, less than 0.1 say, such as in the
-<a class="reference internal" href="processing_in_detail_tutorial.html"><span class="doc">Processing in Detail</span></a> tutorial. The <code class="docutils literal"><span class="pre">rmsd</span></code> column reports an
+<a class="reference internal" href="processing_in_detail_tutorial.html"><em>Processing in Detail</em></a> tutorial. The <code class="docutils literal"><span class="pre">rmsd</span></code> column reports an
 overall positional RMSD. Again, small numbers are better. Typically we would
 look for a solution below a jump to higher values of RMSD. Here they are all
 pretty bad, at around an order of magnitude larger than what we&#8217;d expect
@@ -298,8 +307,9 @@ Check symmetry operations on 16384 reflections:
 </div>
 <p>In this case there is a much greater correlation coefficient for the shift
 <img class="math" src="../../_images/math/e3b6251f1b7e973c61de1003b586070819d246a3.png" alt="\delta h=1"/>, <img class="math" src="../../_images/math/d436971d5becc2406af39d3eda4de839817b2c12.png" alt="\delta k=1"/> and <img class="math" src="../../_images/math/8181469d88a0bef5f29e2059a537b5601a1e814e.png" alt="\delta l=1"/> than for all
-others. In fact with 95% correlation even in the unscaled, rough found spots
-intensity values we can be very sure we have found the right solution.</p>
+others. In fact with 95% correlation even in the unscaled, rough intensities
+of the found spots, with no background subtraction, we can be very sure we
+have found the right solution.</p>
 <p>Although it is possible to apply the correction using <strong class="program">dials.reindex</strong>
 like this:</p>
 <div class="highlight-none"><div class="highlight"><pre>dials.reindex indexed.pickle hkl_offset=1,1,1
@@ -382,15 +392,22 @@ Solution Metric fit  rmsd  min/max cc #spots lattice                            
 --------------------------------------------------------------------------------------------------------------
 </pre></div>
 </div>
+<p>We may now go on to refine the solution and integrate, following the steps
+outlined in the <a class="reference internal" href="processing_in_detail_tutorial.html"><em>Processing in Detail</em></a> tutorial. This is left
+as an exercise for the reader. If you do this, note that
+<strong class="program">Pointless</strong> chooses the space group <img class="math" src="../../_images/math/f16de5de55a58f675c4e6c598e5f89112d5208c3.png" alt="P 2_1 2_1 2_1"/> but warns
+that the <cite>data were integrated on a primitive lattice, but may belong to a
+centered lattice</cite>. Furthermore, <strong class="program">cTruncate</strong> finds strong evidence
+for translational NCS, for this basis along a vector of <img class="math" src="../../_images/math/3ff9945afe83e4ab3c5c4ac63309184dd6f8363c.png" alt="(0.0, 0.5, 0.5)"/>.
+The fact that this vector corresponds to a half integral step along a face
+diagonal should lead us to question the space group assignment.</p>
 </div>
 <div class="section" id="questioning-the-lattice-symmetry">
 <h2>Questioning the lattice symmetry<a class="headerlink" href="#questioning-the-lattice-symmetry" title="Permalink to this headline">¶</a></h2>
-<p>The solution we obtained in the last section looks reasonable, and we might
-be forgiven for taking it further into refinement and integration. However,
-it is always good advice to spend some time looking at the images and the
-reciprocal lattice before committing to that course of action. If we did so,
-we may notice some subtle features that indicate a problem with our chosen
-lattice.</p>
+<p>It is always good advice to spend some time looking at the images and the
+reciprocal lattice before integrating a dataset. If we did so, we may notice the
+subtle features in the diffraction pattern that are the cause of the warnings
+from <strong class="program">Pointless</strong> and <strong class="program">cTruncate</strong>.</p>
 <p>First the reciprocal lattice:</p>
 <div class="highlight-none"><div class="highlight"><pre>dials.reciprocal_lattice_viewer bravais_setting_5.json indexed.pickle
 </pre></div>
@@ -398,62 +415,11 @@ lattice.</p>
 <img alt="../../_images/dpf3_oP_lo_res.png" src="../../_images/dpf3_oP_lo_res.png" />
 <p>Here the view has been aligned almost down the long axis of the reciprocal
 cell, which is <img class="math" src="../../_images/math/645d2002acf5511c8764dde6c24a5027dc2b0c0b.png" alt="a^\star"/> for this basis. We see the columns of
-reciprocal lattice points with Miller indices differing by <div class="system-message">
-<p class="system-message-title">System Message: WARNING/2 (<tt class="docutils">\h</tt>)</p>
-latex exited with error
-[stdout]
-This is pdfTeXk, Version 3.141592-1.40.3 (Web2C 7.5.6)
- %&amp;-line parsing enabled.
-entering extended mode
-(./math.tex
-LaTeX2e &lt;2005/12/01&gt;
-Babel &lt;v3.8h&gt; and hyphenation patterns for english, usenglishmax, dumylang, noh
-yphenation, arabic, basque, bulgarian, coptic, welsh, czech, slovak, german, ng
-erman, danish, esperanto, spanish, catalan, galician, estonian, farsi, finnish,
- french, greek, monogreek, ancientgreek, croatian, hungarian, interlingua, ibyc
-us, indonesian, icelandic, italian, latin, mongolian, dutch, norsk, polish, por
-tuguese, pinyin, romanian, russian, slovenian, uppersorbian, serbian, swedish, 
-turkish, ukenglish, ukrainian, loaded.
-(/usr/share/texmf/tex/latex/base/article.cls
-Document Class: article 2005/09/16 v1.4f Standard LaTeX document class
-(/usr/share/texmf/tex/latex/base/size12.clo))
-(/usr/share/texmf/tex/latex/base/inputenc.sty
-(/usr/share/texmf/tex/latex/ucs/utf8x.def))
-(/usr/share/texmf/tex/latex/ucs/ucs.sty
-(/usr/share/texmf/tex/latex/ucs/data/uni-global.def))
-(/usr/share/texmf/tex/latex/amsmath/amsmath.sty
-For additional information on amsmath, use the `?&#8217; option.
-(/usr/share/texmf/tex/latex/amsmath/amstext.sty
-(/usr/share/texmf/tex/latex/amsmath/amsgen.sty))
-(/usr/share/texmf/tex/latex/amsmath/amsbsy.sty)
-(/usr/share/texmf/tex/latex/amsmath/amsopn.sty))
-(/usr/share/texmf/tex/latex/amscls/amsthm.sty)
-(/usr/share/texmf/tex/latex/amsfonts/amssymb.sty
-(/usr/share/texmf/tex/latex/amsfonts/amsfonts.sty))
-(/usr/share/texmf/tex/latex/tools/bm.sty) (./math.aux)
-(/usr/share/texmf/tex/latex/ucs/ucsencs.def)
-(/usr/share/texmf/tex/latex/amsfonts/umsa.fd)
-(/usr/share/texmf/tex/latex/amsfonts/umsb.fd)
-! Undefined control sequence.
-&lt;recently read&gt; \h 
-                   
-l.12 $\h
-        $
-[1] (./math.aux) )
-(see the transcript file for additional information)
-Output written on math.dvi (1 page, 152 bytes).
-Transcript written on math.log.
-</div>
- as
+reciprocal lattice points with Miller indices differing by <img class="math" src="../../_images/math/cbb80ad77aa7a5e227d5a46bc44d235284106cfc.png" alt="h"/> as
 lines of closely-spaced points. However, we can also see that the lengths of
 the lines alternate between long and short as we move, for example, in the
 <img class="math" src="../../_images/math/3861cc428bcd3e56ad8d209e81a1c0cc5af14af8.png" alt="c^\star"/> direction. At this point we might start to suspect
 a pseudocentred lattice.</p>
-<p>However, if we align the view almost along a diagonal across the A face then
-we see that alternating lines of reciprocal lattice points are not exactly
-parallel. This would suggest that rather than pseudocentring, the weak
-interstitial spots are the result of diffraction from a separate lattice.</p>
-<img alt="../../_images/dpf3_oP_lo_res2.png" src="../../_images/dpf3_oP_lo_res2.png" />
 <p>Now the image viewer:</p>
 <div class="highlight-none"><div class="highlight"><pre>dials.image_viewer bravais_setting_5.json indexed.pickle
 </pre></div>
@@ -463,11 +429,9 @@ interstitial spots are the result of diffraction from a separate lattice.</p>
 line of indexed spots have Miller indices in <img class="math" src="../../_images/math/177f0a987bd60b1ca37863a50e299bcdce41e878.png" alt="(3,-13,l)"/>. Looking closely
 we see that spots with even <img class="math" src="../../_images/math/d99efde75c84ef402a92cd4497530d2366fb112f.png" alt="l"/> are systematically weaker than spots with
 odd <img class="math" src="../../_images/math/d99efde75c84ef402a92cd4497530d2366fb112f.png" alt="l"/>. This fits the theory of a pseudocentred lattice, however we
-also see that the spot profile differs between the two sets. That fact is rather
-more supportive of the hypothesis that these spots result from diffraction of a
-different component of the sample.</p>
-<p>To investigate these possibilites we can enforce the centred lattice and see
-where that takes us...</p>
+also see that the spot profile differs between the two sets.</p>
+<p>To investigate further we can enforce the centred lattice and see where that
+takes us...</p>
 </div>
 <div class="section" id="converting-to-a-centred-lattice">
 <h2>Converting to a centred lattice<a class="headerlink" href="#converting-to-a-centred-lattice" title="Permalink to this headline">¶</a></h2>
@@ -523,11 +487,10 @@ the spots allowed by centring being indexed:</p>
 <img alt="../../_images/dpf3_oC_im5.png" src="../../_images/dpf3_oC_im5.png" />
 <p>Now a view of the reciprocal lattice, aligned down the <img class="math" src="../../_images/math/3861cc428bcd3e56ad8d209e81a1c0cc5af14af8.png" alt="c^\star"/> axis to
 show off the systematic absences.</p>
-<p>We&#8217;ll leave further processing as an exercise for the reader. What does
-Pointless choose as the space group?</p>
+<img alt="../../_images/dpf3_oC_lo_res.png" src="../../_images/dpf3_oC_lo_res.png" />
 </div>
-<div class="section" id="exploring-the-minor-lattices">
-<h2>Exploring the minor lattices<a class="headerlink" href="#exploring-the-minor-lattices" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="exploring-the-unindexed-reflections">
+<h2>Exploring the unindexed reflections<a class="headerlink" href="#exploring-the-unindexed-reflections" title="Permalink to this headline">¶</a></h2>
 <p>When we indexed with the oC lattice we wrote out the unindexed reflections
 as a separate file. We know that the spots in the positions disallowed by the
 oC lattice do themselves form an orthorhombic lattice. In views from the
@@ -549,8 +512,13 @@ Crystal:
     Space group: P 2 2 2
 </pre></div>
 </div>
-<p>Note there is a rotation about 11 degrees to transform crystal 1 to crystal
-2. We can combine this result with the previous one:</p>
+<p>The first lattice is the same as our original primitive solution, however
+because we have now excluded all the reflections that were indexed by the
+centred lattice, this model now <em>only</em> indexes the spots that should be
+systematically absent with an oC lattice. The second lattice comes from a
+separate crystallite, rotated about 11 degrees from the first and therefore
+easily disentangled from the others. We can combine this result with the
+previous one:</p>
 <div class="highlight-none"><div class="highlight"><pre>dials.combine_experiments bravais_setting_5.json reindexed_reflections.pickle minor.json minor.pickle beam=0 detector=0 scan=0 goniometer=0 compare_models=False
 </pre></div>
 </div>
@@ -568,26 +536,61 @@ about 65000 indexed reflections, split between three lattices:</p>
 ----------------------
 </pre></div>
 </div>
-<p>Here is a view of reciprocal space, aligned down the <img class="math" src="../../_images/math/3861cc428bcd3e56ad8d209e81a1c0cc5af14af8.png" alt="c^\star"/> axis of
-the first experiment:</p>
+<p>Here is a view of reciprocal space, aligned down the shared <img class="math" src="../../_images/math/3861cc428bcd3e56ad8d209e81a1c0cc5af14af8.png" alt="c^\star"/>
+axes of the oC lattice, and its complement, the oP lattice that indexes the
+disallowed reflections:</p>
 <div class="highlight-none"><div class="highlight"><pre>dials.reciprocal_lattice_viewer combined_experiments.json combined_reflections.pickle
 </pre></div>
 </div>
 <img alt="../../_images/dpf3_3lattices.png" src="../../_images/dpf3_3lattices.png" />
-<p>We can create an HTML report for the combined experiments:</p>
+<p>It is worth spending some time with the
+<strong class="program">dials.reciprocal_lattice_viewer</strong> at different zoom levels and
+orientations, and with different <cite>Min Z</cite> and <cite>Max Z</cite> limits. See how the
+lattice of <cite>disallowed</cite> reflections is stronger (more sufficiently strong
+spots found) in latter half of the dataset (images 100 onwards).</p>
+<p>We can see this more directly if we create an HTML report for the combined
+experiments:</p>
 <div class="highlight-none"><div class="highlight"><pre>dials.report combined_experiments.json combined_reflections.pickle
 </pre></div>
 </div>
-<p>This includes a useful plot of the number of indexed reflections for each
-lattice versus the image number. This shows how the first lattice dominates
-throughout the data collection. The second lattice, which is aligned well with
-the first causing the apparent breaking of the oC reflection conditions, is
-present from the start but becomes more prominent in the second half of the
-data collection. This could be a result of a different region of the sample
-coming into the beam. The third lattice, which is misaligned from the others
-by about 11 degrees is present only on images in the first quarter of the
+<p>Load the resulting <code class="file docutils literal"><span class="pre">dials-report.html</span></code> in a web browser. This includes
+a useful plot of the number of indexed reflections for each lattice versus
+the image number. Unfortunately the colours of curves on this plot do not
+match the colours in the <strong class="program">dials.reciprocal_lattice_viewer</strong>!
+Nevertheless, the plot shows how the first lattice dominates throughout the
+data collection. The second lattice, which is aligned well with the first
+causing the apparent breaking of the oC reflection conditions, is present
+from the start but becomes more prominent in the second half of the data
+collection. The third lattice, which is misaligned from the others
+by about 11 degrees, is present only on images in the first quarter of the
 dataset.</p>
 <img alt="../../_images/dpf3_indexed_count_3lattices.png" src="../../_images/dpf3_indexed_count_3lattices.png" />
+<p>Intriguingly, the pattern of number of found strong spots for lattice 2
+(which roughly corresponds to the intensity of those spots) follows a
+sinusoidal pattern, which is weakest around image 60 and strongest around
+image 150 (after a 90 degrees rotation of the crystal). Using the image
+viewer with the <code class="docutils literal"><span class="pre">Basis</span> <span class="pre">vectors</span></code> button ticked you can see how this
+corresponds to being weaker when the beam is approximately parallel to the
+plane of the pseudocentred C face, and stronger when the beam is orthogonal
+to that face, that is when the suggested tNCS vector is orthogonal to the
+beam:</p>
+<img alt="../../_images/dpf3_im60_vs_150.png" src="../../_images/dpf3_im60_vs_150.png" />
+</div>
+<div class="section" id="centred-or-pseudocentred">
+<h2>Centred or pseudocentred?<a class="headerlink" href="#centred-or-pseudocentred" title="Permalink to this headline">¶</a></h2>
+<p>We have two ways we can model this crystal:</p>
+<ul class="simple">
+<li>Primitive orthorhombic (<img class="math" src="../../_images/math/f16de5de55a58f675c4e6c598e5f89112d5208c3.png" alt="P 2_1 2_1 2_1"/>) with translational NCS mimicking
+centring on the C face</li>
+<li>C-centred orthorhombic (<img class="math" src="../../_images/math/9d9127cf8bdd31bbae80ad4322854f71c288e252.png" alt="C 2 2 2_1"/>), ignoring the systematically weak
+intensities</li>
+</ul>
+<p>If we choose the oP lattice we have twice the number of integrated intensities,
+but the asymmetric unit is twice as large, and the additional reflections are
+weak and have poorer signal to noise. The important question is whether it makes
+a difference to the final model for the structure. To discover this, we will
+have to solve and refine the structure in each case.</p>
+<p>FIXME. More to add here</p>
 </div>
 <div class="section" id="conclusions">
 <h2>Conclusions<a class="headerlink" href="#conclusions" title="Permalink to this headline">¶</a></h2>
@@ -603,8 +606,6 @@ sorts of spot finding and indexing problems.</li>
 insidious and may result in a misindexed solution.</li>
 <li>Look out for CCs to detect misindexed data, and remember
 <strong class="program">dials.check_indexing_symmetry</strong>.</li>
-<li>Determination of lattice symmetry may be complicated by the presence of
-multiple lattices.</li>
 <li>Always use the diagnostic tools!</li>
 </ul>
 <div class="section" id="acknowledgements">
