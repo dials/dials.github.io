@@ -700,14 +700,36 @@
              <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">smoother</span><span class="p">,</span>
              <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">smoother</span><span class="p">,</span>
              <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="p">]</span>
-      <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">tst</span><span class="p">:</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">absolute_num_intervals</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span>
-            <span class="n">e</span><span class="o">.</span><span class="n">interval_width_degrees</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">):</span>
-          <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Doing centroid analysis to &#39;</span>
-            <span class="s">&#39;automatically determine scan-varying interval widths&#39;</span><span class="p">)</span>
-          <span class="n">ca</span> <span class="o">=</span> <span class="n">refman</span><span class="o">.</span><span class="n">get_centroid_analyser</span><span class="p">()</span>
-          <span class="n">analysis</span> <span class="o">=</span> <span class="n">ca</span><span class="p">()</span>
-          <span class="k">break</span>
+      <span class="n">tst</span> <span class="o">=</span> <span class="p">[(</span><span class="n">e</span><span class="o">.</span><span class="n">absolute_num_intervals</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span>
+              <span class="n">e</span><span class="o">.</span><span class="n">interval_width_degrees</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">tst</span><span class="p">]</span>
+      <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">tst</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Doing centroid analysis to &#39;</span>
+          <span class="s">&#39;automatically determine scan-varying interval widths&#39;</span><span class="p">)</span>
+        <span class="n">ca</span> <span class="o">=</span> <span class="n">refman</span><span class="o">.</span><span class="n">get_centroid_analyser</span><span class="p">()</span>
+        <span class="n">analysis</span> <span class="o">=</span> <span class="n">ca</span><span class="p">()</span>
+
+    <span class="c"># Use the results of centroid analysis to suggest suitable interval widths</span>
+    <span class="c"># for each experiment. This will be the smallest of the proposed intervals</span>
+    <span class="c"># for each of the residuals in x, y and phi, as long as this is not smaller</span>
+    <span class="c"># than either the outlier rejection block width, or 9.0 degrees.</span>
+    <span class="k">if</span> <span class="n">analysis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">analysis</span><span class="p">):</span>
+        <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;x_interval&#39;</span><span class="p">),</span>
+                     <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;y_interval&#39;</span><span class="p">),</span>
+                     <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;phi_interval&#39;</span><span class="p">)]</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">min_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">intervals</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span> <span class="c"># empty list</span>
+          <span class="n">a</span><span class="p">[</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">9.0</span>
+          <span class="k">continue</span>
+        <span class="n">min_interval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">min_interval</span><span class="p">,</span> <span class="mf">9.0</span><span class="p">)</span>
+        <span class="n">block_size</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;block_size&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">block_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+          <span class="n">min_interval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">min_interval</span><span class="p">,</span> <span class="n">block_size</span><span class="p">)</span>
+        <span class="n">a</span><span class="p">[</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">min_interval</span>
+        <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Exp id {0} suggested interval width = {1:.1f} degrees&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">i</span><span class="p">,</span> <span class="n">min_interval</span><span class="p">))</span>
 
     <span class="c"># Parameterise unique Beams</span>
     <span class="n">beam_params</span> <span class="o">=</span> <span class="p">[]</span>
@@ -737,20 +759,8 @@
           <span class="k">if</span> <span class="n">n_intervals</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
             <span class="k">if</span> <span class="n">deg_per_interval</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span> <span class="ow">and</span> <span class="n">analysis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-              <span class="c"># extract the smallest suggested interval for experiments this</span>
-              <span class="c"># beam appears in and use the maximum of that or 9 degrees</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[]</span>
-              <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                <span class="n">a</span> <span class="o">=</span> <span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                <span class="n">intervals</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;x_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;y_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;phi_interval&#39;</span><span class="p">)])</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">intervals</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">]</span>
-              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">),</span> <span class="mf">9.0</span><span class="p">])</span>
-              <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                  <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">((</span><span class="s">&#39;Beam interval_width_degrees for experiment id&#39;</span>
-                    <span class="s">&#39; {0} set to {1:.1f}&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">deg_per_interval</span><span class="p">))</span>
+              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">]</span>
+              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
               <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="mf">36.0</span>
             <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
@@ -837,20 +847,8 @@
           <span class="k">if</span> <span class="n">n_intervals</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">orientation</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
             <span class="k">if</span> <span class="n">deg_per_interval</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span> <span class="ow">and</span> <span class="n">analysis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-              <span class="c"># extract the smallest suggested interval for experiments this</span>
-              <span class="c"># crystal appears in and use the maximum of that or 9 degrees</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[]</span>
-              <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                <span class="n">a</span> <span class="o">=</span> <span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                <span class="n">intervals</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;x_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;y_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;phi_interval&#39;</span><span class="p">)])</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">intervals</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">]</span>
-              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">),</span> <span class="mf">9.0</span><span class="p">])</span>
-              <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                  <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">((</span><span class="s">&#39;Crystal orientation interval_width_degrees for experiment id&#39;</span>
-                    <span class="s">&#39; {0} set to {1:.1f}&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">deg_per_interval</span><span class="p">))</span>
+              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">]</span>
+              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
               <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="mf">36.0</span>
             <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
@@ -871,20 +869,8 @@
           <span class="k">if</span> <span class="n">n_intervals</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
             <span class="k">if</span> <span class="n">deg_per_interval</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span> <span class="ow">and</span> <span class="n">analysis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-              <span class="c"># extract the smallest suggested interval for experiments this</span>
-              <span class="c"># crystal appears in and use the maximum of that or 9 degrees</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[]</span>
-              <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                <span class="n">a</span> <span class="o">=</span> <span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                <span class="n">intervals</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;x_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;y_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;phi_interval&#39;</span><span class="p">)])</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">intervals</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">]</span>
-              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">),</span> <span class="mf">9.0</span><span class="p">])</span>
-              <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                  <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">((</span><span class="s">&#39;Crystal unit cell interval_width_degrees for experiment id&#39;</span>
-                    <span class="s">&#39; {0} set to {1:.1f}&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">deg_per_interval</span><span class="p">))</span>
+              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">]</span>
+              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
               <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="mf">36.0</span>
             <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
@@ -992,20 +978,8 @@
           <span class="k">if</span> <span class="n">n_intervals</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
             <span class="k">if</span> <span class="n">deg_per_interval</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span> <span class="ow">and</span> <span class="n">analysis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-              <span class="c"># extract the smallest suggested interval for experiments this</span>
-              <span class="c"># detector appears in and use the maximum of that or 9 degrees</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[]</span>
-              <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                <span class="n">a</span> <span class="o">=</span> <span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                <span class="n">intervals</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;x_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;y_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;phi_interval&#39;</span><span class="p">)])</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">intervals</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">]</span>
-              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">),</span> <span class="mf">9.0</span><span class="p">])</span>
-              <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                  <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">((</span><span class="s">&#39;Detector interval_width_degrees for experiment id&#39;</span>
-                    <span class="s">&#39; {0} set to {1:.1f}&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">deg_per_interval</span><span class="p">))</span>
+              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">]</span>
+              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
               <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="mf">36.0</span>
             <span class="n">n_intervals</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
@@ -1036,16 +1010,8 @@
           <span class="k">if</span> <span class="n">n_intervals</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">smoother</span><span class="o">.</span><span class="n">interval_width_degrees</span>
             <span class="k">if</span> <span class="n">deg_per_interval</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span> <span class="ow">and</span> <span class="n">analysis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-              <span class="c"># extract the smallest suggested interval for experiments this</span>
-              <span class="c"># detector appears in and use the maximum of that or 9 degrees</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[]</span>
-              <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-                <span class="n">a</span> <span class="o">=</span> <span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                <span class="n">intervals</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;x_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;y_interval&#39;</span><span class="p">),</span>
-                                  <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;phi_interval&#39;</span><span class="p">)])</span>
-              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">intervals</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">]</span>
-              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">),</span> <span class="mf">9.0</span><span class="p">])</span>
+              <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">analysis</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">]</span>
+              <span class="n">deg_per_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">intervals</span><span class="p">)</span>
               <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
                   <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">((</span><span class="s">&#39;Detector interval_width_degrees for experiment id&#39;</span>
