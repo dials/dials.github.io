@@ -484,8 +484,9 @@
 
     <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">,</span> <span class="s">&#39;miller_index&#39;</span><span class="p">,</span> <span class="s">&#39;panel&#39;</span><span class="p">,</span> <span class="s">&#39;s1&#39;</span><span class="p">,</span> <span class="s">&#39;xyzobs.mm.value&#39;</span><span class="p">,</span>
             <span class="s">&quot;xyzobs.px.value&quot;</span><span class="p">,</span> <span class="s">&quot;xyzcal.px&quot;</span><span class="p">,</span>
-            <span class="s">&#39;xyzobs.mm.variance&#39;</span><span class="p">,</span> <span class="s">&#39;flags&#39;</span><span class="p">]</span>
+            <span class="s">&#39;xyzobs.mm.variance&#39;</span><span class="p">,</span> <span class="s">&#39;flags&#39;</span><span class="p">,</span> <span class="s">&#39;delpsical.weights&#39;</span><span class="p">]</span>
     <span class="c"># NB xyzobs.px.value &amp; xyzcal.px required by SauterPoon outlier rejector</span>
+    <span class="c"># NB delpsical.weights is used by ExternalDelPsiWeightingStrategy</span>
     <span class="n">rt</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">()</span>
 
     <span class="c"># copy columns to the new table. Could use the select method</span>
@@ -719,8 +720,15 @@
                      <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;phi_interval&#39;</span><span class="p">)]</span>
         <span class="k">try</span><span class="p">:</span>
           <span class="n">min_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">intervals</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">])</span>
-        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span> <span class="c"># empty list</span>
-          <span class="n">a</span><span class="p">[</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">9.0</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+          <span class="c"># empty list - analysis was unable to suggest a suitable interval</span>
+          <span class="c"># width. Default to the safest case</span>
+          <span class="n">phi_min</span><span class="p">,</span> <span class="n">phi_max</span>  <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+          <span class="n">a</span><span class="p">[</span><span class="s">&#39;interval_width&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">phi_max</span> <span class="o">-</span> <span class="n">phi_min</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Exp id {0} suggested interval width could not be &#39;</span>
+              <span class="s">&#39;determined and will be reset to the scan width of &#39;</span>
+              <span class="s">&#39;{1:.1f} degrees&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">a</span><span class="p">[</span><span class="s">&#39;interval_width&#39;</span><span class="p">]))</span>
           <span class="k">continue</span>
         <span class="n">min_interval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">min_interval</span><span class="p">,</span> <span class="mf">9.0</span><span class="p">)</span>
         <span class="n">block_size</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;block_size&#39;</span><span class="p">)</span>
