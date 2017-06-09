@@ -277,10 +277,6 @@
     <span class="k">del</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;intensity.prf.value&#39;</span><span class="p">]</span>
     <span class="k">del</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;intensity.prf.variance&#39;</span><span class="p">]</span>
 
-  <span class="c"># strip out negative variance reflections: these should not really be there</span>
-  <span class="c"># FIXME Doing select on summation results. Should do on profile result if</span>
-  <span class="c"># present? Yes</span>
-
   <span class="k">if</span> <span class="s">&#39;intensity.prf.variance&#39;</span> <span class="ow">in</span> <span class="n">integrated_data</span><span class="p">:</span>
     <span class="n">selection</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span>
       <span class="n">integrated_data</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">integrated</span><span class="p">,</span>
@@ -412,7 +408,7 @@
   <span class="kn">from</span> <span class="nn">dials.util.version</span> <span class="kn">import</span> <span class="n">dials_version</span>
   <span class="kn">import</span> <span class="nn">time</span>
   <span class="n">date_str</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%d</span><span class="s">/%m/%Y at %H:%M:%S&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">())</span>
-  <span class="n">m</span><span class="o">.</span><span class="n">add_history</span><span class="p">(</span><span class="s">&#39;From </span><span class="si">%s</span><span class="s">, run on </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">dials_version</span><span class="p">(),</span> <span class="n">date_str</span><span class="p">))</span>
+  <span class="n">m</span><span class="o">.</span><span class="n">add_history</span><span class="p">(</span><span class="s">&#39;From </span><span class="si">%s</span><span class="s">, run on </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">dials_version</span><span class="p">(),</span> <span class="n">date_str</span><span class="p">))</span>
 
   <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
     <span class="n">image_range</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
@@ -421,6 +417,13 @@
 
   <span class="c"># pointless (at least) doesn&#39;t like batches starting from zero</span>
   <span class="n">b_incr</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+
+  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Mosflm U matrix:&#39;</span><span class="p">)</span>
+  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">dials_u_to_mosflm</span><span class="p">(</span><span class="n">F</span> <span class="o">*</span> <span class="n">U</span><span class="p">,</span> <span class="n">unit_cell</span><span class="p">)))</span>
+
+  <span class="n">s0n</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">s0</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span>
+
+  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Beam vector: </span><span class="si">%.4f</span><span class="s"> </span><span class="si">%.4f</span><span class="s"> </span><span class="si">%.4f</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">s0n</span><span class="p">)</span>
 
   <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
     <span class="n">o</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">add_batch</span><span class="p">()</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="n">b</span><span class="o">+</span><span class="n">b_incr</span><span class="p">)</span><span class="o">.</span><span class="n">set_nbsetid</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">set_ncryst</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
@@ -431,7 +434,7 @@
 
     <span class="c"># FIXME hard-coded assumption on indealized beam vector below... this may be</span>
     <span class="c"># broken when we come to process data from a non-imgCIF frame</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_so</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">s0</span><span class="p">))</span><span class="o">.</span><span class="n">set_source</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
+    <span class="n">o</span><span class="o">.</span><span class="n">set_so</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">s0n</span><span class="p">))</span><span class="o">.</span><span class="n">set_source</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
 
     <span class="c"># these are probably 0, 1 respectively, also flags for how many are set, sd</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_bbfac</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_bscale</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
@@ -457,16 +460,17 @@
     <span class="c"># the U.B. matrix assuming that the axis is equal to S * axis_datum but</span>
     <span class="c"># here we are just giving the effective axis so at scan angle 0 this will</span>
     <span class="c"># not be correct... FIXME 2 not even sure we can express the stack of</span>
-    <span class="c"># matrices S * R * F * U * B in MTZ format?...</span>
+    <span class="c"># matrices S * R * F * U * B in MTZ format?... see [=A=] below</span>
     <span class="n">_U</span> <span class="o">=</span> <span class="n">dials_u_to_mosflm</span><span class="p">(</span><span class="n">F</span> <span class="o">*</span> <span class="n">_U</span><span class="p">,</span> <span class="n">_unit_cell</span><span class="p">)</span>
 
     <span class="c"># FIXME need to get what was refined and what was constrained from the</span>
-    <span class="c"># crystal model</span>
+    <span class="c"># crystal model - see https://github.com/dials/dials/issues/355</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_cell</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">_unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">()))</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_lbcell</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_umat</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">_U</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span><span class="p">))</span>
 
-    <span class="c"># get the mosaic spread though today it may not actually be set</span>
+    <span class="c"># get the mosaic spread though today it may not actually be set - should</span>
+    <span class="c"># this be in the BATCH headers?</span>
     <span class="n">mosaic</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_mosaicity</span><span class="p">()</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_crydat</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">([</span><span class="n">mosaic</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>
                              <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]))</span>
@@ -480,7 +484,8 @@
                             <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_dx</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">([</span><span class="n">panel</span><span class="o">.</span><span class="n">get_directed_distance</span><span class="p">(),</span> <span class="mf">0.0</span><span class="p">]))</span>
 
-    <span class="c"># goniometer axes and names, and scan axis number, and number of axes, missets</span>
+    <span class="c"># goniometer axes and names, and scan axis number, and num axes, missets</span>
+    <span class="c"># [=A=] should we be using this to unroll the setting matrix etc?</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_e1</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">axis</span><span class="p">))</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_e2</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_e3</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
@@ -494,6 +499,7 @@
       <span class="n">phi_start</span><span class="p">,</span> <span class="n">phi_range</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_oscillation</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="n">phi_start</span><span class="p">,</span> <span class="n">phi_range</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
+
     <span class="n">o</span><span class="o">.</span><span class="n">set_phistt</span><span class="p">(</span><span class="n">phi_start</span><span class="p">)</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_phirange</span><span class="p">(</span><span class="n">phi_range</span><span class="p">)</span>
     <span class="n">o</span><span class="o">.</span><span class="n">set_phiend</span><span class="p">(</span><span class="n">phi_start</span> <span class="o">+</span> <span class="n">phi_range</span><span class="p">)</span>
@@ -655,6 +661,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../documentation/index.html">Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../howto.html">HOWTO</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../workshops.html">Workshops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../publications.html">Publications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../links.html">Links</a></li>
