@@ -250,8 +250,8 @@
   <span class="k">return</span> <span class="n">mosflm_U</span></div>
 
 <div class="viewcode-block" id="export_mtz"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.export_mtz">[docs]</a><span class="k">def</span> <span class="nf">export_mtz</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">,</span> <span class="n">experiment_list</span><span class="p">,</span> <span class="n">hklout</span><span class="p">,</span> <span class="n">ignore_panels</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-               <span class="n">include_partials</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">keep_partials</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">min_isigi</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-               <span class="n">force_static_model</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">filter_ice_rings</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">include_partials</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">keep_partials</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">scale_partials</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+               <span class="n">min_isigi</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">force_static_model</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">filter_ice_rings</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
                <span class="n">ignore_profile_fitting</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;Export data from integrated_data corresponding to experiment_list to an</span>
 <span class="sd">  MTZ file hklout.&#39;&#39;&#39;</span>
@@ -326,7 +326,7 @@
 
     <span class="k">if</span> <span class="s">&#39;intensity.prf.variance&#39;</span> <span class="ow">in</span> <span class="n">integrated_data</span><span class="p">:</span>
       <span class="n">selection</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;intensity.prf.value&#39;</span><span class="p">]</span><span class="o">/</span>
+        <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;intensity.prf.value&#39;</span><span class="p">]</span> <span class="o">/</span>
         <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;intensity.prf.variance&#39;</span><span class="p">]))</span> <span class="o">&lt;</span> <span class="n">min_isigi</span>
       <span class="n">integrated_data</span><span class="o">.</span><span class="n">del_selected</span><span class="p">(</span><span class="n">selection</span><span class="p">)</span>
       <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Removing </span><span class="si">%d</span><span class="s"> profile reflections with I/Sig(I) &lt; </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span><span class="p">(</span>
@@ -339,7 +339,8 @@
 
   <span class="k">if</span> <span class="n">include_partials</span><span class="p">:</span>
     <span class="n">integrated_data</span> <span class="o">=</span> <span class="n">sum_partial_reflections</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">)</span>
-    <span class="n">integrated_data</span> <span class="o">=</span> <span class="n">scale_partial_reflections</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">scale_partials</span><span class="p">:</span>
+      <span class="n">integrated_data</span> <span class="o">=</span> <span class="n">scale_partial_reflections</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">)</span>
 
   <span class="k">if</span> <span class="s">&#39;partiality&#39;</span> <span class="ow">in</span> <span class="n">integrated_data</span><span class="p">:</span>
     <span class="n">selection</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.99</span>
@@ -525,6 +526,12 @@
   <span class="c"># gather the required information for the reflection file</span>
 
   <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">])</span>
+
+  <span class="c"># check reflections remain</span>
+  <span class="k">if</span> <span class="n">nref</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
+    <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;no reflections for export&#39;</span><span class="p">)</span>
+
   <span class="n">x_px</span><span class="p">,</span> <span class="n">y_px</span><span class="p">,</span> <span class="n">z_px</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
 
   <span class="n">xdet</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">x_px</span><span class="p">)</span>
@@ -541,8 +548,11 @@
   <span class="c"># compute BATCH values</span>
   <span class="n">batch</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">zdet</span><span class="p">)</span><span class="o">.</span><span class="n">iround</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">b_incr</span>
 
-  <span class="c"># we&#39;re working with full reflections so...</span>
-  <span class="n">fractioncalc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+  <span class="c"># we&#39;re working with full reflections so... #388 no longer guaranteed</span>
+  <span class="k">if</span> <span class="n">scale_partials</span><span class="p">:</span>
+    <span class="n">fractioncalc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">fractioncalc</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span>
 
   <span class="c"># now go for it and make an MTZ file...</span>
 
@@ -646,7 +656,7 @@
   <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;LP&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;LP&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">lp</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
   <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;DQE&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;DQE&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">dqe</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
 
-  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Saving integrated reflections to </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span><span class="n">hklout</span><span class="p">)</span>
+  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Saving </span><span class="si">%d</span><span class="s"> integrated reflections to </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">scl</span><span class="p">),</span> <span class="n">hklout</span><span class="p">))</span>
   <span class="n">m</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">hklout</span><span class="p">)</span>
 
   <span class="k">return</span> <span class="n">m</span></div>
