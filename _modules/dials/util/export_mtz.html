@@ -61,10 +61,31 @@
           <div class="body" role="main">
             
   <h1>Source code for dials.util.export_mtz</h1><div class="highlight"><pre>
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
+<span class="c"># coding: utf-8</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">floor</span><span class="p">,</span> <span class="n">ceil</span><span class="p">,</span> <span class="n">sqrt</span><span class="p">,</span> <span class="n">sin</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">log</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">iotbx</span> <span class="kn">import</span> <span class="n">mtz</span>
+<span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+
+<span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">dials.util.version</span> <span class="kn">import</span> <span class="n">dials_version</span>
+
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">isclose</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="c"># Python 3 backport</span>
+<div class="viewcode-block" id="isclose"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.isclose">[docs]</a>  <span class="k">def</span> <span class="nf">isclose</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">rel_tol</span><span class="o">=</span><span class="mf">1e-09</span><span class="p">,</span> <span class="n">abs_tol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">abs</span><span class="p">(</span><span class="n">a</span><span class="o">-</span><span class="n">b</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">max</span><span class="p">(</span><span class="n">rel_tol</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="nb">abs</span><span class="p">(</span><span class="n">b</span><span class="p">)),</span> <span class="n">abs_tol</span><span class="p">)</span></div>
 
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
 
 <div class="viewcode-block" id="sum_partial_reflections"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.sum_partial_reflections">[docs]</a><span class="k">def</span> <span class="nf">sum_partial_reflections</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">,</span> <span class="n">min_total_partiality</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;Sum partial reflections; weighted sum for summation integration; weighted</span>
@@ -73,9 +94,6 @@
 
   <span class="k">if</span> <span class="ow">not</span> <span class="s">&#39;partiality&#39;</span> <span class="ow">in</span> <span class="n">integrated_data</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">integrated_data</span>
-
-  <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
-  <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 
   <span class="c"># rest of the columns are pretty well defined - these are all uniform for the</span>
   <span class="c"># reflection so can just ignore other values:</span>
@@ -190,6 +208,7 @@
 
   <span class="k">return</span> <span class="n">integrated_data</span></div>
 
+
 <div class="viewcode-block" id="scale_partial_reflections"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.scale_partial_reflections">[docs]</a><span class="k">def</span> <span class="nf">scale_partial_reflections</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">,</span> <span class="n">min_partiality</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;Scale partial reflections (after summation) according to their estimated</span>
 <span class="sd">  partiality - for profile fitted reflections this will result in no change,</span>
@@ -207,7 +226,6 @@
   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">integrated_data</span>
 
-  <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
   <span class="n">delete</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
 
   <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">isel</span><span class="p">:</span>
@@ -223,15 +241,13 @@
 
   <span class="k">return</span> <span class="n">integrated_data</span></div>
 
+
 <div class="viewcode-block" id="dials_u_to_mosflm"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.dials_u_to_mosflm">[docs]</a><span class="k">def</span> <span class="nf">dials_u_to_mosflm</span><span class="p">(</span><span class="n">dials_U</span><span class="p">,</span> <span class="n">uc</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;Compute the mosflm U matrix i.e. the U matrix from same UB definition</span>
 <span class="sd">  as DIALS, but with Busing &amp; Levy B matrix definition.&#39;&#39;&#39;</span>
 
-  <span class="kn">from</span> <span class="nn">scitbx.matrix</span> <span class="kn">import</span> <span class="n">sqr</span>
-  <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">sin</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">pi</span>
-
   <span class="n">parameters</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span>
-  <span class="n">dials_B</span> <span class="o">=</span> <span class="n">sqr</span><span class="p">(</span><span class="n">uc</span><span class="o">.</span><span class="n">fractionalization_matrix</span><span class="p">())</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+  <span class="n">dials_B</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">uc</span><span class="o">.</span><span class="n">fractionalization_matrix</span><span class="p">())</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
   <span class="n">dials_UB</span> <span class="o">=</span> <span class="n">dials_U</span> <span class="o">*</span> <span class="n">dials_B</span>
 
   <span class="n">r_parameters</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">reciprocal_parameters</span><span class="p">()</span>
@@ -241,35 +257,23 @@
   <span class="n">b</span> <span class="o">=</span> <span class="n">r_parameters</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
   <span class="n">be</span> <span class="o">=</span> <span class="p">[</span><span class="n">pi</span> <span class="o">*</span> <span class="n">p</span> <span class="o">/</span> <span class="mf">180.0</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">r_parameters</span><span class="p">[</span><span class="mi">3</span><span class="p">:]]</span>
 
-  <span class="n">mosflm_B</span> <span class="o">=</span> <span class="n">sqr</span><span class="p">((</span><span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="n">b</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
-                  <span class="mi">0</span><span class="p">,</span> <span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">al</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
-                  <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+  <span class="n">mosflm_B</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">((</span><span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="n">b</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                         <span class="mi">0</span><span class="p">,</span> <span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">al</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                         <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
 
   <span class="n">mosflm_U</span> <span class="o">=</span> <span class="n">dials_UB</span> <span class="o">*</span> <span class="n">mosflm_B</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
 
   <span class="k">return</span> <span class="n">mosflm_U</span></div>
 
-<div class="viewcode-block" id="export_mtz"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.export_mtz">[docs]</a><span class="k">def</span> <span class="nf">export_mtz</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">,</span> <span class="n">experiment_list</span><span class="p">,</span> <span class="n">hklout</span><span class="p">,</span> <span class="n">ignore_panels</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-               <span class="n">include_partials</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">keep_partials</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">scale_partials</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-               <span class="n">min_isigi</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">force_static_model</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">filter_ice_rings</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-               <span class="n">ignore_profile_fitting</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
-  <span class="sd">&#39;&#39;&#39;Export data from integrated_data corresponding to experiment_list to an</span>
-<span class="sd">  MTZ file hklout.&#39;&#39;&#39;</span>
 
-  <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
-  <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+<span class="k">def</span> <span class="nf">_apply_data_filters</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">,</span> 
+                        <span class="n">ignore_profile_fitting</span><span class="p">,</span> <span class="n">filter_ice_rings</span><span class="p">,</span> <span class="n">min_isigi</span><span class="p">,</span>
+                        <span class="n">include_partials</span><span class="p">,</span> <span class="n">keep_partials</span><span class="p">,</span> <span class="n">scale_partials</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Apply filters to reflection data&quot;&quot;&quot;</span>
 
-  <span class="c"># for the moment assume (and assert) that we will convert data from exactly</span>
-  <span class="c"># one lattice...</span>
-
-  <span class="c"># FIXME allow for more than one experiment in here: this is fine just add</span>
-  <span class="c"># multiple MTZ data sets (DIALS1...DIALSN) and multiple batch headers: one</span>
-  <span class="c"># range of batches for each experiment</span>
-
-  <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
   <span class="c"># select reflections that are assigned to an experiment (i.e. non-negative id)</span>
   <span class="n">integrated_data</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
-  <span class="k">assert</span> <span class="nb">max</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span>
+  <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">),</span> <span class="s">&quot;No experiment-assigned reflections&quot;</span>
   <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Read </span><span class="si">%s</span><span class="s"> predicted reflections&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">))</span>
 
   <span class="c"># Ignore profile fitted</span>
@@ -289,7 +293,6 @@
 
   <span class="c"># check we have reflections left - see #357</span>
   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
     <span class="k">if</span> <span class="n">ignore_profile_fitting</span><span class="p">:</span>
       <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;All reflections excluded based on flags.integrated&quot;</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -349,179 +352,133 @@
       <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Removing </span><span class="si">%d</span><span class="s"> incomplete reflections&#39;</span> <span class="o">%</span> \
         <span class="n">selection</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">))</span>
 
-  <span class="c"># FIXME TODO for more than one experiment into an MTZ file:</span>
-  <span class="c">#</span>
-  <span class="c"># - add an epoch (or recover an epoch) from the scan and add this as an extra</span>
-  <span class="c">#   column to the MTZ file for scaling, so we know that the two lattices were</span>
-  <span class="c">#   integrated at the same time</span>
-  <span class="c"># - decide a sensible BATCH increment to apply to the BATCH value between</span>
-  <span class="c">#   experiments and add this</span>
-  <span class="c">#</span>
-  <span class="c"># At the moment this is probably enough to be working on.</span>
+  <span class="k">return</span> <span class="n">integrated_data</span>
 
-  <span class="n">experiment</span> <span class="o">=</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-  <span class="c"># also only work with one panel(for the moment)</span>
+<span class="k">def</span> <span class="nf">_add_batch</span><span class="p">(</span><span class="n">mtz</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">,</span> <span class="n">image_number</span><span class="p">,</span> <span class="n">force_static_model</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Add a single image&#39;s metadata to an mtz file.</span>
 
-  <span class="k">if</span> <span class="ow">not</span> <span class="n">ignore_panels</span><span class="p">:</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-      <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
-      <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;Only a single panel will be considered. To ignore panels &#39;</span>
-                  <span class="s">&#39;other than the first for a multi-panel detector, set &#39;</span>
-                  <span class="s">&#39;mtz.ignore_panels=true&#39;</span><span class="p">)</span>
+<span class="sd">  Returns the batch object.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
 
-  <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+  <span class="c"># Recalculate useful numbers and references here</span>
+  <span class="n">wavelength</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+  <span class="c"># We ignore panels beyond the first one, at the moment</span>
+  <span class="n">panel</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
   <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="p">:</span>
     <span class="n">axis</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_rotation_axis</span><span class="p">())</span>
   <span class="k">else</span><span class="p">:</span>
     <span class="n">axis</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
-  <span class="n">s0</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">()</span>
-  <span class="n">wavelength</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
-
-  <span class="n">panel</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-  <span class="n">origin</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_origin</span><span class="p">())</span>
-  <span class="n">fast</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_fast_axis</span><span class="p">())</span>
-  <span class="n">slow</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_slow_axis</span><span class="p">())</span>
-
-  <span class="n">pixel_size</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span>
-
-  <span class="n">fast</span> <span class="o">*=</span> <span class="n">pixel_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-  <span class="n">slow</span> <span class="o">*=</span> <span class="n">pixel_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-
-  <span class="n">cb_op_to_ref</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">change_of_basis_op_to_reference_setting</span><span class="p">()</span>
-
-  <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_to_ref</span><span class="p">)</span>
 
   <span class="n">U</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_U</span><span class="p">())</span>
   <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
     <span class="n">F</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_fixed_rotation</span><span class="p">())</span>
   <span class="k">else</span><span class="p">:</span>
     <span class="n">F</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-  <span class="n">unit_cell</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
 
-  <span class="kn">from</span> <span class="nn">iotbx</span> <span class="kn">import</span> <span class="n">mtz</span>
+  <span class="c"># Create the batch object and start configuring it</span>
+  <span class="n">o</span> <span class="o">=</span> <span class="n">mtz</span><span class="o">.</span><span class="n">add_batch</span><span class="p">()</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="n">batch_number</span><span class="p">)</span><span class="o">.</span><span class="n">set_nbsetid</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">set_ncryst</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_time1</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_time2</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&#39;Batch {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">batch_number</span><span class="p">))</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_ndet</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">set_theta</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span><span class="o">.</span><span class="n">set_lbmflg</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_alambd</span><span class="p">(</span><span class="n">wavelength</span><span class="p">)</span><span class="o">.</span><span class="n">set_delamb</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_delcor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_divhd</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_divvd</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
 
-  <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
-  <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">floor</span><span class="p">,</span> <span class="n">sqrt</span>
+  <span class="c"># FIXME hard-coded assumption on indealized beam vector below... this may be</span>
+  <span class="c"># broken when we come to process data from a non-imgCIF frame</span>
+  <span class="n">s0n</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_so</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">s0n</span><span class="p">))</span><span class="o">.</span><span class="n">set_source</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
 
-  <span class="n">m</span> <span class="o">=</span> <span class="n">mtz</span><span class="o">.</span><span class="n">object</span><span class="p">()</span>
-  <span class="n">m</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&#39;from dials.export_mtz&#39;</span><span class="p">)</span>
-  <span class="n">m</span><span class="o">.</span><span class="n">set_space_group_info</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">())</span>
+  <span class="c"># these are probably 0, 1 respectively, also flags for how many are set, sd</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_bbfac</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_bscale</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_sdbfac</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_sdbscale</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_nbscal</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
-  <span class="kn">from</span> <span class="nn">dials.util.version</span> <span class="kn">import</span> <span class="n">dials_version</span>
-  <span class="kn">import</span> <span class="nn">time</span>
-  <span class="n">date_str</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%d</span><span class="s">/%m/%Y at %H:%M:%S&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">())</span>
-  <span class="n">m</span><span class="o">.</span><span class="n">add_history</span><span class="p">(</span><span class="s">&#39;From </span><span class="si">%s</span><span class="s">, run on </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">dials_version</span><span class="p">(),</span> <span class="n">date_str</span><span class="p">))</span>
+  <span class="c"># unit cell (this is fine) and the what-was-refined-flags FIXME hardcoded</span>
 
-  <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
-    <span class="n">image_range</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
+  <span class="c"># take time-varying parameters from the *end of the frame* unlikely to</span>
+  <span class="c"># be much different at the end - however only exist if scan-varying</span>
+  <span class="c"># refinement was used</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">force_static_model</span> <span class="ow">and</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">num_scan_points</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="c"># Get the index of the image in the sequence e.g. first =&gt; 0, second =&gt; 1</span>
+    <span class="n">image_index</span> <span class="o">=</span> <span class="n">image_number</span> <span class="o">-</span> <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">_unit_cell</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell_at_scan_point</span><span class="p">(</span><span class="n">image_index</span><span class="p">)</span>
+    <span class="n">_U</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_U_at_scan_point</span><span class="p">(</span><span class="n">image_index</span><span class="p">))</span>
   <span class="k">else</span><span class="p">:</span>
-    <span class="n">image_range</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
+    <span class="n">_unit_cell</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
+    <span class="n">_U</span> <span class="o">=</span> <span class="n">U</span>
 
-  <span class="c"># pointless (at least) doesn&#39;t like batches starting from zero</span>
-  <span class="n">b_incr</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+  <span class="c"># apply the fixed rotation to this to unify matrix definitions - F * U</span>
+  <span class="c"># was what was used in the actual prediction: U appears to be stored</span>
+  <span class="c"># as the transpose?! At least is for Mosflm...</span>
+  <span class="c">#</span>
+  <span class="c"># FIXME Do we need to apply the setting rotation here somehow? i.e. we have</span>
+  <span class="c"># the U.B. matrix assuming that the axis is equal to S * axis_datum but</span>
+  <span class="c"># here we are just giving the effective axis so at scan angle 0 this will</span>
+  <span class="c"># not be correct... FIXME 2 not even sure we can express the stack of</span>
+  <span class="c"># matrices S * R * F * U * B in MTZ format?... see [=A=] below</span>
+  <span class="n">_U</span> <span class="o">=</span> <span class="n">dials_u_to_mosflm</span><span class="p">(</span><span class="n">F</span> <span class="o">*</span> <span class="n">_U</span><span class="p">,</span> <span class="n">_unit_cell</span><span class="p">)</span>
 
-  <span class="n">s0n</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">s0</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span>
+  <span class="c"># FIXME need to get what was refined and what was constrained from the</span>
+  <span class="c"># crystal model - see https://github.com/dials/dials/issues/355</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_cell</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">_unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">()))</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_lbcell</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_umat</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">_U</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span><span class="p">))</span>
 
-  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Beam vector: </span><span class="si">%.4f</span><span class="s"> </span><span class="si">%.4f</span><span class="s"> </span><span class="si">%.4f</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">s0n</span><span class="p">)</span>
+  <span class="c"># get the mosaic spread though today it may not actually be set - should</span>
+  <span class="c"># this be in the BATCH headers?</span>
+  <span class="n">mosaic</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_mosaicity</span><span class="p">()</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_crydat</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">([</span><span class="n">mosaic</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>
+                           <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]))</span>
 
-  <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="n">o</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">add_batch</span><span class="p">()</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="n">b</span><span class="o">-</span><span class="n">b_incr</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">set_nbsetid</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">set_ncryst</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_time1</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_time2</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&#39;Batch </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">b</span><span class="o">-</span><span class="n">b_incr</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_ndet</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">set_theta</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span><span class="o">.</span><span class="n">set_lbmflg</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_alambd</span><span class="p">(</span><span class="n">wavelength</span><span class="p">)</span><span class="o">.</span><span class="n">set_delamb</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_delcor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_divhd</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_divvd</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_lcrflg</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_datum</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
 
-    <span class="c"># FIXME hard-coded assumption on indealized beam vector below... this may be</span>
-    <span class="c"># broken when we come to process data from a non-imgCIF frame</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_so</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">s0n</span><span class="p">))</span><span class="o">.</span><span class="n">set_source</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
+  <span class="c"># detector size, distance</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_detlm</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span>
+                          <span class="mf">0.0</span><span class="p">,</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">1</span><span class="p">],</span>
+                          <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_dx</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">([</span><span class="n">panel</span><span class="o">.</span><span class="n">get_directed_distance</span><span class="p">(),</span> <span class="mf">0.0</span><span class="p">]))</span>
 
-    <span class="c"># these are probably 0, 1 respectively, also flags for how many are set, sd</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_bbfac</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_bscale</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_sdbfac</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_sdbscale</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">set_nbscal</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+  <span class="c"># goniometer axes and names, and scan axis number, and num axes, missets</span>
+  <span class="c"># [=A=] should we be using this to unroll the setting matrix etc?</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_e1</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">axis</span><span class="p">))</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_e2</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_e3</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_gonlab</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">((</span><span class="s">&#39;AXIS&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)))</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_jsaxs</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_ngonax</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_phixyz</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
 
-    <span class="c"># unit cell (this is fine) and the what-was-refined-flags FIXME hardcoded</span>
-    <span class="c"># take time-varying parameters from the *end of the frame* unlikely to</span>
-    <span class="c"># be much different at the end - however only exist if scan-varying</span>
-    <span class="c"># refinement was used</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">force_static_model</span> <span class="ow">and</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">num_scan_points</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-      <span class="n">offset</span> <span class="o">=</span> <span class="n">b</span> <span class="o">-</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-      <span class="n">_unit_cell</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell_at_scan_point</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span>
-      <span class="n">_U</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_U_at_scan_point</span><span class="p">(</span><span class="n">offset</span><span class="p">))</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="n">_unit_cell</span> <span class="o">=</span> <span class="n">unit_cell</span>
-      <span class="n">_U</span> <span class="o">=</span> <span class="n">U</span>
+  <span class="c"># scan ranges, axis</span>
+  <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
+    <span class="n">phi_start</span><span class="p">,</span> <span class="n">phi_range</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_oscillation</span><span class="p">(</span><span class="n">image_number</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">phi_start</span><span class="p">,</span> <span class="n">phi_range</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
 
-    <span class="c"># apply the fixed rotation to this to unify matrix definitions - F * U</span>
-    <span class="c"># was what was used in the actual prediction: U appears to be stored</span>
-    <span class="c"># as the transpose?! At least is for Mosflm...</span>
-    <span class="c">#</span>
-    <span class="c"># FIXME Do we need to apply the setting rotation here somehow? i.e. we have</span>
-    <span class="c"># the U.B. matrix assuming that the axis is equal to S * axis_datum but</span>
-    <span class="c"># here we are just giving the effective axis so at scan angle 0 this will</span>
-    <span class="c"># not be correct... FIXME 2 not even sure we can express the stack of</span>
-    <span class="c"># matrices S * R * F * U * B in MTZ format?... see [=A=] below</span>
-    <span class="n">_U</span> <span class="o">=</span> <span class="n">dials_u_to_mosflm</span><span class="p">(</span><span class="n">F</span> <span class="o">*</span> <span class="n">_U</span><span class="p">,</span> <span class="n">_unit_cell</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_phistt</span><span class="p">(</span><span class="n">phi_start</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_phirange</span><span class="p">(</span><span class="n">phi_range</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_phiend</span><span class="p">(</span><span class="n">phi_start</span> <span class="o">+</span> <span class="n">phi_range</span><span class="p">)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_scanax</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">axis</span><span class="p">))</span>
 
-    <span class="c"># FIXME need to get what was refined and what was constrained from the</span>
-    <span class="c"># crystal model - see https://github.com/dials/dials/issues/355</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_cell</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">_unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">()))</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_lbcell</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)))</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_umat</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">_U</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span><span class="p">))</span>
+  <span class="c"># number of misorientation angles</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_misflg</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
-    <span class="c"># get the mosaic spread though today it may not actually be set - should</span>
-    <span class="c"># this be in the BATCH headers?</span>
-    <span class="n">mosaic</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_mosaicity</span><span class="p">()</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_crydat</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">([</span><span class="n">mosaic</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>
-                             <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]))</span>
+  <span class="c"># crystal axis closest to rotation axis (why do I want this?)</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_jumpax</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
-    <span class="n">o</span><span class="o">.</span><span class="n">set_lcrflg</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_datum</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+  <span class="c"># type of data - 1; 2D, 2; 3D, 3; Laue</span>
+  <span class="n">o</span><span class="o">.</span><span class="n">set_ldtype</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 
-    <span class="c"># detector size, distance</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_detlm</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span>
-                            <span class="mf">0.0</span><span class="p">,</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">1</span><span class="p">],</span>
-                            <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_dx</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">([</span><span class="n">panel</span><span class="o">.</span><span class="n">get_directed_distance</span><span class="p">(),</span> <span class="mf">0.0</span><span class="p">]))</span>
+  <span class="k">return</span> <span class="n">o</span>
 
-    <span class="c"># goniometer axes and names, and scan axis number, and num axes, missets</span>
-    <span class="c"># [=A=] should we be using this to unroll the setting matrix etc?</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_e1</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">axis</span><span class="p">))</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_e2</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_e3</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_gonlab</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">((</span><span class="s">&#39;AXIS&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)))</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_jsaxs</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_ngonax</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_phixyz</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
 
-    <span class="c"># scan ranges, axis</span>
-    <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
-      <span class="n">phi_start</span><span class="p">,</span> <span class="n">phi_range</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_oscillation</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="n">phi_start</span><span class="p">,</span> <span class="n">phi_range</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
-
-    <span class="n">o</span><span class="o">.</span><span class="n">set_phistt</span><span class="p">(</span><span class="n">phi_start</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_phirange</span><span class="p">(</span><span class="n">phi_range</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_phiend</span><span class="p">(</span><span class="n">phi_start</span> <span class="o">+</span> <span class="n">phi_range</span><span class="p">)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_scanax</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">axis</span><span class="p">))</span>
-
-    <span class="c"># number of misorientation angles</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_misflg</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-    <span class="c"># crystal axis closest to rotation axis (why do I want this?)</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_jumpax</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-    <span class="c"># type of data - 1; 2D, 2; 3D, 3; Laue</span>
-    <span class="n">o</span><span class="o">.</span><span class="n">set_ldtype</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_write_columns</span><span class="p">(</span><span class="n">mtz_file</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">integrated_data</span><span class="p">,</span> <span class="n">scale_partials</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Write the column definitions AND data for a single dataset.&quot;&quot;&quot;</span>
 
   <span class="c"># now create the actual data structures - first keep a track of the columns</span>
+
   <span class="c"># H K L M/ISYM BATCH I SIGI IPR SIGIPR FRACTIONCALC XDET YDET ROT WIDTH</span>
   <span class="c"># LP MPART FLAG BGPKRATIOS</span>
-
-  <span class="kn">from</span> <span class="nn">cctbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span> <span class="k">as</span> <span class="n">cflex</span> <span class="c"># implicit import</span>
-  <span class="kn">from</span> <span class="nn">cctbx.miller</span> <span class="kn">import</span> <span class="n">map_to_asu_isym</span> <span class="c"># implicit import</span>
 
   <span class="c"># gather the required information for the reflection file</span>
 
@@ -529,24 +486,14 @@
 
   <span class="c"># check reflections remain</span>
   <span class="k">if</span> <span class="n">nref</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
     <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;no reflections for export&#39;</span><span class="p">)</span>
 
-  <span class="n">x_px</span><span class="p">,</span> <span class="n">y_px</span><span class="p">,</span> <span class="n">z_px</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
-
-  <span class="n">xdet</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">x_px</span><span class="p">)</span>
-  <span class="n">ydet</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">y_px</span><span class="p">)</span>
-  <span class="n">zdet</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">z_px</span><span class="p">)</span>
-
-  <span class="c"># compute ROT values - z_px counts from 0; image_index from 1</span>
-  <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
-    <span class="n">rot</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_image_index</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
-                       <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">zdet</span><span class="p">])</span>
-  <span class="k">else</span><span class="p">:</span>
-    <span class="n">rot</span> <span class="o">=</span> <span class="n">zdet</span>
-
-  <span class="c"># compute BATCH values - ceil() because FORTRAN counting</span>
-  <span class="n">batch</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">zdet</span><span class="p">)</span><span class="o">.</span><span class="n">iround</span><span class="p">()</span> <span class="o">-</span> <span class="n">b_incr</span> <span class="o">+</span> <span class="mi">1</span>
+  <span class="n">xdet</span><span class="p">,</span> <span class="n">ydet</span><span class="p">,</span> <span class="n">zdet</span> <span class="o">=</span> <span class="p">[</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()]</span>
+  
+  <span class="c"># compute BATCH values - floor() to get (fortran) image captured within</span>
+  <span class="c">#                        +1     because FORTRAN counting; zdet+1=image_index</span>
+  <span class="c">#                        +off   because            image_index+o=batch</span>
+  <span class="n">batch</span> <span class="o">=</span> <span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">zdet</span><span class="p">)</span><span class="o">.</span><span class="n">iround</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&quot;batch_offset&quot;</span><span class="p">]</span>
 
   <span class="c"># we&#39;re working with full reflections so... #388 no longer guaranteed</span>
   <span class="k">if</span> <span class="n">scale_partials</span><span class="p">:</span>
@@ -554,10 +501,6 @@
   <span class="k">else</span><span class="p">:</span>
     <span class="n">fractioncalc</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;partiality&#39;</span><span class="p">]</span>
 
-  <span class="c"># now go for it and make an MTZ file...</span>
-
-  <span class="n">x</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">add_crystal</span><span class="p">(</span><span class="s">&#39;XTAL&#39;</span><span class="p">,</span> <span class="s">&#39;DIALS&#39;</span><span class="p">,</span> <span class="n">unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
-  <span class="n">d</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span><span class="s">&#39;FROMDIALS&#39;</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">)</span>
 
   <span class="c"># now add column information...</span>
 
@@ -594,18 +537,17 @@
   <span class="c"># so all that is needed now is to make space for the reflections - fill with</span>
   <span class="c"># zeros...</span>
 
-  <span class="n">m</span><span class="o">.</span><span class="n">adjust_column_array_sizes</span><span class="p">(</span><span class="n">nref</span><span class="p">)</span>
-  <span class="n">m</span><span class="o">.</span><span class="n">set_n_reflections</span><span class="p">(</span><span class="n">nref</span><span class="p">)</span>
+  <span class="n">mtz_file</span><span class="o">.</span><span class="n">adjust_column_array_sizes</span><span class="p">(</span><span class="n">nref</span><span class="p">)</span>
+  <span class="n">mtz_file</span><span class="o">.</span><span class="n">set_n_reflections</span><span class="p">(</span><span class="n">nref</span><span class="p">)</span>
 
   <span class="c"># assign H, K, L, M_ISYM space</span>
   <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="s">&#39;H&#39;</span><span class="p">,</span> <span class="s">&#39;K&#39;</span><span class="p">,</span> <span class="s">&#39;L&#39;</span><span class="p">,</span> <span class="s">&#39;M_ISYM&#39;</span><span class="p">:</span>
-    <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="n">column</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="n">column</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
       <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
 
-  <span class="n">m</span><span class="o">.</span><span class="n">replace_original_index_miller_indices</span><span class="p">(</span><span class="n">cb_op_to_ref</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-    <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">]))</span>
+  <span class="n">mtz_file</span><span class="o">.</span><span class="n">replace_original_index_miller_indices</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;miller_index_rebase&#39;</span><span class="p">])</span>
 
-  <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;BATCH&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;BATCH&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
+  <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;BATCH&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;BATCH&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
     <span class="n">batch</span><span class="o">.</span><span class="n">as_double</span><span class="p">()</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
 
   <span class="k">if</span> <span class="s">&#39;lp&#39;</span> <span class="ow">in</span> <span class="n">integrated_data</span><span class="p">:</span>
@@ -627,16 +569,16 @@
     <span class="n">V_profile</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;intensity.prf.variance&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">scl</span> <span class="o">*</span> <span class="n">scl</span>
     <span class="c"># Trap negative variances</span>
     <span class="k">assert</span> <span class="n">V_profile</span><span class="o">.</span><span class="n">all_gt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;IPR&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;I&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">I_profile</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
-    <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;SIGIPR&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;SIGI&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;IPR&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;I&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">I_profile</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;SIGIPR&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;SIGI&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
       <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">V_profile</span><span class="p">)</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
   <span class="k">if</span> <span class="s">&#39;intensity.sum.value&#39;</span> <span class="ow">in</span> <span class="n">integrated_data</span><span class="p">:</span>
     <span class="n">I_sum</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;intensity.sum.value&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">scl</span>
     <span class="n">V_sum</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;intensity.sum.variance&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">scl</span> <span class="o">*</span> <span class="n">scl</span>
     <span class="c"># Trap negative variances</span>
     <span class="k">assert</span> <span class="n">V_sum</span><span class="o">.</span><span class="n">all_gt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;I&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;I&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">I_sum</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
-    <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;SIGI&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;SIGI&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;I&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;I&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">I_sum</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;SIGI&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;SIGI&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
       <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">V_sum</span><span class="p">)</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
   <span class="k">if</span> <span class="p">(</span><span class="s">&#39;background.sum.value&#39;</span> <span class="ow">in</span> <span class="n">integrated_data</span> <span class="ow">and</span>
       <span class="s">&#39;background.sum.variance&#39;</span> <span class="ow">in</span> <span class="n">integrated_data</span><span class="p">):</span>
@@ -644,22 +586,204 @@
     <span class="n">varbg</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;background.sum.variance&#39;</span><span class="p">]</span>
     <span class="k">assert</span> <span class="p">(</span><span class="n">varbg</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
     <span class="n">sigbg</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">varbg</span><span class="p">)</span>
-    <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;BG&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;BG&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">bg</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
-    <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;SIGBG&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;SIGBG&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">sigbg</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;BG&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;BG&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">bg</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+    <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;SIGBG&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;SIGBG&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">sigbg</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
 
-  <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;FRACTIONCALC&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;FRACTIONCALC&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
+  <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;FRACTIONCALC&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;FRACTIONCALC&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span>
     <span class="n">fractioncalc</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
 
-  <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;XDET&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;XDET&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">xdet</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
-  <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;YDET&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;YDET&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">ydet</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
-  <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;ROT&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;ROT&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">rot</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
-  <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;LP&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;LP&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">lp</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
-  <span class="n">d</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;DQE&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;DQE&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">dqe</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+  <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;XDET&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;XDET&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">xdet</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+  <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;YDET&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;YDET&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">ydet</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+  <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;ROT&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;ROT&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s">&quot;ROT&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+  <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;LP&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;LP&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">lp</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
+  <span class="n">dataset</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&#39;DQE&#39;</span><span class="p">,</span> <span class="n">type_table</span><span class="p">[</span><span class="s">&#39;DQE&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">dqe</span><span class="o">.</span><span class="n">as_float</span><span class="p">())</span>
 
-  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Saving </span><span class="si">%d</span><span class="s"> integrated reflections to </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">scl</span><span class="p">),</span> <span class="n">hklout</span><span class="p">))</span>
-  <span class="n">m</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">hklout</span><span class="p">)</span>
 
-  <span class="k">return</span> <span class="n">m</span></div>
+<span class="k">def</span> <span class="nf">_next_epoch</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Find a reasonably round epoch a small number above an existing one.</span>
+
+<span class="sd">  Examples: 130-138     =&gt; 140</span>
+<span class="sd">            139         =&gt; 150</span>
+<span class="sd">            1234        =&gt; 1300</span>
+<span class="sd">            19999-20998 =&gt; 21000</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c"># Find the order of magnitude-1 (minimum: 1 as want no fractional values)</span>
+  <span class="n">small_magnitude</span> <span class="o">=</span> <span class="mi">10</span><span class="o">**</span><span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="n">log</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+  <span class="c"># How many units of this we have (float cast for __division__ insensitivity)</span>
+  <span class="n">mag_multiple</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="n">val</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">small_magnitude</span><span class="p">)))</span>
+  <span class="n">epoch</span> <span class="o">=</span> <span class="n">small_magnitude</span> <span class="o">*</span> <span class="n">mag_multiple</span>
+  <span class="c"># If this would give a consecutive number then offset it by a magnitude step</span>
+  <span class="k">if</span> <span class="n">epoch</span> <span class="o">&lt;=</span> <span class="n">val</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="n">epoch</span> <span class="o">=</span> <span class="n">small_magnitude</span> <span class="o">*</span> <span class="p">(</span><span class="n">mag_multiple</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">epoch</span>
+
+
+<span class="k">def</span> <span class="nf">_calculate_batch_offsets</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Take a list of experiments and resolve and return the batch offsets.</span>
+
+<span class="sd">  This is the number added to the image number to give the</span>
+<span class="sd">  batch number, such that:</span>
+<span class="sd">  - Each experiment has a unique, nonoverlapping, nonconsecutive range</span>
+<span class="sd">  - None are zero</span>
+<span class="sd">  - Image number ranges are kept if at all possible</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">experiments_to_shift</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="n">existing_ranges</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+  <span class="n">maximum_batch_number</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="n">batch_offsets</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+
+  <span class="c"># Handle zeroth shifts and kept ranges</span>
+  <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+    <span class="n">ilow</span><span class="p">,</span> <span class="n">ihigh</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span>
+    <span class="c"># Check assumptions</span>
+    <span class="k">assert</span> <span class="n">ilow</span> <span class="o">&lt;=</span> <span class="n">ihigh</span><span class="p">,</span> <span class="s">&quot;Inverted image order!?&quot;</span>
+    <span class="k">assert</span> <span class="n">ilow</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Negative image indices are not expected&quot;</span>
+    <span class="c"># Don&#39;t emit zero: comments indicate that pointless does not like it</span>
+    <span class="k">if</span> <span class="n">ilow</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">ilow</span><span class="p">,</span> <span class="n">ihigh</span> <span class="o">=</span> <span class="n">ilow</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">ihigh</span><span class="o">+</span><span class="mi">1</span>
+    <span class="c"># If we overlap with anything, then process later</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span> <span class="n">ilow</span> <span class="o">&lt;=</span> <span class="n">high</span><span class="o">+</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">ihigh</span> <span class="o">&gt;=</span> <span class="n">low</span><span class="o">-</span><span class="mi">1</span> <span class="k">for</span> <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="ow">in</span> <span class="n">existing_ranges</span><span class="p">):</span>
+      <span class="n">experiments_to_shift</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">experiment</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">batch_offsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">ilow</span>
+      <span class="n">existing_ranges</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">ilow</span><span class="p">,</span> <span class="n">ihigh</span><span class="p">))</span>
+      <span class="n">maximum_batch_number</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">maximum_batch_number</span><span class="p">,</span> <span class="n">ihigh</span><span class="p">)</span>
+  
+  <span class="c"># Now handle all the experiments that overlapped by pushing them higher</span>
+  <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiments_to_shift</span><span class="p">:</span>
+    <span class="n">start_number</span> <span class="o">=</span> <span class="n">_next_epoch</span><span class="p">(</span><span class="n">maximum_batch_number</span><span class="p">)</span>
+    <span class="n">range_width</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+    <span class="n">end_number</span> <span class="o">=</span> <span class="n">start_number</span> <span class="o">+</span> <span class="n">range_width</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">batch_offsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">start_number</span> <span class="o">-</span> <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">maximum_batch_number</span> <span class="o">=</span> <span class="n">end_number</span>
+
+  <span class="k">return</span> <span class="n">batch_offsets</span>
+
+
+<div class="viewcode-block" id="export_mtz"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.export_mtz">[docs]</a><span class="k">def</span> <span class="nf">export_mtz</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">,</span> <span class="n">experiment_list</span><span class="p">,</span> <span class="n">hklout</span><span class="p">,</span> <span class="n">ignore_panels</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">include_partials</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">keep_partials</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">scale_partials</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+               <span class="n">min_isigi</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">force_static_model</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">filter_ice_rings</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">ignore_profile_fitting</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39;Export data from integrated_data corresponding to experiment_list to an</span>
+<span class="sd">  MTZ file hklout.&#39;&#39;&#39;</span>
+
+  <span class="c"># Convert experiment_list to a real python list or else identity assumptions</span>
+  <span class="c"># fail like:</span>
+  <span class="c">#   assert experiment_list[0] is experiment_list[0]</span>
+  <span class="c"># And assumptions about added attributes break</span>
+  <span class="n">experiment_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span>
+
+  <span class="c"># Validate multi-experiment assumptions</span>
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="c"># All experiments should match crystals, or else we need multiple crystals/datasets</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">crystal</span> <span class="o">==</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+      <span class="k">print</span><span class="p">(</span><span class="s">&quot;Warning: Experiment crystals differ. Using first experiment crystal for file-level data.&quot;</span><span class="p">)</span>
+
+    <span class="c"># We must match wavelengths (until multiple datasets supported)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">isclose</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">(),</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">(),</span> <span class="n">rel_tol</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+      <span class="n">data</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">]</span>
+      <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&quot;Cannot export multiple experiments with different beam wavelengths ({})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+  
+  <span class="c"># also only work with one panel(for the moment)</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">ignore_panels</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s">&#39;Only a single panel will be considered. To ignore panels &#39;</span>
+                  <span class="s">&#39;other than the first for a multi-panel detector, set &#39;</span>
+                  <span class="s">&#39;mtz.ignore_panels=true&#39;</span><span class="p">)</span>
+
+  <span class="c"># Clean up the data with the passed in options</span>
+  <span class="n">integrated_data</span> <span class="o">=</span> <span class="n">_apply_data_filters</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">,</span>
+      <span class="n">ignore_profile_fitting</span><span class="o">=</span><span class="n">ignore_profile_fitting</span><span class="p">,</span>
+      <span class="n">min_isigi</span><span class="o">=</span><span class="n">min_isigi</span><span class="p">,</span>
+      <span class="n">filter_ice_rings</span><span class="o">=</span><span class="n">filter_ice_rings</span><span class="p">,</span>
+      <span class="n">include_partials</span><span class="o">=</span><span class="n">include_partials</span><span class="p">,</span>
+      <span class="n">keep_partials</span><span class="o">=</span><span class="n">keep_partials</span><span class="p">,</span>
+      <span class="n">scale_partials</span><span class="o">=</span><span class="n">scale_partials</span><span class="p">)</span>
+
+  <span class="c"># Calculate and store the image range for each image</span>
+  <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">:</span>
+    <span class="c"># Calculate this once so that we don&#39;t have to again</span>
+    <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
+      <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
+
+  <span class="c"># Calculate any offset to the image numbers </span>
+  <span class="n">batch_offsets</span> <span class="o">=</span> <span class="n">_calculate_batch_offsets</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span>
+
+  <span class="c"># Create the mtz file</span>
+  <span class="n">mtz_file</span> <span class="o">=</span> <span class="n">mtz</span><span class="o">.</span><span class="n">object</span><span class="p">()</span>
+  <span class="n">mtz_file</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&#39;from dials.export_mtz&#39;</span><span class="p">)</span>
+  <span class="n">date_str</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%d</span><span class="s">/%m/%Y at %H:%M:%S&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">())</span>
+  <span class="n">mtz_file</span><span class="o">.</span><span class="n">add_history</span><span class="p">(</span><span class="s">&#39;From </span><span class="si">%s</span><span class="s">, run on </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">dials_version</span><span class="p">(),</span> <span class="n">date_str</span><span class="p">))</span>
+
+  <span class="c"># FIXME TODO for more than one experiment into an MTZ file:</span>
+  <span class="c">#</span>
+  <span class="c"># - add an epoch (or recover an epoch) from the scan and add this as an extra</span>
+  <span class="c">#   column to the MTZ file for scaling, so we know that the two lattices were</span>
+  <span class="c">#   integrated at the same time</span>
+  <span class="c"># ✓ decide a sensible BATCH increment to apply to the BATCH value between</span>
+  <span class="c">#   experiments and add this</span>
+
+  <span class="k">for</span> <span class="n">experiment_index</span><span class="p">,</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">):</span>
+    <span class="c"># Grab our subset of the data</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">integrated_data</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">experiment_index</span><span class="p">))</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">batch_offset</span> <span class="o">=</span> <span class="n">batch_offsets</span><span class="p">[</span><span class="n">experiment_index</span><span class="p">]</span>
+
+    <span class="c"># Do any crystal transformations for the experiment</span>
+    <span class="n">cb_op_to_ref</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">change_of_basis_op_to_reference_setting</span><span class="p">()</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_to_ref</span><span class="p">)</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;miller_index_rebase&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cb_op_to_ref</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;miller_index&quot;</span><span class="p">])</span>
+
+    <span class="n">s0</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">()</span>
+    <span class="n">s0n</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">s0</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Beam vector: </span><span class="si">%.4f</span><span class="s"> </span><span class="si">%.4f</span><span class="s"> </span><span class="si">%.4f</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">s0n</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+      <span class="n">_add_batch</span><span class="p">(</span><span class="n">mtz_file</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> 
+        <span class="n">batch_number</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="n">experiment</span><span class="o">.</span><span class="n">batch_offset</span><span class="p">,</span>
+        <span class="n">image_number</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> 
+        <span class="n">force_static_model</span><span class="o">=</span><span class="n">force_static_model</span><span class="p">)</span>
+
+    <span class="c"># Create the batch offset array. This gives us an experiment (id)-dependent </span>
+    <span class="c"># batch offset to calculate the correct batch from image number.</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;batch_offset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;id&quot;</span><span class="p">]),</span> <span class="n">experiment</span><span class="o">.</span><span class="n">batch_offset</span><span class="p">)</span>
+
+    <span class="c"># Calculate whether we have a ROT value for this experiment, and set the column</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">frac_image_id</span> <span class="o">=</span> <span class="n">integrated_data</span><span class="p">[</span><span class="s">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">frac_image_id</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">frac_image_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
+      <span class="c"># When getting angle, z_px counts from 0; image_index from 1</span>
+      <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;ROT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_image_index</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">frac_image_id</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;ROT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">frac_image_id</span>
+
+  <span class="c"># Update the mtz general information now we&#39;ve processed the experiments</span>
+  <span class="n">mtz_file</span><span class="o">.</span><span class="n">set_space_group_info</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">())</span>
+  <span class="n">unit_cell</span> <span class="o">=</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
+  <span class="n">mtz_crystal</span> <span class="o">=</span> <span class="n">mtz_file</span><span class="o">.</span><span class="n">add_crystal</span><span class="p">(</span><span class="s">&#39;XTAL&#39;</span><span class="p">,</span> <span class="s">&#39;DIALS&#39;</span><span class="p">,</span> <span class="n">unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+  <span class="n">mtz_dataset</span> <span class="o">=</span> <span class="n">mtz_crystal</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span><span class="s">&#39;FROMDIALS&#39;</span><span class="p">,</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">())</span>
+
+  <span class="c"># Combine all of the experiment data columns before writing</span>
+  <span class="n">merged_data</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+  <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">merged_data</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+  <span class="c"># ALL columns must be the same length</span>
+  <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">merged_data</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&quot;Column length mismatch&quot;</span>
+  <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">merged_data</span><span class="p">[</span><span class="s">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s">&quot;id&quot;</span><span class="p">])),</span> <span class="s">&quot;Lost rows in split/combine&quot;</span>
+
+  <span class="c"># Write all the data and columns to the mtz file</span>
+  <span class="n">_write_columns</span><span class="p">(</span><span class="n">mtz_file</span><span class="p">,</span> <span class="n">mtz_dataset</span><span class="p">,</span> <span class="n">merged_data</span><span class="p">,</span>
+    <span class="n">scale_partials</span><span class="o">=</span><span class="n">scale_partials</span><span class="p">)</span>
+
+  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Saving {} integrated reflections to {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">merged_data</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]),</span> <span class="n">hklout</span><span class="p">))</span>
+  <span class="n">mtz_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">hklout</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">mtz_file</span></div>
 </pre></div>
 
           </div>
