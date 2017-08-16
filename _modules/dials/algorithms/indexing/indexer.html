@@ -407,11 +407,11 @@
 <span class="s">              refine the candidates in the P1 setting. If True, after indexing </span><span class="se">\</span>
 <span class="s">              in P1, convert the candidates to the known symmetry and apply the </span><span class="se">\</span>
 <span class="s">              corresponding change of basis to the indexed reflections.</span>
-<span class="s">    rmsd_min_px = 1.5</span>
+<span class="s">    rmsd_min_px = 2</span>
 <span class="s">      .type = float</span>
 <span class="s">      .help = Minimum acceptable RMSD for choosing candidate basis solutions </span><span class="se">\</span>
 <span class="s">              (in pixels)</span>
-<span class="s">    ewald_proximal_volume_max = 0.0015</span>
+<span class="s">    ewald_proximal_volume_max = 0.0025</span>
 <span class="s">      .type = float</span>
 <span class="s">      .help = Maximum acceptable ewald proximal volume when choosing candidate </span><span class="se">\</span>
 <span class="s">              basis solutions</span>
@@ -616,15 +616,16 @@
 
       <span class="k">if</span> <span class="n">use_stills_indexer</span><span class="p">:</span>
         <span class="c"># Ensure the indexer and downstream applications treat this as set of stills</span>
-        <span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="kn">import</span> <span class="n">ImageSet</span><span class="p">,</span> <span class="n">MemImageSet</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="kn">import</span> <span class="n">ImageSet</span><span class="c">#, MemImageSet</span>
         <span class="n">reset_sets</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">imagesets</span><span class="p">)):</span>
           <span class="n">imagesweep</span> <span class="o">=</span> <span class="n">imagesets</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-          <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">MemImageSet</span><span class="p">):</span>
-            <span class="n">imageset</span> <span class="o">=</span> <span class="n">MemImageSet</span><span class="p">(</span><span class="n">imagesweep</span><span class="o">.</span><span class="n">_images</span><span class="p">,</span> <span class="n">imagesweep</span><span class="o">.</span><span class="n">indices</span><span class="p">())</span>
-          <span class="k">else</span><span class="p">:</span>
-            <span class="n">imageset</span> <span class="o">=</span> <span class="n">ImageSet</span><span class="p">(</span><span class="n">imagesweep</span><span class="o">.</span><span class="n">reader</span><span class="p">(),</span> <span class="n">imagesweep</span><span class="o">.</span><span class="n">indices</span><span class="p">())</span>
-            <span class="n">imageset</span><span class="o">.</span><span class="n">_models</span> <span class="o">=</span> <span class="n">imagesweep</span><span class="o">.</span><span class="n">_models</span>
+          <span class="n">imageset</span> <span class="o">=</span> <span class="n">ImageSet</span><span class="p">(</span><span class="n">imagesweep</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">imagesweep</span><span class="o">.</span><span class="n">indices</span><span class="p">())</span>
+          <span class="c"># if isinstance(imageset, MemImageSet):</span>
+          <span class="c">#   imageset = MemImageSet(imagesweep._images, imagesweep.indices())</span>
+          <span class="c"># else:</span>
+          <span class="c">#   imageset = ImageSet(imagesweep.reader(), imagesweep.indices())</span>
+          <span class="c">#   imageset._models = imagesweep._models</span>
           <span class="n">imageset</span><span class="o">.</span><span class="n">set_scan</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
           <span class="n">imageset</span><span class="o">.</span><span class="n">set_goniometer</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
           <span class="n">reset_sets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
@@ -1474,15 +1475,23 @@
       <span class="n">sel</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
       <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">d_min</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
         <span class="n">sel</span> <span class="o">&amp;=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;rlp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">d_min</span><span class="p">)</span>
-      <span class="n">refl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+      <span class="n">xo</span><span class="p">,</span> <span class="n">yo</span><span class="p">,</span> <span class="n">zo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;xyzobs.mm.value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+      <span class="n">imageset_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;imageset_id&#39;</span><span class="p">]</span>
       <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
-      <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">i_imageset</span><span class="p">,</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">):</span>
+        <span class="n">scan</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span>
+        <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">360</span><span class="p">:</span>
+          <span class="c"># only use reflections from the first 360 degrees of the scan</span>
+          <span class="n">sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">imageset_id</span> <span class="o">==</span> <span class="n">i_imageset</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">zo</span> <span class="o">&gt;</span> <span class="p">((</span><span class="n">start</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">180</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)),</span> <span class="bp">False</span><span class="p">)</span>
         <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Experiment</span><span class="p">(</span><span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">,</span>
                                       <span class="n">beam</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(),</span>
                                       <span class="n">detector</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">(),</span>
                                       <span class="n">goniometer</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">(),</span>
                                       <span class="n">scan</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">(),</span>
                                       <span class="n">crystal</span><span class="o">=</span><span class="n">cm</span><span class="p">))</span>
+      <span class="n">refl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">index_reflections</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">refl</span><span class="p">)</span>
       <span class="k">if</span> <span class="n">refl</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">refl</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">indexed</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">continue</span>

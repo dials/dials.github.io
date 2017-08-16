@@ -311,9 +311,18 @@
     <span class="n">tmp</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">packed_len</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">col1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">n_cols</span><span class="p">):</span>
       <span class="k">for</span> <span class="n">col2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">col1</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">n_cols</span><span class="p">):</span>
-        <span class="n">tmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">linear_correlation</span><span class="p">(</span>
-                    <span class="n">m</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col1</span><span class="p">)</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">(),</span>
-                    <span class="n">m</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col2</span><span class="p">)</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">())</span><span class="o">.</span><span class="n">coefficient</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">col1</span> <span class="o">==</span> <span class="n">col2</span><span class="p">:</span>
+          <span class="n">tmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="c"># Avoid spuriously high correlation between a column that should be</span>
+          <span class="c"># zero (such as the gradient of X residuals wrt the Shift2 parameter)</span>
+          <span class="c"># and another column (such as the gradient of X residuals wrt the</span>
+          <span class="c"># Dist parameter) by rounding values to 15 places. It seems that such</span>
+          <span class="c"># spurious correlations may occur in cases where gradients are</span>
+          <span class="c"># calculated to be zero by matrix operations, rather than set to zero.</span>
+          <span class="n">v1</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col1</span><span class="p">)</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+          <span class="n">v2</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col2</span><span class="p">)</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+          <span class="n">tmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">linear_correlation</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">)</span><span class="o">.</span><span class="n">coefficient</span><span class="p">()</span>
         <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
 
     <span class="k">return</span> <span class="n">tmp</span>
