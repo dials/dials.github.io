@@ -87,8 +87,15 @@
 <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
 
-<span class="c"># Include external phil scopes as strings to avoid problems</span>
-<span class="c"># with the include scope directive</span>
+<span class="c"># The include scope directive does not work here. For example:</span>
+<span class="c">#</span>
+<span class="c">#   include scope dials.algorithms.refinement.outlier_detection.phil_scope</span>
+<span class="c">#</span>
+<span class="c"># results in:</span>
+<span class="c">#</span>
+<span class="c">#   AttributeError: &#39;module&#39; object has no attribute &#39;refinement&#39;</span>
+<span class="c">#</span>
+<span class="c"># to work around this, just include external phil scopes as strings</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.outlier_detection.outlier_base</span> \
   <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">outlier_phil_str</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.restraints.restraints_parameterisation</span> \
@@ -96,10 +103,12 @@
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.constraints</span> <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">constr_phil_str</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.scan_varying_model_parameters</span> \
   <span class="kn">import</span> <span class="n">phil_str</span> <span class="k">as</span> <span class="n">sv_phil_str</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.engine</span> <span class="kn">import</span> <span class="n">refinery_phil_str</span>
 <span class="n">format_data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;outlier_phil&#39;</span><span class="p">:</span><span class="n">outlier_phil_str</span><span class="p">,</span>
                <span class="s">&#39;uc_restraints_phil&#39;</span><span class="p">:</span><span class="n">uc_restraints_phil_str</span><span class="p">,</span>
                <span class="s">&#39;constr_phil&#39;</span><span class="p">:</span><span class="n">constr_phil_str</span><span class="p">,</span>
-               <span class="s">&#39;sv_phil_str&#39;</span><span class="p">:</span><span class="n">sv_phil_str</span><span class="p">}</span>
+               <span class="s">&#39;sv_phil_str&#39;</span><span class="p">:</span><span class="n">sv_phil_str</span><span class="p">,</span>
+               <span class="s">&#39;refinery_phil&#39;</span><span class="p">:</span><span class="n">refinery_phil_str</span><span class="p">}</span>
 <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
 
 <span class="s">refinement</span>
@@ -333,45 +342,7 @@
 <span class="s">      .expert_level = 1</span>
 <span class="s">  }</span>
 
-<span class="s">  refinery</span>
-<span class="s">    .help = &quot;Parameters to configure the refinery&quot;</span>
-<span class="s">    .expert_level = 1</span>
-<span class="s">  {</span>
-<span class="s">    engine = SimpleLBFGS LBFGScurvs GaussNewton *LevMar SparseLevMar</span>
-<span class="s">      .help = &quot;The minimisation engine to use&quot;</span>
-<span class="s">      .type = choice</span>
-
-<span class="s">    track_step = False</span>
-<span class="s">      .help = &quot;Record parameter shifts history in the refinement journal, if&quot;</span>
-<span class="s">              &quot;the engine supports it.&quot;</span>
-<span class="s">      .type = bool</span>
-
-<span class="s">    track_gradient = False</span>
-<span class="s">      .help = &quot;Record parameter gradients history in the refinement journal, if&quot;</span>
-<span class="s">              &quot;the engine supports it.&quot;</span>
-<span class="s">      .type = bool</span>
-
-<span class="s">    track_parameter_correlation = False</span>
-<span class="s">      .help = &quot;Record correlation matrix between columns of the Jacobian for&quot;</span>
-<span class="s">              &quot;each step of refinement.&quot;</span>
-<span class="s">      .type = bool</span>
-
-<span class="s">    track_out_of_sample_rmsd = False</span>
-<span class="s">      .type = bool</span>
-<span class="s">      .help = &quot;Record RMSDs calculated using the refined experiments with&quot;</span>
-<span class="s">              &quot;reflections not used in refinement at each step. Only valid if a&quot;</span>
-<span class="s">              &quot;subset of input reflections was taken for refinement&quot;</span>
-
-<span class="s">    log = None</span>
-<span class="s">      .help = &quot;Filename for an optional log that a minimisation engine may use&quot;</span>
-<span class="s">              &quot;to write additional information&quot;</span>
-<span class="s">      .type = path</span>
-
-<span class="s">    max_iterations = None</span>
-<span class="s">      .help = &quot;Maximum number of iterations in refinement before termination.&quot;</span>
-<span class="s">              &quot;None implies the engine supplies its own default.&quot;</span>
-<span class="s">      .type = int(value_min=1)</span>
-<span class="s">  }</span>
+<span class="s">  </span><span class="si">%(refinery_phil)s</span><span class="s"></span>
 
 <span class="s">  target</span>
 <span class="s">    .help = &quot;Parameters to configure the target function&quot;</span>
@@ -471,11 +442,6 @@
 <span class="s">        .type = floats(size = 3, value_min = 0)</span>
 <span class="s">    }</span>
 
-<span class="s">    # Does not work:</span>
-<span class="s">    #</span>
-<span class="s">    # include scope dials.algorithms.refinement.outlier_detection.phil_scope</span>
-<span class="s">    #</span>
-<span class="s">    # instead just paste the string in directly here.</span>
 <span class="s">    </span><span class="si">%(outlier_phil)s</span><span class="s"></span>
 
 <span class="s">  }</span>
@@ -1523,10 +1489,7 @@
             <span class="n">constraints_manager</span><span class="o">=</span><span class="n">constraints_manager</span><span class="p">,</span>
             <span class="n">log</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">log</span><span class="p">,</span>
             <span class="n">verbosity</span> <span class="o">=</span> <span class="n">verbosity</span><span class="p">,</span>
-            <span class="n">track_step</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">track_step</span><span class="p">,</span>
-            <span class="n">track_gradient</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">track_gradient</span><span class="p">,</span>
-            <span class="n">track_parameter_correlation</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">track_parameter_correlation</span><span class="p">,</span>
-            <span class="n">track_out_of_sample_rmsd</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">track_out_of_sample_rmsd</span><span class="p">,</span>
+            <span class="n">tracking</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">journal</span><span class="p">,</span>
             <span class="n">max_iterations</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>

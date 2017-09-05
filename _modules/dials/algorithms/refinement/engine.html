@@ -82,6 +82,7 @@
 <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
 <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_mp</span>
+<span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
 
 <span class="c"># use lstbx classes</span>
 <span class="kn">from</span> <span class="nn">scitbx.lstbx</span> <span class="kn">import</span> <span class="n">normal_eqns</span><span class="p">,</span> <span class="n">normal_eqns_solving</span>
@@ -94,6 +95,59 @@
 <span class="n">MAX_ITERATIONS</span> <span class="o">=</span> <span class="s">&quot;Reached maximum number of iterations&quot;</span>
 <span class="n">MAX_TRIAL_ITERATIONS</span> <span class="o">=</span> <span class="s">&quot;Reached maximum number of consecutive unsuccessful trial steps&quot;</span>
 <span class="n">DOF_TOO_LOW</span> <span class="o">=</span> <span class="s">&quot;Not enough degrees of freedom to refine&quot;</span>
+
+<span class="n">refinery_phil_str</span> <span class="o">=</span> <span class="s">&#39;&#39;&#39;</span>
+<span class="s">refinery</span>
+<span class="s">  .help = &quot;Parameters to configure the refinery&quot;</span>
+<span class="s">  .expert_level = 1</span>
+<span class="s">{</span>
+<span class="s">  engine = SimpleLBFGS LBFGScurvs GaussNewton *LevMar SparseLevMar</span>
+<span class="s">    .help = &quot;The minimisation engine to use&quot;</span>
+<span class="s">    .type = choice</span>
+
+<span class="s">  max_iterations = None</span>
+<span class="s">    .help = &quot;Maximum number of iterations in refinement before termination.&quot;</span>
+<span class="s">            &quot;None implies the engine supplies its own default.&quot;</span>
+<span class="s">    .type = int(value_min=1)</span>
+
+<span class="s">  log = None</span>
+<span class="s">    .help = &quot;Filename for an optional log that a minimisation engine may use&quot;</span>
+<span class="s">            &quot;to write additional information&quot;</span>
+<span class="s">    .type = path</span>
+
+<span class="s">  journal</span>
+<span class="s">    .help = &quot;Extra items to track in the refinement history&quot;</span>
+<span class="s">  {</span>
+<span class="s">    track_step = False</span>
+<span class="s">      .help = &quot;Record parameter shifts history in the refinement journal, if&quot;</span>
+<span class="s">              &quot;the engine supports it.&quot;</span>
+<span class="s">      .type = bool</span>
+
+<span class="s">    track_gradient = False</span>
+<span class="s">      .help = &quot;Record parameter gradients history in the refinement journal, if&quot;</span>
+<span class="s">              &quot;the engine supports it.&quot;</span>
+<span class="s">      .type = bool</span>
+
+<span class="s">    track_parameter_correlation = False</span>
+<span class="s">      .help = &quot;Record correlation matrix between columns of the Jacobian for&quot;</span>
+<span class="s">              &quot;each step of refinement.&quot;</span>
+<span class="s">      .type = bool</span>
+
+<span class="s">    track_condition_number = False</span>
+<span class="s">      .help = &quot;Record condition number of the Jacobian for each step of &quot;</span>
+<span class="s">              &quot;refinement.&quot;</span>
+<span class="s">      .type = bool</span>
+
+<span class="s">    track_out_of_sample_rmsd = False</span>
+<span class="s">      .type = bool</span>
+<span class="s">      .help = &quot;Record RMSDs calculated using the refined experiments with&quot;</span>
+<span class="s">              &quot;reflections not used in refinement at each step. Only valid if a&quot;</span>
+<span class="s">              &quot;subset of input reflections was taken for refinement&quot;</span>
+<span class="s">  }</span>
+<span class="s">}</span>
+<span class="s">&#39;&#39;&#39;</span>
+<span class="n">refinery_phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">refinery_phil_str</span><span class="p">)</span>
+
 
 <div class="viewcode-block" id="Journal"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Journal">[docs]</a><span class="k">class</span> <span class="nc">Journal</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
   <span class="sd">&quot;&quot;&quot;Container in which to store information about refinement history.</span>
@@ -170,9 +224,7 @@
   <span class="c"># separate link to its PredictionParameterisation.</span>
 
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">constraints_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-               <span class="n">log</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">verbosity</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">track_step</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
-               <span class="n">track_gradient</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">track_parameter_correlation</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
-               <span class="n">track_out_of_sample_rmsd</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
+               <span class="n">log</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">verbosity</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">tracking</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                <span class="n">max_iterations</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
 
     <span class="c"># reference to PredictionParameterisation, Target and ConstraintsManager</span>
@@ -205,22 +257,27 @@
 
     <span class="c"># attributes for journalling functionality, based on lstbx&#39;s</span>
     <span class="c"># journaled_non_linear_ls class</span>
+    <span class="k">if</span> <span class="n">tracking</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="c"># set default tracking</span>
+      <span class="n">tracking</span> <span class="o">=</span> <span class="n">refinery_phil_scope</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span><span class="o">.</span><span class="n">refinery</span><span class="o">.</span><span class="n">journal</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="o">=</span> <span class="n">Journal</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;num_reflections&quot;</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;objective&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
-    <span class="k">if</span> <span class="n">track_gradient</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">tracking</span><span class="o">.</span><span class="n">track_gradient</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;gradient&quot;</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;gradient_norm&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
-    <span class="k">if</span> <span class="n">track_parameter_correlation</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">tracking</span><span class="o">.</span><span class="n">track_parameter_correlation</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">track_step</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">tracking</span><span class="o">.</span><span class="n">track_step</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;solution&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">track_out_of_sample_rmsd</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">tracking</span><span class="o">.</span><span class="n">track_out_of_sample_rmsd</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;out_of_sample_rmsd&quot;</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;solution_norm&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;parameter_vector&quot;</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;parameter_vector_norm&quot;</span><span class="p">)</span><span class="c">#flex.double()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;rmsd&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">tracking</span><span class="o">.</span><span class="n">track_condition_number</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s">&quot;condition_number&quot;</span><span class="p">)</span>
 
     <span class="c"># number of processes to use, for engines that support multiprocessing</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="mi">1</span>
@@ -256,15 +313,17 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;objective&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_f</span><span class="p">)</span>
     <span class="k">if</span> <span class="s">&quot;gradient&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;gradient&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_g</span><span class="p">)</span>
-    <span class="k">if</span> <span class="s">&quot;parameter_correlation&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">:</span>
-      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-        <span class="n">resid_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;RMSD_&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">]</span>
-        <span class="c"># split Jacobian into dense matrix blocks corresponding to each residual</span>
-        <span class="n">jblocks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_jacobian_into_blocks</span><span class="p">()</span>
-        <span class="n">corrmats</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">j</span>  <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">resid_names</span><span class="p">,</span> <span class="n">jblocks</span><span class="p">):</span>
-          <span class="n">corrmats</span><span class="p">[</span><span class="n">r</span><span class="p">]</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_packed_corr_mat</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">,</span> <span class="n">corrmats</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s">&quot;parameter_correlation&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="n">resid_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;RMSD_&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">]</span>
+      <span class="c"># split Jacobian into dense matrix blocks corresponding to each residual</span>
+      <span class="n">jblocks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_jacobian_into_blocks</span><span class="p">()</span>
+      <span class="n">corrmats</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">j</span>  <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">resid_names</span><span class="p">,</span> <span class="n">jblocks</span><span class="p">):</span>
+        <span class="n">corrmats</span><span class="p">[</span><span class="n">r</span><span class="p">]</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_packed_corr_mat</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;parameter_correlation&quot;</span><span class="p">,</span> <span class="n">corrmats</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s">&quot;condition_number&quot;</span> <span class="ow">in</span>  <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;condition_number&quot;</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jacobian_condition_number</span><span class="p">())</span>
     <span class="k">if</span> <span class="s">&quot;out_of_sample_rmsd&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">:</span>
       <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">predict_for_free_reflections</span><span class="p">()</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">set_last_cell</span><span class="p">(</span><span class="s">&quot;out_of_sample_rmsd&quot;</span><span class="p">,</span>
@@ -355,6 +414,47 @@
       <span class="n">corr_mat</span><span class="o">.</span><span class="n">matrix_copy_upper_to_lower_triangle_in_place</span><span class="p">()</span>
       <span class="n">packed_mats</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">corr_mat</span>
     <span class="k">return</span> <span class="n">packed_mats</span></div>
+
+<div class="viewcode-block" id="Refinery.jacobian_condition_number"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.jacobian_condition_number">[docs]</a>  <span class="k">def</span> <span class="nf">jacobian_condition_number</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculate the condition number of the Jacobian, for tracking in the</span>
+<span class="sd">    refinement journal, if requested. The condition number of a matrix A is</span>
+<span class="sd">    defined as cond(A) = ||A|| ||inv(A)||. For a rectangular matrix the inverse</span>
+<span class="sd">    operation refers to the Moore-Penrose pseudoinverse. Various matrix norms</span>
+<span class="sd">    can be used, resulting in numerically different condition numbers, however</span>
+<span class="sd">    the 2-norm is commonly used. In that case, the definition is equivalent</span>
+<span class="sd">    to the ratio of the largest to smallest singular values of the matrix:</span>
+<span class="sd">    cond(A) = sig_(A) / sig_min(A). That is the calculation that is performed</span>
+<span class="sd">    here.</span>
+
+<span class="sd">    The condition number is a measure of how accurate the solution x to the</span>
+<span class="sd">    equation Ax = b will be. Essentially it measures how errors are amplified</span>
+<span class="sd">    through the linear equation. The condition number is large in the case that</span>
+<span class="sd">    the columns of A are nearly linearly-dependent (and infinite for a singular</span>
+<span class="sd">    matrix). We use it here then to detect situations where the correlation</span>
+<span class="sd">    between effects of different parameter shifts becomes large and therefore</span>
+<span class="sd">    refinement is problematic.</span>
+
+<span class="sd">    Note, the Jacobian used here does not include any additional rows due to</span>
+<span class="sd">    restraints terms that might be applied, or any parameter reduction due to</span>
+<span class="sd">    constraints. Therefore this condition number relates to the pure linearised</span>
+<span class="sd">    (Gauss-Newton) step, which might not actually be what the refinement engine</span>
+<span class="sd">    uses. It can be indicative of issues in the fundamental set up of the least</span>
+<span class="sd">    squares problem, even if these issues are avoided in practice (e.g. by</span>
+<span class="sd">    use of an algorithm like Levenberg-Marquardt, inclusion of restraints or</span>
+<span class="sd">    parameter reduction.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c"># The Jacobian might be a sparse matrix</span>
+      <span class="n">j</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="o">.</span><span class="n">as_dense_matrix</span><span class="p">()</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+      <span class="n">j</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+
+    <span class="kn">from</span> <span class="nn">scitbx.linalg.svd</span> <span class="kn">import</span> <span class="n">real</span> <span class="k">as</span> <span class="n">svd_real</span>
+    <span class="n">svd</span> <span class="o">=</span> <span class="n">svd_real</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+
+    <span class="c"># The condition number is the ratio of the largest to the smallest singular</span>
+    <span class="c"># values of the matrix</span>
+    <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">svd</span><span class="o">.</span><span class="n">sigma</span><span class="p">)</span> <span class="o">/</span> <span class="nb">min</span><span class="p">(</span><span class="n">svd</span><span class="o">.</span><span class="n">sigma</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Refinery.test_for_termination"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.test_for_termination">[docs]</a>  <span class="k">def</span> <span class="nf">test_for_termination</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Return True if refinement should be terminated&quot;&quot;&quot;</span>
@@ -573,15 +673,10 @@
   <span class="sd">&quot;&quot;&quot;Adapt Refinery for lstbx&quot;&quot;&quot;</span>
 
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">constraints_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-               <span class="n">log</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">verbosity</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">track_step</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">track_gradient</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
-               <span class="n">track_parameter_correlation</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span>
-               <span class="n">track_out_of_sample_rmsd</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">max_iterations</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+               <span class="n">log</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">tracking</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">max_iterations</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
 
     <span class="n">Refinery</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">constraints_manager</span><span class="p">,</span>
-             <span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span> <span class="n">track_step</span><span class="o">=</span><span class="n">track_step</span><span class="p">,</span>
-             <span class="n">track_gradient</span><span class="o">=</span><span class="n">track_gradient</span><span class="p">,</span>
-             <span class="n">track_parameter_correlation</span><span class="o">=</span><span class="n">track_parameter_correlation</span><span class="p">,</span>
-             <span class="n">track_out_of_sample_rmsd</span><span class="o">=</span><span class="n">track_out_of_sample_rmsd</span><span class="p">,</span>
+             <span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span> <span class="n">tracking</span><span class="o">=</span><span class="n">tracking</span><span class="p">,</span>
              <span class="n">max_iterations</span><span class="o">=</span><span class="n">max_iterations</span><span class="p">)</span>
 
     <span class="c"># required for restart to work (do I need that method?)</span>
@@ -749,17 +844,12 @@
   <span class="n">convergence_as_shift_over_esd</span> <span class="o">=</span> <span class="mf">1e-5</span>
 
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">constraints_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-               <span class="n">log</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">track_step</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">track_gradient</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-               <span class="n">track_parameter_correlation</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-               <span class="n">track_out_of_sample_rmsd</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">log</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">tracking</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                <span class="n">max_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
 
     <span class="n">AdaptLstbx</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
              <span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">constraints_manager</span><span class="p">,</span>
-             <span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span> <span class="n">track_step</span><span class="o">=</span><span class="n">track_step</span><span class="p">,</span>
-             <span class="n">track_gradient</span><span class="o">=</span><span class="n">track_gradient</span><span class="p">,</span>
-             <span class="n">track_parameter_correlation</span><span class="o">=</span><span class="n">track_parameter_correlation</span><span class="p">,</span>
-             <span class="n">track_out_of_sample_rmsd</span><span class="o">=</span><span class="n">track_out_of_sample_rmsd</span><span class="p">,</span>
+             <span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span> <span class="n">tracking</span><span class="o">=</span><span class="n">tracking</span><span class="p">,</span>
              <span class="n">max_iterations</span><span class="o">=</span><span class="n">max_iterations</span><span class="p">)</span>
 
     <span class="c"># add an attribute to the journal</span>
