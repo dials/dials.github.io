@@ -73,11 +73,18 @@
 <span class="c">#  included in the root directory of this package.</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
-<span class="kn">import</span> <span class="nn">optparse</span>
 
-<span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">optparse</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">cPickle</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">namedtuple</span>
 
 <span class="kn">import</span> <span class="nn">libtbx.phil</span>
+<span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
+
 <span class="n">tolerance_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s">&#39;&#39;&#39;</span>
 <span class="s">tolerance</span>
 <span class="s">    .help = &quot;Tolerances used to determine shared models&quot;</span>
@@ -215,6 +222,8 @@
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
       <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></div></div>
 
+<span class="c"># Simple tuple to hold basic information on why an argument failed</span>
+<span class="n">ArgumentHandlingErrorInfo</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s">&quot;ArgumentHandlingErrorInfo&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;name&quot;</span><span class="p">,</span> <span class="s">&quot;validation&quot;</span><span class="p">,</span> <span class="s">&quot;message&quot;</span><span class="p">,</span> <span class="s">&quot;traceback&quot;</span><span class="p">,</span> <span class="s">&quot;type&quot;</span><span class="p">])</span>
 
 <div class="viewcode-block" id="Importer"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer">[docs]</a><span class="k">class</span> <span class="nc">Importer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39; A class to import the command line arguments. &#39;&#39;&#39;</span>
@@ -259,6 +268,8 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="n">args</span>
+    <span class="c"># Keep track of any errors whilst handling arguments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">handling_errors</span> <span class="o">=</span>  <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
 
     <span class="c"># First try to read image files</span>
     <span class="k">if</span> <span class="n">read_datablocks_from_images</span><span class="p">:</span>
@@ -285,6 +296,16 @@
     <span class="k">if</span> <span class="n">read_reflections</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_read_reflections</span><span class="p">(</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_handle_converter_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argument</span><span class="p">,</span> <span class="n">exception</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">validation</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="s">&quot;Record information about errors that occured processing an argument&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">[</span><span class="n">argument</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ArgumentHandlingErrorInfo</span><span class="p">(</span>
+          <span class="n">name</span><span class="o">=</span><span class="n">argument</span><span class="p">,</span>
+          <span class="n">validation</span><span class="o">=</span><span class="n">validation</span><span class="p">,</span>
+          <span class="n">message</span><span class="o">=</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+          <span class="n">traceback</span><span class="o">=</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">(),</span>
+          <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">)</span>
+    <span class="p">)</span>
 
 <div class="viewcode-block" id="Importer.try_read_datablocks_from_images"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.try_read_datablocks_from_images">[docs]</a>  <span class="k">def</span> <span class="nf">try_read_datablocks_from_images</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                       <span class="n">args</span><span class="p">,</span>
@@ -343,12 +364,18 @@
 
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">DataBlockConverters</span>
+    <span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="kn">import</span> <span class="n">InvalidDataBlockError</span>
+
     <span class="n">converter</span> <span class="o">=</span> <span class="n">DataBlockConverters</span><span class="p">(</span><span class="n">check_format</span><span class="p">)</span>
     <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">argument</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
       <span class="k">try</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">converter</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">argument</span><span class="p">))</span>
-      <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+      <span class="k">except</span> <span class="n">InvalidDataBlockError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&quot;DataBlock&quot;</span><span class="p">,</span> <span class="n">validation</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&quot;DataBlock&quot;</span><span class="p">)</span>
         <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">unhandled</span></div>
 
@@ -363,12 +390,19 @@
 
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">ExperimentListConverters</span>
+    <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">InvalidExperimentListError</span>
+
     <span class="n">converter</span> <span class="o">=</span> <span class="n">ExperimentListConverters</span><span class="p">(</span><span class="n">check_format</span><span class="p">)</span>
     <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">argument</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
       <span class="k">try</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">converter</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">argument</span><span class="p">))</span>
-      <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+      <span class="k">except</span> <span class="n">InvalidExperimentListError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="c"># This is a validation-related error: The file appears not to be in the correct format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&quot;ExperimentList&quot;</span><span class="p">,</span> <span class="n">validation</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&quot;ExperimentList&quot;</span><span class="p">)</span>
         <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">unhandled</span></div>
 
@@ -386,7 +420,12 @@
     <span class="k">for</span> <span class="n">argument</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
       <span class="k">try</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">converter</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">argument</span><span class="p">))</span>
-      <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+      <span class="k">except</span> <span class="p">(</span><span class="n">pickle</span><span class="o">.</span><span class="n">UnpicklingError</span><span class="p">,</span> <span class="n">cPickle</span><span class="o">.</span><span class="n">UnpicklingError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">pickle</span><span class="o">.</span><span class="n">UnpicklingError</span><span class="p">(</span><span class="s">&quot;Appears to be an invalid pickle file&quot;</span><span class="p">),</span>
+            <span class="nb">type</span><span class="o">=</span><span class="s">&quot;Reflections&quot;</span><span class="p">,</span> <span class="n">validation</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&quot;Reflections&quot;</span><span class="p">)</span>
         <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">unhandled</span></div></div>
 
@@ -576,6 +615,9 @@
       <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
       <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">,</span>
       <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">)</span>
+
+    <span class="c"># Grab a copy of the errors that occured in case the caller wants them</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">handling_errors</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">handling_errors</span>
 
     <span class="c"># Add the cached arguments</span>
     <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">importer</span><span class="o">.</span><span class="n">datablocks</span><span class="p">:</span>
@@ -856,16 +898,59 @@
     <span class="k">if</span> <span class="n">return_unhandled</span><span class="p">:</span>
       <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">args</span>
     <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">quick_parse</span><span class="p">:</span>
-      <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;Unable to handle the following arguments:</span><span class="se">\n</span><span class="s">&#39;</span>
-      <span class="n">msg</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&#39;  </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">a</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">args</span><span class="p">])</span>
-      <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&quot;.json&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">args</span><span class="p">):</span>
-        <span class="n">msg</span> <span class="o">+=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span>
-        <span class="n">msg</span> <span class="o">+=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">Please check that your image data is accessible&quot;</span>
+      <span class="c"># Handle printing any messages to diagnose unhandled arguments</span>
+      <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warn_about_unhandled_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
       <span class="k">if</span> <span class="n">ignore_unhandled</span><span class="p">:</span>
         <span class="k">print</span> <span class="n">msg</span>
       <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">options</span></div>
+
+  <span class="k">def</span> <span class="nf">_warn_about_unhandled_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unhandled</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate any messages about unhandled arguments.</span>
+
+<span class="sd">    This separates errors by validation/non-validation related, and only</span>
+<span class="sd">    gives the user validation information if there&#39;s no other reason (or</span>
+<span class="sd">    asked for verbose output).</span>
+
+<span class="sd">    :param unhandled: List of unhandled arguments</span>
+<span class="sd">    :param verbosity: The output verbosity determined during parsing</span>
+<span class="sd">    :returns:         A formatted information string</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;Unable to handle the following arguments:&#39;</span><span class="p">)</span>
+
+    <span class="c"># If we have any detailed information about why any of the </span>
+    <span class="c"># arguments weren&#39;t processed, give this to the user</span>
+    <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">unhandled</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">]:</span>
+      <span class="c"># Split the reasons for unhandling into validation, non-validation</span>
+      <span class="n">non_valid</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">validation</span><span class="p">]</span>
+      <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">validation</span><span class="p">]</span>
+
+      <span class="c"># If we have non-validation-related errors, these are more important</span>
+      <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">err</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">non_valid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">message</span><span class="p">):</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+        <span class="c"># Grouping the errors by message lets us avoid repeating messages</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">err</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;  {} failed repeatedly during processing:</span><span class="se">\n</span><span class="s">{}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">arg</span><span class="p">,</span> <span class="s">&quot;    &quot;</span> <span class="o">+</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;  {} failed during {} processing:</span><span class="se">\n</span><span class="s">{}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">arg</span><span class="p">,</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+            <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s">&quot;    &quot;</span> <span class="o">+</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">traceback</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())))</span>
+
+      <span class="c"># Otherwise (or if asked for verbosity), list the validation errors</span>
+      <span class="k">if</span> <span class="n">valid</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">non_valid</span> <span class="ow">or</span> <span class="n">verbosity</span><span class="p">):</span>
+        <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;  {} did not appear to conform to any{} expected format:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span>
+          <span class="s">&quot; other&quot;</span> <span class="k">if</span> <span class="n">non_valid</span> <span class="k">else</span> <span class="s">&quot; &quot;</span><span class="p">))</span>
+        <span class="n">slen</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">type</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">valid</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">err</span> <span class="ow">in</span> <span class="n">valid</span><span class="p">:</span>
+          <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;    - {} {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;{}:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">type</span><span class="p">)</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="n">slen</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span> <span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
 
   <span class="nd">@property</span>
   <span class="k">def</span> <span class="nf">phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
