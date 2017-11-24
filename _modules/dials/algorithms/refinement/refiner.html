@@ -87,6 +87,10 @@
 <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
 
+<span class="kn">from</span> <span class="nn">dials_refinement_helpers_ext</span> <span class="kn">import</span> <span class="n">pgnmn_iter</span> <span class="k">as</span> <span class="n">pgnmn</span>
+<span class="kn">from</span> <span class="nn">dials_refinement_helpers_ext</span> <span class="kn">import</span> <span class="n">ucnmn_iter</span> <span class="k">as</span> <span class="n">ucnmn</span>
+<span class="kn">from</span> <span class="nn">dials_refinement_helpers_ext</span> <span class="kn">import</span> <span class="n">mnmn_iter</span> <span class="k">as</span> <span class="n">mnmn</span>
+
 <span class="c"># The include scope directive does not work here. For example:</span>
 <span class="c">#</span>
 <span class="c">#   include scope dials.algorithms.refinement.outlier_detection.phil_scope</span>
@@ -469,6 +473,7 @@
     <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">:</span>
       <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">reflections</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
         <span class="n">rt</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
     <span class="k">return</span> <span class="n">rt</span>
 
   <span class="nd">@classmethod</span>
@@ -1058,15 +1063,21 @@
 
     <span class="c"># Parameter auto reduction options</span>
     <span class="k">def</span> <span class="nf">model_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
-      <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
-      <span class="c"># Do we have enough reflections to support this parameterisation?</span>
-      <span class="n">nparam</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span>
-      <span class="n">cutoff</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">nparam</span>
-      <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
-      <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-        <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">())</span>
-      <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
-      <span class="k">return</span> <span class="n">nref</span> <span class="o">-</span> <span class="n">cutoff</span>
+      <span class="n">cutoff</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">p</span><span class="o">.</span><span class="n">num_free</span><span class="p">()</span>
+
+      <span class="c">#Replaced Python code</span>
+      <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">      exp_ids = p.get_experiment_ids()</span>
+<span class="sd">      # Do we have enough reflections to support this parameterisation?</span>
+<span class="sd">      nparam = p.num_free()</span>
+<span class="sd">      cutoff = options.auto_reduction.min_nref_per_parameter * nparam</span>
+<span class="sd">      isel = flex.size_t()</span>
+<span class="sd">      for exp_id in exp_ids:</span>
+<span class="sd">        isel.extend((reflections[&#39;id&#39;] == exp_id).iselection())</span>
+<span class="sd">      nref = len(isel)</span>
+<span class="sd">      return nref - cutoff</span>
+<span class="sd">      &#39;&#39;&#39;</span>
+      <span class="k">return</span> <span class="n">mnmn</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&quot;id&quot;</span><span class="p">],</span><span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">())</span><span class="o">.</span><span class="n">result</span> <span class="o">-</span> <span class="n">cutoff</span>
 
     <span class="k">def</span> <span class="nf">unit_cell_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
       <span class="sd">&#39;&#39;&#39;Special version of model_nparam_minus_nref for crystal unit cell</span>
@@ -1075,22 +1086,38 @@
 <span class="sd">      reflections. For example, for an orthorhombic cell the g_param_0 parameter</span>
 <span class="sd">      has no effect on predictions in the plane (0,k,l). Here, take the number</span>
 <span class="sd">      of affected reflections for each parameter into account.&#39;&#39;&#39;</span>
-      <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
-      <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
-      <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-        <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">())</span>
-      <span class="n">ref</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
-      <span class="n">h</span> <span class="o">=</span> <span class="n">ref</span><span class="p">[</span><span class="s">&#39;miller_index&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span>
-      <span class="n">dB_dp</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_ds_dp</span><span class="p">()</span>
-      <span class="c"># if no free parameters, do as model_nparam_minus_nref</span>
-      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dB_dp</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
-      <span class="n">nref_each_param</span> <span class="o">=</span> <span class="p">[]</span>
+
+      <span class="n">F_dbdp</span><span class="o">=</span><span class="n">flex</span><span class="o">.</span><span class="n">mat3_double</span><span class="p">(</span> <span class="n">p</span><span class="o">.</span><span class="n">get_ds_dp</span><span class="p">()</span> <span class="p">)</span>
       <span class="n">min_nref</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span>
-      <span class="k">for</span> <span class="n">der</span> <span class="ow">in</span> <span class="n">dB_dp</span><span class="p">:</span>
-        <span class="n">der_mat</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mat3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">h</span><span class="p">),</span> <span class="n">der</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
-        <span class="n">tst</span> <span class="o">=</span> <span class="p">(</span><span class="n">der_mat</span> <span class="o">*</span> <span class="n">h</span><span class="p">)</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
-        <span class="n">nref_each_param</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tst</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">))</span>
-      <span class="k">return</span> <span class="nb">min</span><span class="p">([</span><span class="n">nref</span> <span class="o">-</span> <span class="n">min_nref</span> <span class="k">for</span> <span class="n">nref</span> <span class="ow">in</span> <span class="n">nref_each_param</span><span class="p">])</span>
+      <span class="c"># if no free parameters, do as model_nparam_minus_nref</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">F_dbdp</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
+        <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
+          <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">((</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">())</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+
+      <span class="c">#Replaced Python code</span>
+      <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">      exp_ids = p.get_experiment_ids()</span>
+<span class="sd">      isel = flex.size_t()</span>
+<span class="sd">      for exp_id in exp_ids:</span>
+<span class="sd">        isel.extend((reflections[&#39;id&#39;] == exp_id).iselection())</span>
+<span class="sd">      ref = reflections.select(isel)</span>
+<span class="sd">      h = ref[&#39;miller_index&#39;].as_vec3_double()</span>
+<span class="sd">      dB_dp = p.get_ds_dp()</span>
+<span class="sd">      # if no free parameters, do as model_nparam_minus_nref</span>
+<span class="sd">      if len(dB_dp) == 0: return len(isel)</span>
+<span class="sd">      nref_each_param = []</span>
+<span class="sd">      min_nref = options.auto_reduction.min_nref_per_parameter</span>
+<span class="sd">      for der in dB_dp:</span>
+<span class="sd">        der_mat = flex.mat3_double(len(h), der.elems)</span>
+<span class="sd">        tst = (der_mat * h).norms()</span>
+<span class="sd">        nref_each_param.append((tst &gt; 0.0).count(True))</span>
+
+<span class="sd">      return min([nref - min_nref for nref in nref_each_param])</span>
+<span class="sd">      &#39;&#39;&#39;</span>
+      <span class="k">return</span> <span class="n">ucnmn</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&quot;id&quot;</span><span class="p">],</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&quot;miller_index&quot;</span><span class="p">],</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">(),</span> <span class="n">F_dbdp</span><span class="p">)</span><span class="o">.</span><span class="n">result</span> <span class="o">-</span> <span class="n">min_nref</span>
 
     <span class="c"># In the scan-varying case we can&#39;t calculate dB_dp before composing the</span>
     <span class="c"># model, so revert to the original function</span>
@@ -1098,21 +1125,35 @@
       <span class="n">unit_cell_nparam_minus_nref</span> <span class="o">=</span> <span class="n">model_nparam_minus_nref</span>
 
     <span class="k">def</span> <span class="nf">panel_gp_nparam_minus_nref</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">pnl_ids</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
-      <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span>
+      <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">      :param p: ModelParameterisation; parameters in model</span>
+<span class="sd">      :param pnl_ids: panel IDs</span>
+<span class="sd">      :param group: group ID</span>
+<span class="sd">      :panel reflections: flex table of reflections</span>
+<span class="sd">      :panel verbose:</span>
+<span class="sd">      :return: returns surplus {int}</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+      <span class="n">exp_ids</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_experiment_ids</span><span class="p">()</span> <span class="c">#Experiments parameterised by this ModelParameterisation</span>
       <span class="c"># Do we have enough reflections to support this parameterisation?</span>
-      <span class="n">gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">gp</span> <span class="o">==</span> <span class="n">group</span> <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">get_param_panel_groups</span><span class="p">()]</span>
-      <span class="n">fixlist</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_fixed</span><span class="p">()</span>
-      <span class="n">free_gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">gp_params</span><span class="p">,</span> <span class="n">fixlist</span><span class="p">)]</span>
+      <span class="n">gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">gp</span> <span class="o">==</span> <span class="n">group</span> <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">get_param_panel_groups</span><span class="p">()]</span> <span class="c">#select the group ids for each param that matches the arg &#39;group&#39;</span>
+      <span class="n">fixlist</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_fixed</span><span class="p">()</span> <span class="c"># Get the fixed parameters; list says yes or no over all</span>
+      <span class="n">free_gp_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">gp_params</span><span class="p">,</span> <span class="n">fixlist</span><span class="p">)]</span> <span class="c">#Free params is the total less the fixed</span>
       <span class="n">nparam</span> <span class="o">=</span> <span class="n">free_gp_params</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
       <span class="n">cutoff</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">auto_reduction</span><span class="o">.</span><span class="n">min_nref_per_parameter</span> <span class="o">*</span> <span class="n">nparam</span>
       <span class="n">isel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
-      <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">exp_ids</span><span class="p">:</span>
-        <span class="n">subsel</span> <span class="o">=</span> <span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
-        <span class="n">panels</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;panel&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">subsel</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">pnl</span> <span class="ow">in</span> <span class="n">pnl_ids</span><span class="p">:</span>
-          <span class="n">isel</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">subsel</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">panels</span> <span class="o">==</span> <span class="n">pnl</span><span class="p">))</span>
-      <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
-      <span class="n">surplus</span> <span class="o">=</span> <span class="n">nref</span> <span class="o">-</span> <span class="n">cutoff</span>
+      <span class="c">#Use Boost.Python extension module to replace below code</span>
+      <span class="n">surplus</span> <span class="o">=</span> <span class="n">pgnmn</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s">&quot;id&quot;</span><span class="p">],</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&quot;panel&quot;</span><span class="p">],</span> <span class="n">pnl_ids</span><span class="p">,</span> <span class="n">exp_ids</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">)</span><span class="o">.</span><span class="n">result</span>
+
+      <span class="c">#Replaced Python code</span>
+      <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">      for exp_id in exp_ids:</span>
+<span class="sd">        sub_expID = (reflections[&#39;id&#39;] == exp_id).iselection()</span>
+<span class="sd">        sub_panels_expID = reflections[&#39;panel&#39;].select(sub_expID)</span>
+<span class="sd">        for pnl in pnl_ids:</span>
+<span class="sd">          isel.extend(sub_expID.select(sub_panels_expID == pnl))</span>
+<span class="sd">      nref = len(isel)</span>
+<span class="sd">      surplus = nref - cutoff</span>
+<span class="sd">      &#39;&#39;&#39;</span>
       <span class="k">if</span> <span class="n">surplus</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">verbose</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;{0} reflections on panels {1} with a cutoff of {2}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">pnl_ids</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">))</span>
       <span class="k">return</span> <span class="n">surplus</span>
@@ -2122,6 +2163,7 @@
 
     <span class="n">reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">predict_for_reflection_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_refman</span><span class="o">.</span><span class="n">get_indexed</span><span class="p">(),</span>
       <span class="n">skip_derivatives</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s">&#39;iobs&#39;</span><span class="p">)</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">selection_used_for_refinement</span><span class="p">()</span>
     <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">reflections</span></div>
@@ -2131,7 +2173,6 @@
 
     <span class="c"># delegate to the target object, which has access to the predictor</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">predict_for_reflection_table</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="p">)</span></div></div>
-
 </pre></div>
 
           </div>

@@ -248,6 +248,19 @@
     <span class="c"># keep track of the original indices of the reflections</span>
     <span class="n">reflections</span><span class="p">[</span><span class="s">&#39;iobs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
 
+    <span class="c">#Check for monotonically increasing value range. If not, ref_table isn&#39;t sorted,</span>
+    <span class="c"># and proceed to sort by id and panel. This is required for the C++ extension</span>
+    <span class="c"># modules to allow for nlogn subselection of values used in refinement.</span>
+    <span class="n">l_id</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s">&quot;id&quot;</span><span class="p">]</span>
+    <span class="n">id0</span> <span class="o">=</span> <span class="n">l_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">l_id</span><span class="p">)):</span>
+      <span class="k">if</span> <span class="n">id0</span> <span class="o">&lt;=</span> <span class="n">l_id</span><span class="p">[</span><span class="n">ii</span><span class="p">]:</span>
+        <span class="n">id0</span> <span class="o">=</span> <span class="n">l_id</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">reflections</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s">&quot;id&quot;</span><span class="p">)</span> <span class="c">#Ensuring the ref_table is sorted by id</span>
+        <span class="n">reflections</span><span class="o">.</span><span class="n">subsort</span><span class="p">(</span><span class="s">&quot;id&quot;</span><span class="p">,</span><span class="s">&quot;panel&quot;</span><span class="p">)</span> <span class="c">#Ensuring that within each sorted id block, sorting is next performed by panel</span>
+        <span class="k">break</span>
+
     <span class="c"># set up the reflection inclusion criteria</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_close_to_spindle_cutoff</span> <span class="o">=</span> <span class="n">close_to_spindle_cutoff</span> <span class="c">#too close to spindle</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span> <span class="o">=</span> <span class="n">outlier_detector</span> <span class="c">#for outlier rejection</span>
