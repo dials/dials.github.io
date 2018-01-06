@@ -35,7 +35,8 @@
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
-    <link rel="shortcut icon" href="../../../_static/dials_icon.png"/>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="top" title="DIALS  documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
@@ -476,6 +477,124 @@
     <span class="n">oind</span><span class="p">,</span> <span class="n">sind</span> <span class="o">=</span> <span class="n">match</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">sind</span><span class="p">,</span> <span class="n">oind</span></div>
 
+<div class="viewcode-block" id="reflection_table_aux.match_with_reference_without_copying_columns"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.match_with_reference_without_copying_columns">[docs]</a>  <span class="k">def</span> <span class="nf">match_with_reference_without_copying_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Match reflections with another set of reflections.</span>
+
+<span class="sd">    :param other: The reflection table to match against</span>
+<span class="sd">    :return: The matches</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+    <span class="kn">import</span> <span class="nn">__builtin__</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Matching reference spots with predicted reflections&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39; </span><span class="si">%d</span><span class="s1"> observed reflections input&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">other</span><span class="p">))</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39; </span><span class="si">%d</span><span class="s1"> reflections predicted&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+    <span class="c1"># Get the miller index, entering flag and turn number for</span>
+    <span class="c1"># Both sets of reflections</span>
+    <span class="n">i1</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+    <span class="n">h1</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">]</span>
+    <span class="n">e1</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;entering&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">as_int</span><span class="p">()</span>
+    <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;panel&#39;</span><span class="p">]</span>
+
+    <span class="n">i2</span> <span class="o">=</span> <span class="n">other</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+    <span class="n">h2</span> <span class="o">=</span> <span class="n">other</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">]</span>
+    <span class="n">e2</span> <span class="o">=</span> <span class="n">other</span><span class="p">[</span><span class="s1">&#39;entering&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">as_int</span><span class="p">()</span>
+    <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">z2</span> <span class="o">=</span> <span class="n">other</span><span class="p">[</span><span class="s1">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">p2</span> <span class="o">=</span> <span class="n">other</span><span class="p">[</span><span class="s1">&#39;panel&#39;</span><span class="p">]</span>
+
+    <span class="k">class</span> <span class="nc">Match</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+      <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Create the match lookup</span>
+    <span class="n">lookup</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="n">Match</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+      <span class="n">item</span> <span class="o">=</span> <span class="n">h1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">e1</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">i1</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p1</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+      <span class="n">lookup</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="o">.</span><span class="n">a</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="c1"># Add matches from input reflections</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">other</span><span class="p">)):</span>
+      <span class="n">item</span> <span class="o">=</span> <span class="n">h2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">e2</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">i2</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p2</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+      <span class="k">if</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">lookup</span><span class="p">:</span>
+        <span class="n">lookup</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="o">.</span><span class="n">b</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="c1"># Create the list of matches</span>
+    <span class="n">match1</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">match2</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">item</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">lookup</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">b</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">continue</span>
+      <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">b</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">match1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">match2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">matched</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">a</span><span class="p">:</span>
+          <span class="n">d</span> <span class="o">=</span> <span class="p">[]</span>
+          <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">b</span><span class="p">:</span>
+            <span class="n">dx</span> <span class="o">=</span> <span class="n">x1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">x2</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">dy</span> <span class="o">=</span> <span class="n">y1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">y2</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">dz</span> <span class="o">=</span> <span class="n">z1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">z2</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">,</span><span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dy</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dz</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+          <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">__builtin__</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+          <span class="k">if</span> <span class="n">j</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">matched</span><span class="p">:</span>
+            <span class="n">matched</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+          <span class="k">elif</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="n">matched</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">matched</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key1</span><span class="p">,</span> <span class="n">value1</span> <span class="ow">in</span> <span class="n">matched</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+          <span class="n">match1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value1</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+          <span class="n">match2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key1</span><span class="p">)</span>
+
+    <span class="c1"># Select everything which matches</span>
+    <span class="n">sind</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">match1</span><span class="p">)</span>
+    <span class="n">oind</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">match2</span><span class="p">)</span>
+
+    <span class="c1"># Sort by self index</span>
+    <span class="n">sort_index</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">__builtin__</span><span class="o">.</span><span class="n">sorted</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sind</span><span class="p">)),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">sind</span><span class="p">[</span><span class="n">x</span><span class="p">]))</span>
+    <span class="n">sind</span> <span class="o">=</span> <span class="n">sind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sort_index</span><span class="p">)</span>
+    <span class="n">oind</span> <span class="o">=</span> <span class="n">oind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sort_index</span><span class="p">)</span>
+
+    <span class="n">s2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sind</span><span class="p">)</span>
+    <span class="n">o2</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">oind</span><span class="p">)</span>
+    <span class="n">h1</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">]</span>
+    <span class="n">h2</span> <span class="o">=</span> <span class="n">o2</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">]</span>
+    <span class="n">e1</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="s1">&#39;entering&#39;</span><span class="p">]</span>
+    <span class="n">e2</span> <span class="o">=</span> <span class="n">o2</span><span class="p">[</span><span class="s1">&#39;entering&#39;</span><span class="p">]</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">h1</span> <span class="o">==</span> <span class="n">h2</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">e1</span> <span class="o">==</span> <span class="n">e2</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="s1">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">z2</span> <span class="o">=</span> <span class="n">o2</span><span class="p">[</span><span class="s1">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">distance</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">x1</span><span class="o">-</span><span class="n">x2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="p">(</span><span class="n">y1</span><span class="o">-</span><span class="n">y2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="p">(</span><span class="n">z1</span><span class="o">-</span><span class="n">z2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="mi">2</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39; </span><span class="si">%d</span><span class="s1"> reflections matched&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">o2</span><span class="p">))</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39; </span><span class="si">%d</span><span class="s1"> reflections accepted&#39;</span> <span class="o">%</span> <span class="n">mask</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="bp">True</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span>
+      <span class="n">sind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">mask</span><span class="p">),</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">reference_spot</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span>
+      <span class="n">sind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">o2</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">strong</span><span class="p">)),</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">strong</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span>
+      <span class="n">sind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">o2</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">indexed</span><span class="p">)),</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">indexed</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span>
+      <span class="n">sind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">o2</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)),</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
+    <span class="n">other_matched_indices</span> <span class="o">=</span> <span class="n">oind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+    <span class="n">other_unmatched_mask</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">other</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+    <span class="n">other_unmatched_mask</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
+      <span class="n">other_matched_indices</span><span class="p">,</span>
+      <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">other_matched_indices</span><span class="p">),</span> <span class="bp">False</span><span class="p">))</span>
+    <span class="n">other_matched</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">other_matched_indices</span><span class="p">)</span>
+    <span class="n">other_unmatched</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">other_unmatched_mask</span><span class="p">)</span>
+    <span class="n">mask2</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">mask2</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">mask</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mask2</span><span class="p">,</span> <span class="n">other_matched</span><span class="p">,</span> <span class="n">other_unmatched</span></div>
+
 <div class="viewcode-block" id="reflection_table_aux.match_with_reference"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.match_with_reference">[docs]</a>  <span class="k">def</span> <span class="nf">match_with_reference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Match reflections with another set of reflections.</span>
@@ -551,14 +670,20 @@
     <span class="c1"># Select everything which matches</span>
     <span class="n">sind</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">match1</span><span class="p">)</span>
     <span class="n">oind</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">match2</span><span class="p">)</span>
+
+    <span class="c1"># Sort by self index</span>
+    <span class="n">sort_index</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">__builtin__</span><span class="o">.</span><span class="n">sorted</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sind</span><span class="p">)),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">sind</span><span class="p">[</span><span class="n">x</span><span class="p">]))</span>
+    <span class="n">sind</span> <span class="o">=</span> <span class="n">sind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sort_index</span><span class="p">)</span>
+    <span class="n">oind</span> <span class="o">=</span> <span class="n">oind</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sort_index</span><span class="p">)</span>
+
     <span class="n">s2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sind</span><span class="p">)</span>
     <span class="n">o2</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">oind</span><span class="p">)</span>
     <span class="n">h1</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">]</span>
     <span class="n">h2</span> <span class="o">=</span> <span class="n">o2</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">]</span>
     <span class="n">e1</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="s1">&#39;entering&#39;</span><span class="p">]</span>
     <span class="n">e2</span> <span class="o">=</span> <span class="n">o2</span><span class="p">[</span><span class="s1">&#39;entering&#39;</span><span class="p">]</span>
-    <span class="k">assert</span><span class="p">(</span><span class="n">h1</span> <span class="o">==</span> <span class="n">h2</span><span class="p">)</span>
-    <span class="k">assert</span><span class="p">(</span><span class="n">e1</span> <span class="o">==</span> <span class="n">e2</span><span class="p">)</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">h1</span> <span class="o">==</span> <span class="n">h2</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">e1</span> <span class="o">==</span> <span class="n">e2</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
     <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="s1">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
     <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">z2</span> <span class="o">=</span> <span class="n">o2</span><span class="p">[</span><span class="s1">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
     <span class="n">distance</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">x1</span><span class="o">-</span><span class="n">x2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="p">(</span><span class="n">y1</span><span class="o">-</span><span class="n">y2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="p">(</span><span class="n">z1</span><span class="o">-</span><span class="n">z2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
@@ -1183,7 +1308,7 @@
   </script>
   
     <div class="footer">
-      &copy;2017, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      &copy;2018, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
       
     </div>
 
