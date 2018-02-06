@@ -77,6 +77,8 @@
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
 
+<span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="kn">import</span> <span class="n">Sorry</span>
+
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -914,9 +916,15 @@
     <span class="c1"># Get spots from bits of scan</span>
     <span class="n">hot_pixels</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">())))</span>
     <span class="n">reflections</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">scan</span> <span class="ow">in</span> <span class="n">scan_range</span><span class="p">:</span>
-      <span class="n">j0</span><span class="p">,</span> <span class="n">j1</span> <span class="o">=</span> <span class="n">scan</span>
+    <span class="k">for</span> <span class="n">j0</span><span class="p">,</span> <span class="n">j1</span> <span class="ow">in</span> <span class="n">scan_range</span><span class="p">:</span>
+      <span class="c1"># Make sure we were asked to do something sensible</span>
+      <span class="k">if</span> <span class="n">j1</span> <span class="o">&lt;</span> <span class="n">j0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s2">&quot;Scan range must be in ascending order&quot;</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">j0</span> <span class="o">&lt;</span> <span class="n">max_scan_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> <span class="n">j1</span> <span class="o">&gt;</span> <span class="n">max_scan_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s2">&quot;Scan range must be within image range {}..{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">max_scan_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">max_scan_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
       <span class="k">assert</span><span class="p">(</span><span class="n">j1</span> <span class="o">&gt;=</span> <span class="n">j0</span> <span class="ow">and</span> <span class="n">j0</span> <span class="o">&gt;</span> <span class="n">max_scan_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">j1</span> <span class="o">&lt;=</span> <span class="n">max_scan_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
       <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Finding spots in image {0} to {1}...&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">j0</span><span class="p">,</span> <span class="n">j1</span><span class="p">))</span>
       <span class="n">j0</span> <span class="o">-=</span> <span class="mi">1</span>
       <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSweep</span><span class="p">):</span>
