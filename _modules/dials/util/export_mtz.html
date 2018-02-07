@@ -671,6 +671,7 @@
     <span class="n">end_number</span> <span class="o">=</span> <span class="n">start_number</span> <span class="o">+</span> <span class="n">range_width</span> <span class="o">-</span> <span class="mi">1</span>
     <span class="n">batch_offsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">start_number</span> <span class="o">-</span> <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">maximum_batch_number</span> <span class="o">=</span> <span class="n">end_number</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">set_batch_offset</span><span class="p">(</span><span class="n">batch_offsets</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
 
   <span class="k">return</span> <span class="n">batch_offsets</span>
 
@@ -724,8 +725,19 @@
     <span class="k">else</span><span class="p">:</span>
       <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
 
-  <span class="c1"># Calculate any offset to the image numbers</span>
-  <span class="n">batch_offsets</span> <span class="o">=</span> <span class="n">_calculate_batch_offsets</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span>
+
+  <span class="n">batch_offsets</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span>
+    <span class="n">expt</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_batch_offset</span><span class="p">()</span> <span class="k">for</span> <span class="n">expt</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">batch_offsets</span><span class="o">.</span><span class="n">all_eq</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+    <span class="c1"># Calculate any offset to the image numbers</span>
+    <span class="n">batch_offsets</span> <span class="o">=</span> <span class="n">_calculate_batch_offsets</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">unique_offsets</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">batch_offsets</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_offsets</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch_offsets</span><span class="p">):</span>
+      <span class="kn">import</span> <span class="nn">collections</span>
+      <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s1">&#39;Duplicate batch offsets detected: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">collections</span><span class="o">.</span><span class="n">Counter</span><span class="p">(</span><span class="n">batch_offsets</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">))</span>
 
   <span class="c1"># Create the mtz file</span>
   <span class="n">mtz_file</span> <span class="o">=</span> <span class="n">mtz</span><span class="o">.</span><span class="n">object</span><span class="p">()</span>
@@ -744,7 +756,6 @@
   <span class="k">for</span> <span class="n">experiment_index</span><span class="p">,</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">):</span>
     <span class="c1"># Grab our subset of the data</span>
     <span class="n">experiment</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">integrated_data</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">experiment_index</span><span class="p">))</span>
-    <span class="n">experiment</span><span class="o">.</span><span class="n">batch_offset</span> <span class="o">=</span> <span class="n">batch_offsets</span><span class="p">[</span><span class="n">experiment_index</span><span class="p">]</span>
 
     <span class="c1"># Do any crystal transformations for the experiment</span>
     <span class="n">cb_op_to_ref</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
@@ -758,13 +769,13 @@
 
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">experiment</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
       <span class="n">_add_batch</span><span class="p">(</span><span class="n">mtz_file</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span>
-        <span class="n">batch_number</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="n">experiment</span><span class="o">.</span><span class="n">batch_offset</span><span class="p">,</span>
+        <span class="n">batch_number</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_batch_offset</span><span class="p">(),</span>
         <span class="n">image_number</span><span class="o">=</span><span class="n">i</span><span class="p">,</span>
         <span class="n">force_static_model</span><span class="o">=</span><span class="n">force_static_model</span><span class="p">)</span>
 
     <span class="c1"># Create the batch offset array. This gives us an experiment (id)-dependent</span>
     <span class="c1"># batch offset to calculate the correct batch from image number.</span>
-    <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;batch_offset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]),</span> <span class="n">experiment</span><span class="o">.</span><span class="n">batch_offset</span><span class="p">)</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;batch_offset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]),</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_batch_offset</span><span class="p">())</span>
 
     <span class="c1"># Calculate whether we have a ROT value for this experiment, and set the column</span>
     <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">frac_image_id</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;xyzcal.px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
