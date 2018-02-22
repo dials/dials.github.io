@@ -232,11 +232,21 @@
     <span class="k">if</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">n_voids</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
       <span class="c1"># Require at least peak at origin and one peak for each basis vector</span>
       <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s2">&quot;Indexing failed: fft3d peak search failed to find sufficient number of peaks.&quot;</span><span class="p">)</span>
+
     <span class="c1"># the peak at the origin might have a significantly larger volume than the</span>
-    <span class="c1"># rest so exclude this peak from determining maximum volume</span>
-    <span class="n">isel</span> <span class="o">=</span> <span class="p">(</span><span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span> <span class="o">&gt;</span> <span class="nb">int</span><span class="p">(</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_volume_cutoff</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span>
-          <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()[</span><span class="mi">1</span><span class="p">:])))</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+    <span class="c1"># rest so exclude any anomalously large peaks from determining minimum volume</span>
+    <span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="kn">import</span> <span class="n">five_number_summary</span>
+    <span class="n">outliers</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">flood_fill</span><span class="o">.</span><span class="n">n_voids</span><span class="p">(),</span> <span class="bp">False</span><span class="p">)</span>
+    <span class="n">grid_points_per_void</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span>
+    <span class="n">min_x</span><span class="p">,</span> <span class="n">q1_x</span><span class="p">,</span> <span class="n">med_x</span><span class="p">,</span> <span class="n">q3_x</span><span class="p">,</span> <span class="n">max_x</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">grid_points_per_void</span><span class="p">)</span>
+    <span class="n">iqr_multiplier</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">iqr_x</span> <span class="o">=</span> <span class="n">q3_x</span> <span class="o">-</span> <span class="n">q1_x</span>
+    <span class="n">cut_x</span> <span class="o">=</span> <span class="n">iqr_multiplier</span> <span class="o">*</span> <span class="n">iqr_x</span>
+    <span class="n">outliers</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">grid_points_per_void</span><span class="o">.</span><span class="n">as_double</span><span class="p">()</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">q3_x</span> <span class="o">+</span> <span class="n">cut_x</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+    <span class="c1">#print q3_x + cut_x, outliers.count(True)</span>
+    <span class="n">isel</span> <span class="o">=</span> <span class="p">(</span><span class="n">grid_points_per_void</span> <span class="o">&gt;</span> <span class="nb">int</span><span class="p">(</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">fft3d</span><span class="o">.</span><span class="n">peak_volume_cutoff</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span>
+        <span class="n">grid_points_per_void</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">~</span><span class="n">outliers</span><span class="p">))))</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">optimise_initial_basis_vectors</span><span class="p">:</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
