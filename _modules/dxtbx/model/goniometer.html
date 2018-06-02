@@ -1,0 +1,544 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dxtbx.model.goniometer &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for dxtbx.model.goniometer</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
+<span class="c1">#!/usr/bin/env python</span>
+<span class="c1"># goniometer.py</span>
+<span class="c1">#   Copyright (C) 2011 Diamond Light Source, Graeme Winter</span>
+<span class="c1">#</span>
+<span class="c1">#   This code is distributed under the BSD license, a copy of which is</span>
+<span class="c1">#   included in the root directory of this package.</span>
+<span class="c1">#</span>
+<span class="c1"># A model for the goniometer for the &quot;updated experimental model&quot; project</span>
+<span class="c1"># documented in internal ticket #1555. This is not designed to be used outside</span>
+<span class="c1"># of the XSweep classes.</span>
+
+<span class="kn">import</span> <span class="nn">pycbf</span>
+<span class="kn">from</span> <span class="nn">dxtbx_model_ext</span> <span class="k">import</span> <span class="n">KappaGoniometer</span> <span class="c1"># special import</span>
+<span class="kn">from</span> <span class="nn">dxtbx_model_ext</span> <span class="k">import</span> <span class="n">Goniometer</span><span class="p">,</span> <span class="n">MultiAxisGoniometer</span>
+<span class="kn">import</span> <span class="nn">libtbx.phil</span>
+<span class="kn">import</span> <span class="nn">scitbx.math</span> <span class="c1"># import dependency</span>
+
+
+<span class="n">goniometer_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">  goniometer</span>
+<span class="s1">    .expert_level = 1</span>
+<span class="s1">    .short_caption = &quot;Goniometer overrides&quot;</span>
+<span class="s1">  {</span>
+
+<span class="s1">    axes = None</span>
+<span class="s1">      .type = floats</span>
+<span class="s1">      .help = &quot;Override the goniometer axes. Axes must be provided in the&quot;</span>
+<span class="s1">              &quot;order crystal-to-goniometer, i.e. for a Kappa goniometer&quot;</span>
+<span class="s1">              &quot;phi,kappa,omega&quot;</span>
+<span class="s1">      .short_caption=&quot;Goniometer axes&quot;</span>
+
+<span class="s1">    angles = None</span>
+<span class="s1">      .type = floats</span>
+<span class="s1">      .help = &quot;Override the goniometer angles. Axes must be provided in the&quot;</span>
+<span class="s1">              &quot;order crystal-to-goniometer, i.e. for a Kappa goniometer&quot;</span>
+<span class="s1">              &quot;phi,kappa,omega&quot;</span>
+<span class="s1">      .short_caption = &quot;Goniometer angles&quot;</span>
+
+<span class="s1">    names = None</span>
+<span class="s1">      .type = str</span>
+<span class="s1">      .help = &quot;The multi axis goniometer axis names&quot;</span>
+<span class="s1">      .short_caption = &quot;The axis names&quot;</span>
+
+<span class="s1">    scan_axis = None</span>
+<span class="s1">      .type = int</span>
+<span class="s1">      .help = &quot;The scan axis&quot;</span>
+<span class="s1">      .short_caption = &quot;The scan axis&quot;</span>
+
+<span class="s1">    fixed_rotation = None</span>
+<span class="s1">      .type = floats(size=9)</span>
+<span class="s1">      .help = &quot;Override the fixed rotation matrix&quot;</span>
+<span class="s1">      .short_caption = &quot;Fixed rotation matrix&quot;</span>
+
+<span class="s1">    setting_rotation = None</span>
+<span class="s1">      .type = floats(size=9)</span>
+<span class="s1">      .help = &quot;Override the setting rotation matrix&quot;</span>
+<span class="s1">      .short_caption = &quot;Setting rotation matrix&quot;</span>
+
+<span class="s1">    invert_rotation_axis = False</span>
+<span class="s1">      .type = bool</span>
+<span class="s1">      .help = &quot;Invert the rotation axis&quot;</span>
+<span class="s1">      .short_caption = &quot;Invert rotation axis&quot;</span>
+
+<span class="s1">  }</span>
+<span class="s1">&#39;&#39;&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="GoniometerFactory"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory">[docs]</a><span class="k">class</span> <span class="nc">GoniometerFactory</span><span class="p">:</span>
+  <span class="sd">&#39;&#39;&#39;A factory class for goniometer objects, which will encapsulate</span>
+<span class="sd">  some standard goniometer designs to make it a little easier to get</span>
+<span class="sd">  started with all of this - for cases when we are not using a CBF.</span>
+<span class="sd">  When we have a CBF just use that factory method and everything will be</span>
+<span class="sd">  peachy.&#39;&#39;&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<div class="viewcode-block" id="GoniometerFactory.single_axis_goniometer_from_phil"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.single_axis_goniometer_from_phil">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">single_axis_goniometer_from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Generate or overwrite a single axis goniometer</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># Check the axes parameter</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Single axis goniometer requires 3 axes parameters&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Check the angles parameter</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">angles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Single axis goniometer requires angles == None&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Check the names parameter</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Single axis goniometer requires names == None&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Init the gonionmeter</span>
+    <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">goniometer</span> <span class="o">=</span> <span class="n">Goniometer</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">goniometer</span> <span class="o">=</span> <span class="n">reference</span>
+
+    <span class="c1"># Set the parameters</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">goniometer</span><span class="o">.</span><span class="n">set_rotation_axis_datum</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">fixed_rotation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">goniometer</span><span class="o">.</span><span class="n">set_fixed_rotation</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">fixed_rotation</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">setting_rotation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">goniometer</span><span class="o">.</span><span class="n">set_setting_rotation</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">setting_rotation</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">invert_rotation_axis</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">rotation_axis</span> <span class="o">=</span> <span class="n">goniometer</span><span class="o">.</span><span class="n">get_rotation_axis_datum</span><span class="p">()</span>
+      <span class="n">goniometer</span><span class="o">.</span><span class="n">set_rotation_axis_datum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">,</span> <span class="n">rotation_axis</span><span class="p">))</span>
+
+    <span class="c1"># Return the model</span>
+    <span class="k">return</span> <span class="n">goniometer</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.multi_axis_goniometer_from_phil"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.multi_axis_goniometer_from_phil">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">multi_axis_goniometer_from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
+
+    <span class="c1"># Check the axes parameter</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span> <span class="o">%</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Number of values for axes parameter must be multiple of 3.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Check the fixed rotation</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">fixed_rotation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Multi-axis goniometer requires fixed_rotation == None&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Check the setting rotation</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">setting_rotation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Multi-axis goniometer requires setting_rotation == None&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Check the input</span>
+    <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;No axes set&#39;</span><span class="p">)</span>
+
+      <span class="c1"># Create the axes</span>
+      <span class="n">axes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="o">*</span><span class="mi">3</span><span class="p">:(</span><span class="n">i</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span>
+        <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span> <span class="o">//</span> <span class="mi">3</span><span class="p">))</span>
+
+      <span class="c1"># Invert the rotation axis</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">invert_rotation_axis</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">axes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">([</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">])</span>
+
+      <span class="c1"># Create the angles</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">angles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">angles</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">angles</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">angles</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Number of angles must match axes&#39;</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">angles</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">))</span>
+
+      <span class="c1"># Create the names</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">names</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Number of names must match axes&#39;</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">([</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">))</span>
+
+      <span class="c1"># Create the scan axis</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">scan_axis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">scan_axis</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">scan_axis</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">scan_axis</span> <span class="o">=</span> <span class="mi">0</span>
+
+      <span class="c1"># Create the model</span>
+      <span class="n">goniometer</span> <span class="o">=</span> <span class="n">MultiAxisGoniometer</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">goniometer</span> <span class="o">=</span> <span class="n">reference</span>
+
+      <span class="c1"># Set the axes</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">axes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span>
+          <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="o">*</span><span class="mi">3</span><span class="p">:(</span><span class="n">i</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span>
+          <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span> <span class="o">//</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_axes</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Number of axes must match the current goniometer (</span><span class="si">%s</span><span class="s2">)&quot;</span>
+             <span class="o">%</span><span class="nb">len</span><span class="p">(</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_axes</span><span class="p">()))</span>
+        <span class="n">goniometer</span><span class="o">.</span><span class="n">set_axes</span><span class="p">(</span><span class="n">axes</span><span class="p">)</span>
+
+      <span class="c1"># Invert rotation axis</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">invert_rotation_axis</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">axes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">([</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">goniometer</span><span class="o">.</span><span class="n">get_axes</span><span class="p">()])</span>
+        <span class="n">goniometer</span><span class="o">.</span><span class="n">set_axes</span><span class="p">(</span><span class="n">axes</span><span class="p">)</span>
+
+      <span class="c1"># Set the angles</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">angles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_angles</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">angles</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Number of angles must match the current goniometer (</span><span class="si">%s</span><span class="s2">)&quot;</span>
+             <span class="o">%</span><span class="nb">len</span><span class="p">(</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_angles</span><span class="p">()))</span>
+        <span class="n">goniometer</span><span class="o">.</span><span class="n">set_angles</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">angles</span><span class="p">)</span>
+
+      <span class="c1"># Set the namess</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_names</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">names</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Number of names must match the current goniometer (</span><span class="si">%s</span><span class="s2">)&quot;</span>
+             <span class="o">%</span><span class="nb">len</span><span class="p">(</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_names</span><span class="p">()))</span>
+        <span class="n">goniometer</span><span class="o">.</span><span class="n">set_names</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">names</span><span class="p">)</span>
+
+      <span class="c1"># Set the scan axis</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">scan_axis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Can not override scan axis&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Return the model</span>
+    <span class="k">return</span> <span class="n">goniometer</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.from_phil"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.from_phil">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Convert the phil parameters into a beam model</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">MultiAxisGoniometer</span><span class="p">):</span>
+        <span class="n">goniometer</span> <span class="o">=</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">multi_axis_goniometer_from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reference</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">goniometer</span> <span class="o">=</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">single_axis_goniometer_from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reference</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">goniometer</span> <span class="o">=</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">multi_axis_goniometer_from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">goniometer</span> <span class="o">=</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">single_axis_goniometer_from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">goniometer</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.from_dict"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.from_dict">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Convert the dictionary to a goniometer model</span>
+
+<span class="sd">    Params:</span>
+<span class="sd">        d The dictionary of parameters</span>
+<span class="sd">        t The template dictionary to use</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The goniometer model</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Goniometer</span><span class="p">,</span> <span class="n">MultiAxisGoniometer</span>
+
+    <span class="c1"># If None, return None</span>
+    <span class="k">if</span> <span class="n">d</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="k">return</span> <span class="kc">None</span>
+      <span class="k">else</span><span class="p">:</span> <span class="k">return</span> <span class="n">from_dict</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="o">+</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+    <span class="c1"># Create the model from the dictionary</span>
+    <span class="k">if</span> <span class="s1">&#39;axes&#39;</span> <span class="ow">in</span> <span class="n">d</span> <span class="ow">and</span> <span class="s1">&#39;angles&#39;</span> <span class="ow">in</span> <span class="n">d</span> <span class="ow">and</span> <span class="s1">&#39;scan_axis&#39;</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">MultiAxisGoniometer</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Goniometer</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.make_goniometer"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.make_goniometer">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">make_goniometer</span><span class="p">(</span><span class="n">rotation_axis</span><span class="p">,</span> <span class="n">fixed_rotation</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Goniometer</span><span class="p">(</span>
+        <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">rotation_axis</span><span class="p">)),</span>
+        <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">fixed_rotation</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.make_kappa_goniometer"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.make_kappa_goniometer">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">make_kappa_goniometer</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">kappa</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">direction</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">math</span>
+
+    <span class="n">omega_axis</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">phi_axis</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">c</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">);</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">);</span>
+    <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="s2">&quot;+y&quot;</span><span class="p">:</span>
+      <span class="n">kappa_axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">direction</span> <span class="o">==</span> <span class="s2">&quot;+z&quot;</span><span class="p">:</span>
+      <span class="n">kappa_axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">direction</span> <span class="o">==</span> <span class="s2">&quot;-y&quot;</span><span class="p">:</span>
+      <span class="n">kappa_axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="o">-</span><span class="n">s</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">direction</span> <span class="o">==</span> <span class="s2">&quot;-z&quot;</span><span class="p">:</span>
+      <span class="n">kappa_axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Invalid direction&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">scan_axis</span> <span class="o">==</span> <span class="s2">&quot;phi&quot;</span><span class="p">:</span>
+      <span class="n">scan_axis</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">scan_axis</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
+    <span class="n">axes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">((</span><span class="n">phi_axis</span><span class="p">,</span> <span class="n">kappa_axis</span><span class="p">,</span> <span class="n">omega_axis</span><span class="p">))</span>
+    <span class="n">angles</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">((</span><span class="n">phi</span><span class="p">,</span> <span class="n">kappa</span><span class="p">,</span> <span class="n">omega</span><span class="p">))</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">((</span><span class="s2">&quot;PHI&quot;</span><span class="p">,</span> <span class="s2">&quot;KAPPA&quot;</span><span class="p">,</span> <span class="s2">&quot;OMEGA&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">make_multi_axis_goniometer</span><span class="p">(</span>
+      <span class="n">axes</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.make_multi_axis_goniometer"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.make_multi_axis_goniometer">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">make_multi_axis_goniometer</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">MultiAxisGoniometer</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.single_axis"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.single_axis">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">single_axis</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;Construct a single axis goniometer which is canonical in the</span>
+<span class="sd">    CBF reference frame.&#39;&#39;&#39;</span>
+
+    <span class="n">axis</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">fixed</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">make_goniometer</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">fixed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.single_axis_reverse"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.single_axis_reverse">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">single_axis_reverse</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;Construct a single axis goniometer which is canonical in the</span>
+<span class="sd">    CBF reference frame, but reversed in rotation.&#39;&#39;&#39;</span>
+
+    <span class="n">axis</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">fixed</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">make_goniometer</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">fixed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.known_axis"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.known_axis">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">known_axis</span><span class="p">(</span><span class="n">axis</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Return an goniometer instance for a known rotation axis, assuming</span>
+<span class="sd">    that nothing is known about the fixed element of the rotation axis.&#39;&#39;&#39;</span>
+
+    <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="n">fixed</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">Goniometer</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">fixed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.kappa"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.kappa">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">kappa</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">kappa</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">direction</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Return a kappa goniometer where omega is the primary axis (i,e.</span>
+<span class="sd">    aligned with X in the CBF coordinate frame) and has the kappa arm</span>
+<span class="sd">    with angle alpha attached to it, aligned with -z, +y, +z or -y at</span>
+<span class="sd">    omega = 0, that being the direction, which in turn has phi fixed to it</span>
+<span class="sd">    which should initially be coincident with omega. We also need to know</span>
+<span class="sd">    which axis is being used for the scan i.e. phi or omega. All angles</span>
+<span class="sd">    should be given in degrees. This will work by first constructing the</span>
+<span class="sd">    rotation axes and then composing them to the scan axis and fixed</span>
+<span class="sd">    component of the rotation.&#39;&#39;&#39;</span>
+
+    <span class="k">return</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">make_kappa_goniometer</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">kappa</span><span class="p">,</span>
+        <span class="n">phi</span><span class="p">,</span> <span class="n">direction</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.multi_axis"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.multi_axis">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">multi_axis</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">return</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">make_multi_axis_goniometer</span><span class="p">(</span>
+      <span class="n">axes</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.imgCIF"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.imgCIF">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">imgCIF</span><span class="p">(</span><span class="n">cif_file</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Initialize a goniometer model from an imgCIF file.&#39;&#39;&#39;</span>
+
+    <span class="c1"># FIXME in here work out how to get the proper setting matrix if != 1</span>
+
+    <span class="n">cbf_handle</span> <span class="o">=</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">cbf_handle_struct</span><span class="p">()</span>
+    <span class="n">cbf_handle</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">MSG_DIGEST</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">imgCIF_H</span><span class="p">(</span><span class="n">cbf_handle</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GoniometerFactory.imgCIF_H"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/goniometer.html#dxtbx.model.goniometer.GoniometerFactory.imgCIF_H">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">imgCIF_H</span><span class="p">(</span><span class="n">cbf_handle</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Initialize a goniometer model from an imgCIF file handle, where</span>
+<span class="sd">    it is assumed that the file has already been read.&#39;&#39;&#39;</span>
+
+    <span class="c1"># find the goniometer axes and dependencies</span>
+    <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
+    <span class="n">axis_names</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">()</span>
+    <span class="n">depends_on</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">()</span>
+    <span class="n">axes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">()</span>
+    <span class="n">angles</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+    <span class="n">scan_axis</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_category</span><span class="p">(</span><span class="s2">&quot;axis&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">count_rows</span><span class="p">()):</span>
+      <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;equipment&quot;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;goniometer&quot;</span><span class="p">:</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">axis_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">())</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+          <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;vector[</span><span class="si">%i</span><span class="s2">]&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+          <span class="n">axis</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()))</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;depends_on&quot;</span><span class="p">)</span>
+        <span class="n">depends_on</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">())</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">next_row</span><span class="p">()</span>
+
+    <span class="c1"># find the starting angles of each goniometer axis and figure out which one</span>
+    <span class="c1"># is the scan axis (i.e. non-zero angle_increment)</span>
+    <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_category</span><span class="p">(</span><span class="s2">&quot;diffrn_scan_axis&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">count_rows</span><span class="p">()):</span>
+      <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;axis_id&quot;</span><span class="p">)</span>
+      <span class="n">axis_name</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">axis_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">axis_names</span><span class="p">:</span> <span class="k">continue</span>
+      <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;angle_start&quot;</span><span class="p">)</span>
+      <span class="n">axis_angle</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">())</span>
+      <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;angle_increment&quot;</span><span class="p">)</span>
+      <span class="n">increment</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">())</span>
+      <span class="n">angles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">axis_angle</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">increment</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">scan_axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;More than one scan axis is defined: not currently supported&quot;</span>
+        <span class="n">scan_axis</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">first_index</span><span class="p">(</span><span class="n">axis_names</span><span class="p">,</span> <span class="n">axis_name</span><span class="p">)</span>
+      <span class="n">cbf_handle</span><span class="o">.</span><span class="n">next_row</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">axes</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="n">angles</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">scan_axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># probably a still shot -&gt; scan axis arbitrary as no scan</span>
+      <span class="n">scan_axis</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># figure out the order of the axes from the depends_on values</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">axes</span><span class="o">.</span><span class="n">size</span><span class="p">()):</span>
+      <span class="k">if</span> <span class="n">depends_on</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;.&#39;</span><span class="p">:</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">first_index</span><span class="p">(</span><span class="n">axis_names</span><span class="p">,</span> <span class="n">depends_on</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">+</span><span class="mi">1</span>
+      <span class="k">assert</span> <span class="n">o</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">order</span>
+      <span class="n">order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+
+    <span class="c1"># multi-axis gonio requires axes in order as viewed from crystal to gonio base</span>
+    <span class="c1"># i.e. the reverse of the order we have from cbf header</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">order</span><span class="o">.</span><span class="n">reversed</span><span class="p">()</span>
+    <span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
+    <span class="n">angles</span> <span class="o">=</span> <span class="n">angles</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
+    <span class="n">axis_names</span> <span class="o">=</span> <span class="n">axis_names</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
+    <span class="n">scan_axis</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">-</span> <span class="n">scan_axis</span> <span class="o">-</span> <span class="mi">1</span>
+
+    <span class="c1"># construct a multi-axis goniometer</span>
+    <span class="n">gonio</span> <span class="o">=</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">multi_axis</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">axis_names</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gonio</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2018, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
