@@ -59,11 +59,15 @@
   <h1>Source code for dials.util.options</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">optparse</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">namedtuple</span>
+
+<span class="kn">from</span> <span class="nn">orderedset</span> <span class="k">import</span> <span class="n">OrderedSet</span>
 
 <span class="k">try</span><span class="p">:</span>
   <span class="kn">import</span> <span class="nn">cPickle</span>
@@ -508,7 +512,6 @@
 <span class="sd">    :return: The options and parameters and (optionally) unhandled arguments</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="kn">import</span> <span class="nn">os.path</span>
     <span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">BeamComparison</span>
     <span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">DetectorComparison</span>
     <span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">GoniometerComparison</span>
@@ -746,6 +749,15 @@
       <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;verbose&#39;</span><span class="p">,</span>
       <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Increase verbosity&#39;</span><span class="p">)</span>
 
+    <span class="c1"># Add an option for PHIL file to parse - PHIL files passed as</span>
+    <span class="c1"># positional arguments are also read but this allows the user to</span>
+    <span class="c1"># explicitly specify STDIN</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+      <span class="s1">&#39;--phil&#39;</span><span class="p">,</span>
+      <span class="n">action</span><span class="o">=</span><span class="s2">&quot;append&quot;</span><span class="p">,</span>
+      <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;FILE&quot;</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s2">&quot;PHIL files to read. Pass &#39;-&#39; for STDIN. Can be specified multiple times, but duplicates ignored.&quot;</span><span class="p">)</span>
+
 <div class="viewcode-block" id="OptionParserBase.parse_args"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParserBase.parse_args">[docs]</a>  <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Parse the command line arguments and get system configuration.</span>
@@ -754,22 +766,24 @@
 <span class="sd">    :returns: The options and phil parameters</span>
 
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="kn">import</span> <span class="nn">sys</span>
-    <span class="kn">import</span> <span class="nn">select</span>
-    <span class="kn">import</span> <span class="nn">os</span>
 
     <span class="c1"># Parse the command line arguments, this will separate out</span>
     <span class="c1"># options (e.g. -o, --option) and positional arguments, in</span>
     <span class="c1"># which phil options will be included.</span>
     <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">OptionParserBase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
 
-    <span class="c1"># Read stdin if data is available</span>
-    <span class="k">try</span><span class="p">:</span>
-      <span class="k">if</span> <span class="ow">not</span> <span class="n">quick_parse</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">isatty</span><span class="p">():</span>
-        <span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
-    <span class="k">except</span> <span class="ne">IOError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-      <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">errno</span> <span class="o">!=</span> <span class="mi">9</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="c1"># Ignore &#39;bad file descriptor&#39; errors, which may be caused by nohup et al.</span>
+    <span class="c1"># Read any argument-specified PHIL file. Ignore duplicates.</span>
+    <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">phil</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">philfile</span> <span class="ow">in</span> <span class="n">OrderedSet</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">phil</span><span class="p">):</span>
+        <span class="c1"># Should we read STDIN?</span>
+        <span class="k">if</span> <span class="n">philfile</span> <span class="o">==</span> <span class="s2">&quot;-&quot;</span><span class="p">:</span>
+          <span class="n">lines</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="c1"># Otherwise, assume we&#39;ve been given a path</span>
+          <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">philfile</span><span class="p">)</span> <span class="k">as</span> <span class="n">phil_input</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">phil_input</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="c1"># Add these to the unparsed argument list</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">)</span>
 
     <span class="c1"># Maybe sort the data</span>
     <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s2">&quot;sort&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">options</span><span class="o">.</span><span class="n">sort</span><span class="p">:</span>
