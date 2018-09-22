@@ -1,0 +1,271 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Scaling of Beta-Lactamase dataset &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/dials-styles.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Small Molecule Tutorial" href="small_molecule_tutorial.html" />
+    <link rel="prev" title="Processing in Detail" href="processing_in_detail_betalactamase.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="scaling-of-beta-lactamase-dataset">
+<h1>Scaling of Beta-Lactamase dataset<a class="headerlink" href="#scaling-of-beta-lactamase-dataset" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Once the reflections have been integrated, a miller index, intensity and
+intensity error estimate have been determined for each measured reflection, in
+addition to information on the unit cell properties. However, before the data
+can be reduced for structure solution, the intensity values must be corrected for
+experimental effects which occur prior to the reflection being measured on the
+detector. These primarily include sample illumination/absorption effects
+and radiation damage, which result in symmetry-equivalent reflections having
+unequal measured intensities (i.e. a systematic effect in addition to any
+variance due to counting statistics). Thus the purpose of scaling is to determine
+a scale factor to apply to each reflection, such that the scaled intensities are
+representative of the ‘true’ scattering intensity from the contents of the unit
+cell.</p>
+<p>Scaling is dependent on the space group symmetry assigned, which can be assessed
+now that we have integrated intensities. Therefore first we shall run <code class="samp docutils literal notranslate"><span class="pre">dials.symmetry</span></code>
+on the <code class="samp docutils literal notranslate"><span class="pre">integrated.pickle</span></code> and <code class="samp docutils literal notranslate"><span class="pre">integrated_experiments.json</span></code> files:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.symmetry integrated_experiments.json integrated.pickle
+</pre></div>
+</div>
+<p>As can be seen from the output, the best solution is given by <code class="samp docutils literal notranslate"><span class="pre">C</span> <span class="pre">1</span> <span class="pre">2/m</span> <span class="pre">1</span></code>,
+in agreement with the result from <code class="samp docutils literal notranslate"><span class="pre">dials.refine_bravais_settings</span></code>.</p>
+<p>To run scaling, any reflection files containing integrated reflections can be
+passed to <code class="samp docutils literal notranslate"><span class="pre">dials.scale</span></code>. In the example below, we shall use the output files of
+<code class="samp docutils literal notranslate"><span class="pre">dials.symmetry</span></code>, <code class="samp docutils literal notranslate"><span class="pre">reindexed_experiments.json</span></code> and
+<code class="samp docutils literal notranslate"><span class="pre">reindexed_reflections.pickle</span></code>. When run, <code class="samp docutils literal notranslate"><span class="pre">dials.scale</span></code> performs scaling
+on the dataset, and calculates an inverse scale factor for
+each reflection (i.e. the corrected intensities are given by
+<span class="math notranslate">\(I^{cor}_i = I^{obs}_i / g_i\)</span>). The updated dataset is saved to
+<code class="samp docutils literal notranslate"><span class="pre">scaled.pickle</span></code>, while details of the scaling model are saved in an
+updated experiments file <code class="samp docutils literal notranslate"><span class="pre">scaled_experiments.json</span></code>. This can then be
+used to produce an MTZ file for structure solution.</p>
+</div>
+<div class="section" id="the-scaling-process">
+<h2>The scaling process<a class="headerlink" href="#the-scaling-process" title="Permalink to this headline">¶</a></h2>
+<p>First, a scaling model must be created, from which we derive scale factors for
+each reflection. By default, three components are used to create a physical model
+for scaling (<code class="samp docutils literal notranslate"><span class="pre">model=physical</span></code>), in a similar manner to that used in the
+program <a class="reference external" href="http://www.ccp4.ac.uk/html/aimless.html">aimless</a>. This model consists of a smoothly varying scale factor as a
+function of rotation angle (<code class="samp docutils literal notranslate"><span class="pre">scale_term</span></code>), a smoothly varying B-factor to
+account for radiation damage as a function of rotation angle (<code class="samp docutils literal notranslate"><span class="pre">decay_term</span></code>)
+and an absorption surface correction, dependent on the direction of the incoming
+and scattered beam vector relative to the crystal (<code class="samp docutils literal notranslate"><span class="pre">absorption_term</span></code>).</p>
+<p>Let’s run <code class="samp docutils literal notranslate"><span class="pre">dials.scale</span></code> on the Beta-lactamase dataset, using a <code class="samp docutils literal notranslate"><span class="pre">d_min</span></code> cutoff:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.scale reindexed_experiments.json reindexed_reflections.pickle d_min=1.4
+</pre></div>
+</div>
+<p>As can be seen from the log, a subset of reflections are selected to be used in
+scale factor determination, which helps to speed up the algorithm. In a typical
+rotation dataset, between 10 and 40 parameters will be used for each term of the
+model, therefore the problem is overdetermined and a subset of reflections
+can be used to determine the model components. Outlier rejection is
+performed at several stages, as outliers have a disproportionately large effect
+during scaling and can lead to poor scaling results.</p>
+<p>Once the model has been initialised and a reflection subset chosen, the model
+parameters are be refined to give the best fit to the data, and then are used
+to calculate the scale factor for all reflections in the dataset. An error model
+is also optimised, to transform the intensity errors to an expected normal
+distribution.
+An error estimate for each scale factor is also determined based on the covariances
+of the model parameters. Finally, a table and summary of the merging statistics
+are presented, which give indications of the quality of the scaled dataset.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>           ----------Overall merging statistics (non-anomalous)----------
+
+Resolution: 69.19 - 1.40
+
+Observations: 274776
+
+Unique reflections: 41140
+
+Redundancy: 6.7
+
+Completeness: 94.11%
+
+Mean intensity: 80.0
+
+Mean I/sigma(I): 15.5
+
+R-merge: 0.065
+
+R-meas:  0.071
+
+R-pim:   0.027
+</pre></div>
+</div>
+</div>
+<div class="section" id="inspecting-the-results">
+<h2>Inspecting the results<a class="headerlink" href="#inspecting-the-results" title="Permalink to this headline">¶</a></h2>
+<p>To see what the scaling is telling us about the dataset, plots of the scaling
+model should be viewed. These can be generated by passing the output files to
+the utility program <code class="samp docutils literal notranslate"><span class="pre">dials.plot_scaling_models</span></code>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.plot_scaling_models scaled_experiments.json scaled.pickle
+open scale_model.png absorption_surface.png
+</pre></div>
+</div>
+<img alt="../../_images/scaling.png" src="../../_images/scaling.png" />
+<p>What is immediately apparent is the periodic nature of the scale term, with peaks
+and troughs 90° apart. This indicates that the illumated volume was changing
+significantly during the experiment: a reflection would be measured as twice as
+intense if it was measured at rotation angle of ~120° compared to at ~210°.
+The absorption surface also shows a similar periodicity, as may be expected.
+What is less clear is the form of the relative B-factor, which also has a
+periodic nature. As a B-factor can be understood to represent radiation damage,
+this would not be expected to be periodic, and it is likely that this model
+component is accounting for variation that could be described only by a scale
+and absorption term. To test this, we can repeat the scaling process but turn
+off the <code class="samp docutils literal notranslate"><span class="pre">decay_term</span></code>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.scale reindexed_experiments.json reindexed_reflections.pickle d_min=1.4 decay_term=False
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>           ----------Overall merging statistics (non-anomalous)----------
+
+Resolution: 69.19 - 1.40
+
+Observations: 274585
+
+Unique reflections: 41140
+
+Redundancy: 6.7
+
+Completeness: 94.11%
+
+Mean intensity: 76.6
+
+Mean I/sigma(I): 16.1
+
+R-merge: 0.063
+
+R-meas:  0.069
+
+R-pim:   0.027
+</pre></div>
+</div>
+<p>By inspecting the statistics in the output, we can see that removing the decay
+term has had the effect of causing around 200 more reflections to be marked as
+outliers (taking the outlier count from 0.75% to 0.82% of the data), while
+improving some of the R-factors and mean I/sigma(I). Therefore it is probably
+best to exclude the decay correction for this dataset.
+Other options which could be explored are the numbers of parameters used for the
+various components, for example by changing the <code class="samp docutils literal notranslate"><span class="pre">scale_interval</span></code>, or by
+adjusting the outlier rejection criterion with a different <code class="samp docutils literal notranslate"><span class="pre">outlier_zmax</span></code>.</p>
+</div>
+<div class="section" id="exporting-for-further-processing">
+<h2>Exporting for further processing<a class="headerlink" href="#exporting-for-further-processing" title="Permalink to this headline">¶</a></h2>
+<p>Once we are happy with the results from scaling, the data can be exported as
+an unmerged mtz file, for further symmetry analysis with <a class="reference external" href="http://www.ccp4.ac.uk/html/pointless.html">pointless</a> or to start
+structural solution.
+To obtain an unmerged mtz file, <code class="samp docutils literal notranslate"><span class="pre">dials.export</span></code> should be run, passing in
+the output from scaling, with the option <code class="samp docutils literal notranslate"><span class="pre">intensity=scale</span></code>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.export scaled.pickle scaled_experiments.json intensity=scale
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2018, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
