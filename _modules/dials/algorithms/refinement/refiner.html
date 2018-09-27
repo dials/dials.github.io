@@ -73,6 +73,7 @@
 <span class="sd">what should usually be used to construct a Refiner.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -494,6 +495,52 @@
 <span class="s1">}</span>
 <span class="s1">&#39;&#39;&#39;</span><span class="o">%</span><span class="n">format_data</span><span class="p">,</span> <span class="n">process_includes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
+<span class="k">def</span> <span class="nf">_copy_experiments_for_refining</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  Make a partial copy of experiments, copying properties used in refinement.</span>
+
+<span class="sd">  Any experiment property that can be altered by refinement e.g. Beam,</span>
+<span class="sd">  Detector and Goniometer will be deep-copied, whereas anything that the</span>
+<span class="sd">  refiner doesn&#39;t touch (e.g. Scan, ImageSet) will be left as original</span>
+<span class="sd">  references.</span>
+
+<span class="sd">  This makes it safe to pass an object into the refiner or get an object</span>
+<span class="sd">  out of the refiner without having to worry about your copy being</span>
+<span class="sd">  unexpectedly altered, but saves time by avoiding the copying of potentially</span>
+<span class="sd">  expensive experiment properties (e.g. ImageSet and its attributes).</span>
+
+<span class="sd">  Args</span>
+<span class="sd">    experiments (Experiment or ExperimentList or Iterable[Experiment]):</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    ExperimentList: The copied experiments in new ExperimentList</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># Look for a non-list e.g. a single experiment and convert to a list</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="s2">&quot;__iter__&quot;</span><span class="p">):</span>
+    <span class="n">experiments</span> <span class="o">=</span> <span class="p">[</span><span class="n">experiments</span><span class="p">]</span>
+  <span class="n">out_list</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+  <span class="c1"># Save a map of object id to copies so shared objects remain shared</span>
+  <span class="n">id_memo</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="c1"># Copy each experiment individually</span>
+  <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
+    <span class="c1"># Be inclusive about the initial copy</span>
+    <span class="n">new_exp</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">experiment</span><span class="p">)</span>
+
+    <span class="c1"># Ensure every &#39;refined&#39; attribute is uniquely copied</span>
+    <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">,</span> <span class="s2">&quot;goniometer&quot;</span><span class="p">,</span> <span class="s2">&quot;detector&quot;</span><span class="p">,</span> <span class="s2">&quot;crystal&quot;</span><span class="p">]:</span>
+      <span class="n">original</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">experiment</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">original</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">id_memo</span><span class="p">:</span>
+        <span class="n">id_memo</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">original</span><span class="p">)]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">original</span><span class="p">)</span>
+      <span class="c1"># assign the new copy to the experiment</span>
+      <span class="nb">setattr</span><span class="p">(</span><span class="n">new_exp</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">id_memo</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">original</span><span class="p">)])</span>
+
+    <span class="c1"># Collect this together</span>
+    <span class="n">out_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_exp</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">out_list</span>
+
+
 <div class="viewcode-block" id="RefinerFactory"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory">[docs]</a><span class="k">class</span> <span class="nc">RefinerFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
   <span class="sd">&quot;&quot;&quot;Factory class to create refiners&quot;&quot;&quot;</span>
 
@@ -523,8 +570,7 @@
                                        <span class="n">params</span><span class="p">,</span>
                                        <span class="n">reflections</span><span class="p">,</span>
                                        <span class="n">experiments</span><span class="p">,</span>
-                                       <span class="n">verbosity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                                       <span class="n">copy_experiments</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                                       <span class="n">verbosity</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 
     <span class="c1">#TODO Checks on the input</span>
     <span class="c1">#E.g. does every experiment contain at least one overlapping model with at</span>
@@ -535,10 +581,8 @@
     <span class="k">if</span> <span class="n">verbosity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
       <span class="n">verbosity</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">verbosity</span>
 
-    <span class="k">if</span> <span class="n">copy_experiments</span><span class="p">:</span>
-      <span class="c1"># copy the experiments</span>
-      <span class="kn">import</span> <span class="nn">copy</span>
-      <span class="n">experiments</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="c1"># copy the experiments</span>
+    <span class="n">experiments</span> <span class="o">=</span> <span class="n">_copy_experiments_for_refining</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
 
     <span class="c1"># copy and filter the reflections</span>
     <span class="n">reflections</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_filter_reflections</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
@@ -546,12 +590,10 @@
     <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_build_components</span><span class="p">(</span><span class="n">params</span><span class="p">,</span>
                                  <span class="n">reflections</span><span class="p">,</span>
                                  <span class="n">experiments</span><span class="p">,</span>
-                                 <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span>
-                                 <span class="n">copy_experiments</span><span class="o">=</span><span class="n">copy_experiments</span><span class="p">)</span></div>
+                                 <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">)</span></div>
 
   <span class="nd">@classmethod</span>
-  <span class="k">def</span> <span class="nf">_build_components</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span>
-                        <span class="n">verbosity</span><span class="p">,</span> <span class="n">copy_experiments</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">_build_components</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">verbosity</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;low level build&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">verbosity</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -648,7 +690,7 @@
     <span class="c1"># build refiner interface and return</span>
     <span class="k">return</span> <span class="n">Refiner</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span>
                     <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">refinery</span><span class="p">,</span>
-                    <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">,</span> <span class="n">copy_experiments</span><span class="o">=</span><span class="n">copy_experiments</span><span class="p">)</span>
+                    <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">)</span>
 
 <div class="viewcode-block" id="RefinerFactory.config_sparse"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_sparse">[docs]</a>  <span class="nd">@staticmethod</span>
   <span class="k">def</span> <span class="nf">config_sparse</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
@@ -1896,7 +1938,7 @@
 
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span>
                <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">refinery</span><span class="p">,</span>
-               <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">copy_experiments</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+               <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Mandatory arguments:</span>
 <span class="sd">      reflections - Input ReflectionList data</span>
@@ -1914,7 +1956,6 @@
 
     <span class="c1"># the experimental models</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span> <span class="o">=</span> <span class="n">experiments</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">copy_experiments</span> <span class="o">=</span> <span class="n">copy_experiments</span>
 
     <span class="c1"># refinement module main objects</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_pred_param</span> <span class="o">=</span> <span class="n">pred_param</span>
@@ -1932,12 +1973,8 @@
     <span class="k">return</span>
 
 <div class="viewcode-block" id="Refiner.get_experiments"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_experiments">[docs]</a>  <span class="k">def</span> <span class="nf">get_experiments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy_experiments</span><span class="p">:</span>
-      <span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
-      <span class="k">return</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span></div>
+    <span class="sd">&quot;&quot;&quot;Return a copy of the current refiner experiments&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_copy_experiments_for_refining</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Refiner.rmsds"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.rmsds">[docs]</a>  <span class="k">def</span> <span class="nf">rmsds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Return rmsds of the current model&quot;&quot;&quot;</span>
