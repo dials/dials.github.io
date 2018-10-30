@@ -1205,7 +1205,7 @@
       <span class="k">if</span> <span class="s2">&quot;id&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
         <span class="n">index</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">index</span><span class="p">:</span>
-          <span class="k">assert</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">identifiers</span><span class="p">,</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">identifiers</span><span class="p">)</span>
+          <span class="k">assert</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">identifiers</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">identifiers</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
     <span class="k">if</span> <span class="n">experiments</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
       <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">identifiers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">identifiers</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">),</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">identifiers</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">))</span>
@@ -1247,8 +1247,62 @@
       <span class="c1"># Set the miller indices</span>
       <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;miller_index_asu&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">selection</span><span class="p">,</span> <span class="n">h_asu</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;miller_index_asu&#39;</span><span class="p">]</span></div></div>
+    <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;miller_index_asu&#39;</span><span class="p">]</span></div>
 
+<div class="viewcode-block" id="reflection_table_aux.select_on_experiment_identifiers"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.select_on_experiment_identifiers">[docs]</a>  <span class="k">def</span> <span class="nf">select_on_experiment_identifiers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_of_identifiers</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Given a list of experiment identifiers (strings), perform a selection</span>
+<span class="sd">    and return a reflection table with properly configured experiment_identifiers</span>
+<span class="sd">    map.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1">#First get the reverse of the map i.e. ids for a given exp_identifier</span>
+    <span class="n">id_values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">list_of_identifiers</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()[</span><span class="n">k</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">:</span>
+          <span class="n">id_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+          <span class="k">break</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">id_values</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_of_identifiers</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Not all requested identifiers</span>
+<span class="s2">found in the table&#39;s map, has the experiment_identifiers() map been created?</span>
+<span class="s2">Requested </span><span class="si">%s</span><span class="s2">:</span>
+<span class="s2">Found </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">list_of_identifiers</span><span class="p">,</span> <span class="n">id_values</span><span class="p">))</span>
+    <span class="c1"># Build up a selection and use this</span>
+    <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">id_val</span><span class="p">,</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">id_values</span><span class="p">,</span> <span class="n">list_of_identifiers</span><span class="p">):</span>
+      <span class="n">id_sel</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">id_val</span><span class="p">)</span>
+      <span class="n">sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">id_sel</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+    <span class="c1"># Remove entries from the experiment_identifiers map</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">id_values</span><span class="p">:</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()[</span><span class="n">k</span><span class="p">]</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="reflection_table_aux.remove_on_experiment_identifiers"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.remove_on_experiment_identifiers">[docs]</a>  <span class="k">def</span> <span class="nf">remove_on_experiment_identifiers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_of_identifiers</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Remove datasets from the table, given a list of experiment</span>
+<span class="sd">    identifiers (strings).</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1">#First get the reverse of the map i.e. ids for a given exp_identifier</span>
+    <span class="k">assert</span> <span class="s1">&#39;id&#39;</span> <span class="ow">in</span> <span class="bp">self</span>
+    <span class="n">id_values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">exp_id</span> <span class="ow">in</span> <span class="n">list_of_identifiers</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()[</span><span class="n">k</span><span class="p">]</span> <span class="o">==</span> <span class="n">exp_id</span><span class="p">:</span>
+          <span class="n">id_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+          <span class="k">break</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">id_values</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_of_identifiers</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Not all requested identifiers</span>
+<span class="s2">found in the table&#39;s map, has the experiment_identifiers() map been created?</span>
+<span class="s2">Requested </span><span class="si">%s</span><span class="s2">:</span>
+<span class="s2">Found </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">list_of_identifiers</span><span class="p">,</span> <span class="n">id_values</span><span class="p">))</span>
+    <span class="c1">#Now delete the selections, also removing the entry from the map</span>
+    <span class="k">for</span> <span class="n">id_val</span> <span class="ow">in</span> <span class="n">id_values</span><span class="p">:</span>
+      <span class="n">sel</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">id_val</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">del_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+      <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()[</span><span class="n">id_val</span><span class="p">]</span>
+    <span class="k">return</span> <span class="bp">self</span></div></div>
 
 <div class="viewcode-block" id="reflection_table_selector"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_selector">[docs]</a><span class="k">class</span> <span class="nc">reflection_table_selector</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
   <span class="sd">&#39;&#39;&#39;</span>
