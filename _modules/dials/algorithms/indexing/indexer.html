@@ -78,7 +78,6 @@
 <span class="kn">from</span> <span class="nn">dials.util</span> <span class="k">import</span> <span class="n">log</span>
 
 <span class="n">debug_handle</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">debug_handle</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
-<span class="n">info_handle</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">info_handle</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
 
 <span class="kn">import</span> <span class="nn">libtbx</span>
 <span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="k">import</span> <span class="n">Sorry</span>
@@ -371,6 +370,15 @@
 <span class="s1">      intersection_union_ratio_cutoff = 0.4</span>
 <span class="s1">        .type = float(value_min=0.0, value_max=1.0)</span>
 <span class="s1">    }</span>
+<span class="s1">  }</span>
+<span class="s1">  fft1d</span>
+<span class="s1">    .expert_level = 1</span>
+<span class="s1">  {</span>
+<span class="s1">    characteristic_grid = None</span>
+<span class="s1">      .help = Sampling frequency in radians. See Steller 1997. If None, </span><span class="se">\</span>
+<span class="s1">              determine a grid sampling automatically using the input </span><span class="se">\</span>
+<span class="s1">              reflections, using at most 0.029 radians.</span>
+<span class="s1">      .type = float(value_min=0)</span>
 <span class="s1">  }</span>
 <span class="s1">  real_space_grid_search</span>
 <span class="s1">    .expert_level = 1</span>
@@ -953,18 +961,14 @@
           <span class="k">try</span><span class="p">:</span>
             <span class="n">refined_experiments</span><span class="p">,</span> <span class="n">refined_reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refine</span><span class="p">(</span>
               <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections_for_refinement</span><span class="p">)</span>
-          <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">s</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-            <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;below the configured limit&quot;</span> <span class="ow">in</span> <span class="n">s</span> <span class="ow">or</span>
-                <span class="s2">&quot;Insufficient matches for crystal&quot;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">):</span>
-              <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-              <span class="n">had_refinement_error</span> <span class="o">=</span> <span class="kc">True</span>
-              <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Refinement failed:&quot;</span><span class="p">)</span>
-              <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
-              <span class="k">del</span> <span class="n">experiments</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-              <span class="k">break</span>
-            <span class="k">raise</span>
+          <span class="k">except</span> <span class="n">Sorry</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+              <span class="k">raise</span>
+            <span class="n">had_refinement_error</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Refinement failed:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">experiments</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">break</span>
 
         <span class="c1"># sanity check for unrealistic unit cell volume increase during refinement</span>
         <span class="c1"># usually this indicates too many parameters are being refined given the</span>
@@ -1034,9 +1038,9 @@
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
       <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.compare_orientation_matrices</span> \
-           <span class="kn">import</span> <span class="nn">show_rotation_matrix_differences</span>
-      <span class="n">show_rotation_matrix_differences</span><span class="p">(</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">(),</span> <span class="n">out</span><span class="o">=</span><span class="n">info_handle</span><span class="p">)</span>
+           <span class="kn">import</span> <span class="nn">rotation_matrix_differences</span>
+      <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="n">rotation_matrix_differences</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()))</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="p">[</span><span class="s1">&#39;xyzcal.px&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span>
       <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="p">))</span>
@@ -1425,15 +1429,12 @@
               <span class="n">indexed_reflections</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">],</span> <span class="n">best_offset</span><span class="p">)</span>
 
       <span class="kn">from</span> <span class="nn">dials.algorithms.refinement</span> <span class="k">import</span> <span class="n">RefinerFactory</span>
-      <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;dials.algorithms.refinement.refiner&#39;</span><span class="p">)</span>
-      <span class="n">level</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">getEffectiveLevel</span><span class="p">()</span>
-      <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
-      <span class="n">disabled</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">disabled</span>
-      <span class="n">logger</span><span class="o">.</span><span class="n">disabled</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="n">reflogger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;dials.algorithms.refinement&#39;</span><span class="p">)</span>
+      <span class="n">level</span> <span class="o">=</span> <span class="n">reflogger</span><span class="o">.</span><span class="n">getEffectiveLevel</span><span class="p">()</span>
+      <span class="n">reflogger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
       <span class="k">try</span><span class="p">:</span>
         <span class="n">refiner</span> <span class="o">=</span> <span class="n">RefinerFactory</span><span class="o">.</span><span class="n">from_parameters_data_experiments</span><span class="p">(</span>
-          <span class="n">params</span><span class="p">,</span> <span class="n">indexed_reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span>
-          <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+          <span class="n">params</span><span class="p">,</span> <span class="n">indexed_reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
         <span class="n">refiner</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
       <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="n">Sorry</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="k">return</span>
@@ -1449,8 +1450,7 @@
                         <span class="n">hkl_offset</span><span class="o">=</span><span class="n">best_offset</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">soln</span>
       <span class="k">finally</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">disabled</span> <span class="o">=</span> <span class="n">disabled</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+        <span class="n">reflogger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
 
     <span class="kn">import</span> <span class="nn">copy</span>
     <span class="n">params</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">)</span>
