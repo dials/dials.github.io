@@ -71,11 +71,16 @@ This guide includes:
 <div class="section" id="guide-to-the-different-scaling-models">
 <h2>Guide to the different scaling models<a class="headerlink" href="#guide-to-the-different-scaling-models" title="Permalink to this headline">¶</a></h2>
 <p>There are three available scaling models available in dials.scale, accessible
-by the command line option <code class="samp docutils literal notranslate"><span class="pre">model</span> <span class="pre">=</span> <span class="pre">physical</span> <span class="pre">array</span> <span class="pre">KB</span></code>.
+by the command line option <code class="samp docutils literal notranslate"><span class="pre">model</span> <span class="pre">=</span> <span class="pre">physical</span> <span class="pre">array</span> <span class="pre">KB</span> <span class="pre">*auto</span></code>.
 The physical model is similar to the scaling model used in the program <a class="reference external" href="http://www.ccp4.ac.uk/html/aimless.html">aimless</a>,
 the array model is based on the approach taken in <a class="reference external" href="http://xds.mpimf-heidelberg.mpg.de/html_doc/xscale_program.html">xscale</a>, while the KB model is
 a simple two-component model suitable for still-image datasets or very small
 rotation datasets (~ &lt; 3 degrees).</p>
+<p>The auto option automatically chooses a default model and sensible parameterisation
+based on the oscillation range of the experiment. model=auto will choose the
+physical model unless the oscillation range is &lt; 1.0 degree, when the KB model
+will be chosen. The auto parameterisation rules are given at the bottom of this
+section.</p>
 <p>The physical model consists of up to three components - a smoothly varying
 scale term, a smoothly varying B-factor term and an absorption surface
 correction (all on by default). These are turned on/off with the command line options
@@ -109,9 +114,19 @@ function of x and y position, controlled with <code class="samp docutils literal
 although this is off by default. The array model is only suitable for
 wide-rotation datasets with a high number of reflections and it should be tested
 whether the absorption term is suitable, as it may lead to overparameterisation.</p>
+<div class="line-block">
+<div class="line">Auto model rules:</div>
+<div class="line">if oscillation range &lt; 1.0 degrees - use KB model, else use physical model</div>
+<div class="line">if oscillation range &lt; 60.0 degrees, absorption_term = False</div>
+<div class="line">scale and decay parameter intervals based on oscillation range:</div>
+<div class="line">if 1.0 &lt;= oscillation range &lt; 10.0 degrees; intervals 2.0, 3.0</div>
+<div class="line">if 10.0 &lt;= oscillation range &lt; 25.0 degrees; intervals 4.0, 5.0</div>
+<div class="line">if 25.0 &lt;= oscillation range &lt; 90.0 degrees; intervals 8.0, 10.0</div>
+<div class="line">if oscillation range &gt;= 90.0 degrees; intervals 15.0, 20.0</div>
 </div>
-<div class="section" id="excluding-data-batch-handling-after-initial-scaling">
-<h2>Excluding data/batch handling after initial scaling<a class="headerlink" href="#excluding-data-batch-handling-after-initial-scaling" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="excluding-data-image-handling-after-initial-scaling">
+<h2>Excluding data/image handling after initial scaling<a class="headerlink" href="#excluding-data-image-handling-after-initial-scaling" title="Permalink to this headline">¶</a></h2>
 <p>After a first round of scaling, it may be apparant that there are datasets,
 or regions of datasets, that are in poor agreement with the rest of the
 dataset, and it would be advantageous to remove this data and rescale (this is
@@ -138,36 +153,24 @@ output, in one of the first lines of output:</p>
 <p>These datasets are removed at the start of the program before scaling occurs,
 and will not be contained in the output <code class="samp docutils literal notranslate"><span class="pre">scaled.pickle</span></code> and
 <code class="samp docutils literal notranslate"><span class="pre">scaled_experiments.json</span></code>.</p>
-<p>To help with excluding parts of a dataset, ‘batch’ labelling is used. Here,
-each image of a dataset is given a batch number, which is unique between
-multiple datasets. The batches assigned can also be seen in the scaling log /
-terminal output, for example, for a four-experiment dataset:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Batch</span> <span class="n">numbers</span> <span class="n">assigned</span> <span class="n">to</span> <span class="n">datasets</span><span class="p">:</span>
-<span class="n">Experiment</span> <span class="n">identifier</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="n">image_range</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1800</span><span class="p">),</span> <span class="n">batch_range</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1800</span><span class="p">)</span>
-<span class="n">Experiment</span> <span class="n">identifier</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">image_range</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1700</span><span class="p">),</span> <span class="n">batch_range</span><span class="p">:</span> <span class="p">(</span><span class="mi">1901</span><span class="p">,</span> <span class="mi">3600</span><span class="p">)</span>
-<span class="n">Experiment</span> <span class="n">identifier</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="n">image_range</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1700</span><span class="p">),</span> <span class="n">batch_range</span><span class="p">:</span> <span class="p">(</span><span class="mi">3701</span><span class="p">,</span> <span class="mi">5400</span><span class="p">)</span>
-<span class="n">Experiment</span> <span class="n">identifier</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="n">image_range</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1700</span><span class="p">),</span> <span class="n">batch_range</span><span class="p">:</span> <span class="p">(</span><span class="mi">5501</span><span class="p">,</span> <span class="mi">7200</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>To exclude parts of the dataset, one can use multiple <code class="samp docutils literal notranslate"><span class="pre">exclude_batches=</span></code>
-commands. For example, to exclude the last 200 images from experiments  2 &amp; 3:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">scale</span> <span class="n">scaled_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">scaled</span><span class="o">.</span><span class="n">pickle</span> <span class="n">exclude_batches</span><span class="o">=</span><span class="mi">7001</span><span class="p">,</span><span class="mi">7200</span>
-  <span class="n">exclude_batches</span><span class="o">=</span><span class="mi">5201</span><span class="p">,</span><span class="mi">5400</span>
-</pre></div>
-</div>
-<p>In the reflection_table, the reflections corresponding to these batches are
+<p>To help with excluding parts of a dataset, image exclusion can be performed
+using the command-line syntax <code class="samp docutils literal notranslate"><span class="pre">exclude_images=&quot;exp_id:start:stop&quot;</span></code>. Here
+exp_id is the experiment identifier (a string) indicating the dataset,
+and start and stop are integers that define the image range to exclude (the
+excluding region includes start and stop) i.e. to exclude images 101 to 200 from
+experiment “0”, one would use <code class="samp docutils literal notranslate"><span class="pre">exclude_images=&quot;0:101:200&quot;</span></code>.</p>
+<p>In the reflection_table, the reflections corresponding to these imags are
 marked with the <code class="samp docutils literal notranslate"><span class="pre">user_excluded_for_scaling</span></code> flag, and the parameters of the
-scaling models are adjusted to span the new batch range. These data will not
-be included in future scaling or data export, and further batch exclusion
-can be performed. The batch ranges should not change between runs of dials.scale.</p>
-<p>Note that it is recommended to only use the exclude_batches option to exclude
-data at the beginning or end of a sweep. One can use it to exclude data in
-the middle of a sweep, however care must be taken that only a short batch
-range is excluded. If the interior excluded range is of the order of the
-scaling model parameter spacing, this can cause the scaling model minimisation
-to fail. In this case it would be better to split the experiment with
-<code class="samp docutils literal notranslate"><span class="pre">dials.slice_sweep</span></code> and then proceed with excluding batches at the
-edge of the new experiments.</p>
+scaling models are adjusted to span the new image range. These data will not
+be included in future scaling or data export, and further image exclusion
+can be performed in subsequent scaling jobs.</p>
+<p>Note that it is recommended to only exclude data at the beginning or end of a
+sweep. One can use it to exclude data in the middle of a sweep, however care
+must be taken that only a short image range is excluded. If the interior
+excluded range is of the order of the scaling model parameter spacing, this can
+cause the scaling model minimisation to fail. In this case it would be better to
+split the experiment with <code class="samp docutils literal notranslate"><span class="pre">dials.slice_sweep</span></code> and then proceed with
+excluding images at the edge of the new experiments.</p>
 </div>
 <div class="section" id="practicalities-for-large-datasets">
 <h2>Practicalities for large datasets<a class="headerlink" href="#practicalities-for-large-datasets" title="Permalink to this headline">¶</a></h2>
