@@ -71,6 +71,7 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
 
 <span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">pi</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">ceil</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -93,9 +94,13 @@
   <span class="kn">import</span> <span class="nn">phil_str</span> <span class="k">as</span> <span class="nn">outlier_phil_str</span>
 <span class="n">format_data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;outlier_phil&#39;</span><span class="p">:</span><span class="n">outlier_phil_str</span><span class="p">,}</span>
 <span class="n">phil_str</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;</span>
-<span class="s1">    reflections_per_degree = None</span>
+<span class="s1">    reflections_per_degree = Auto</span>
 <span class="s1">      .help = &quot;The number of centroids per degree of the sweep to use in&quot;</span>
-<span class="s1">              &quot;refinement. Set to None to use all suitable reflections.&quot;</span>
+<span class="s1">              &quot;refinement. The default (Auto) uses all reflections unless&quot;</span>
+<span class="s1">              &quot;the dataset is wider than a single turn. Then the number of&quot;</span>
+<span class="s1">              &quot;reflections may be reduced until a minimum of 100 per degree of&quot;</span>
+<span class="s1">              &quot;the sweep is reached to speed up calculations. Set this to None&quot;</span>
+<span class="s1">              &quot;to force use all of suitable reflections.&quot;</span>
 <span class="s1">      .type = float(value_min=0.)</span>
 <span class="s1">      .expert_level = 1</span>
 
@@ -646,8 +651,15 @@
         <span class="n">sweep_range_rad</span> <span class="o">=</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">width</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sweep_range_rad</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span>
                     <span class="n">sweep_range_rad</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">RAD2DEG</span>
-        <span class="n">sample_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nref_per_degree</span> <span class="o">*</span> <span class="n">width</span><span class="p">)</span>
-      <span class="k">else</span><span class="p">:</span> <span class="n">sweep_range_rad</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nref_per_degree</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+          <span class="c1"># For multi-turn, set sample size to the greater of the approx nref</span>
+          <span class="c1"># in a single turn and 100 reflections per degree</span>
+          <span class="n">turns</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mf">360.</span>
+          <span class="k">if</span> <span class="n">turns</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">approx_nref_1_turn</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="n">nrefs</span> <span class="o">/</span> <span class="n">turns</span><span class="p">))</span>
+            <span class="n">sample_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">approx_nref_1_turn</span><span class="p">,</span> <span class="mf">100.</span> <span class="o">*</span> <span class="n">width</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">sample_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nref_per_degree</span> <span class="o">*</span> <span class="n">width</span><span class="p">)</span>
 
       <span class="c1"># adjust sample size if below the chosen limit</span>
       <span class="n">sample_size</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">sample_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_sample_size</span><span class="p">)</span>
@@ -951,7 +963,7 @@
   </script>
   
     <div class="footer">
-      &copy;2018, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      &copy;2019, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
       
     </div>
 
