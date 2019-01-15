@@ -73,7 +73,8 @@
 <span class="kn">from</span> <span class="nn">cctbx.array_family.flex</span> <span class="k">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">cctbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
 <span class="kn">import</span> <span class="nn">cctbx</span>
-<span class="kn">import</span> <span class="nn">cctbx.miller</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="k">import</span> <span class="n">miller</span><span class="p">,</span> <span class="n">crystal</span>
+<span class="kn">from</span> <span class="nn">libtbx.utils</span> <span class="k">import</span> <span class="n">Sorry</span>
 
 <span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
 <span class="kn">import</span> <span class="nn">logging</span>
@@ -445,6 +446,43 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">clean_experiment_identifiers_map</span><span class="p">()</span>
     <span class="n">handle</span><span class="o">.</span><span class="n">set_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="n">handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="reflection_table_aux.as_miller_array"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.as_miller_array">[docs]</a>  <span class="k">def</span> <span class="nf">as_miller_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">intensity</span><span class="o">=</span><span class="s1">&#39;sum&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a miller array with the chosen intensities.</span>
+
+<span class="sd">    Use the provided experiment object and intensity choice to make a miller</span>
+<span class="sd">    intensity array with sigmas (no scaling applied).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        experiment (dxtbx.model.Experiment): An experiment object.</span>
+<span class="sd">        intensity (str): The intensity type that will be used to make the</span>
+<span class="sd">            miller array e.g &#39;prf&#39;, &#39;sum&#39;.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        cctbx.miller.array: A miller array with intensities and sigmas.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        Sorry: If chosen intensity values cannot be found in the table.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">intensities</span><span class="p">,</span> <span class="n">variances</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;intensity.&#39;</span><span class="o">+</span><span class="n">intensity</span><span class="o">+</span><span class="s1">&#39;.value&#39;</span><span class="p">],</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;intensity.&#39;</span><span class="o">+</span><span class="n">intensity</span><span class="o">+</span><span class="s1">&#39;.variance&#39;</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+      <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="s1">&#39;Unable to find </span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1"> in reflection table&#39;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="s1">&#39;intensity.&#39;</span><span class="o">+</span><span class="n">intensity</span><span class="o">+</span><span class="s1">&#39;.value&#39;</span><span class="p">,</span> <span class="s1">&#39;intensity.&#39;</span><span class="o">+</span><span class="n">intensity</span><span class="o">+</span><span class="s1">&#39;.variance&#39;</span><span class="p">))</span>
+
+    <span class="n">miller_set</span> <span class="o">=</span> <span class="n">miller</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+      <span class="n">crystal_symmetry</span><span class="o">=</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_crystal_symmetry</span><span class="p">(),</span>
+      <span class="n">indices</span><span class="o">=</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">],</span> <span class="n">anomalous_flag</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">i_obs</span> <span class="o">=</span> <span class="n">miller</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">miller_set</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">intensities</span><span class="p">)</span>
+    <span class="n">i_obs</span><span class="o">.</span><span class="n">set_observation_type_xray_intensity</span><span class="p">()</span>
+    <span class="n">i_obs</span><span class="o">.</span><span class="n">set_sigmas</span><span class="p">(</span><span class="n">variances</span><span class="o">**</span><span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">i_obs</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span><span class="n">miller</span><span class="o">.</span><span class="n">array_info</span><span class="p">(</span>
+      <span class="n">source</span><span class="o">=</span><span class="s1">&#39;DIALS&#39;</span><span class="p">,</span> <span class="n">source_type</span><span class="o">=</span><span class="s1">&#39;reflection_tables&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">i_obs</span></div>
 
 <div class="viewcode-block" id="reflection_table_aux.copy"><a class="viewcode-back" href="../../../documentation/library_reference/array_family/index.html#dials.array_family.flex.reflection_table_aux.copy">[docs]</a>  <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
@@ -1236,19 +1274,19 @@
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;miller_index_asu&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">miller_index</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
     <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
- 
+
       <span class="c1"># Create the crystal symmetry object</span>
       <span class="n">uc</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
       <span class="n">sg</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span>
       <span class="n">cs</span> <span class="o">=</span> <span class="n">cctbx</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span><span class="n">uc</span><span class="p">,</span> <span class="n">space_group</span><span class="o">=</span><span class="n">sg</span><span class="p">)</span>
-      
+
       <span class="c1"># Get the selection and compute the miller indices</span>
       <span class="n">selection</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">idx</span>
       <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;miller_index&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">selection</span><span class="p">)</span>
-      <span class="n">ms</span> <span class="o">=</span> <span class="n">cctbx</span><span class="o">.</span><span class="n">miller</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">cs</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+      <span class="n">ms</span> <span class="o">=</span> <span class="n">miller</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">cs</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
       <span class="n">ms_asu</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">map_to_asu</span><span class="p">()</span>
       <span class="n">h_asu</span> <span class="o">=</span> <span class="n">ms_asu</span><span class="o">.</span><span class="n">indices</span><span class="p">()</span>
-     
+
       <span class="c1"># Set the miller indices</span>
       <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;miller_index_asu&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">selection</span><span class="p">,</span> <span class="n">h_asu</span><span class="p">)</span>
 
