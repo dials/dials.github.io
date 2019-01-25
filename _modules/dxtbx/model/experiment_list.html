@@ -63,6 +63,11 @@
 
 <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Experiment</span><span class="p">,</span> <span class="n">ExperimentList</span>
 <span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">AutoEncoder</span>
+<span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">BeamComparison</span>
+<span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">DetectorComparison</span>
+<span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">GoniometerComparison</span>
+<span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">DataBlockFactory</span>
+<span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">SweepDiff</span>
 
 <div class="viewcode-block" id="InvalidExperimentListError"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.InvalidExperimentListError">[docs]</a><span class="k">class</span> <span class="nc">InvalidExperimentListError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
   <span class="sd">&quot;&quot;&quot;</span>
@@ -646,6 +651,29 @@
     <span class="c1"># Return the experiments</span>
     <span class="k">return</span> <span class="n">experiments</span></div>
 
+<div class="viewcode-block" id="ExperimentListFactory.from_filenames"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_filenames">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">from_filenames</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span>
+                     <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                     <span class="n">unhandled</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">compare_beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">compare_detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">compare_goniometer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">scan_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39; Create a list of data blocks from a list of directory or file names. &#39;&#39;&#39;</span>
+    <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">DataBlockFactory</span><span class="o">.</span><span class="n">from_filenames</span><span class="p">(</span>
+        <span class="n">filenames</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+        <span class="n">unhandled</span><span class="o">=</span><span class="n">unhandled</span><span class="p">,</span>
+        <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
+        <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
+        <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
+        <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">,</span>
+        <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">):</span>
+      <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_datablock_and_crystal</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">experiments</span></div>
+
 <div class="viewcode-block" id="ExperimentListFactory.from_imageset_and_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_imageset_and_crystal">[docs]</a>  <span class="nd">@staticmethod</span>
   <span class="k">def</span> <span class="nf">from_imageset_and_crystal</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39; Load an experiment list from an imageset and crystal. &#39;&#39;&#39;</span>
@@ -734,11 +762,22 @@
   <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39; Load an experiment list from a dictionary. &#39;&#39;&#39;</span>
 
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+      <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">DataBlockFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span>
+          <span class="n">obj</span><span class="p">,</span>
+          <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
+          <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">):</span>
+        <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_datablock_and_crystal</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+      <span class="n">experiments</span> <span class="o">=</span> <span class="kc">None</span>
+
     <span class="c1"># Decode the experiments from the dictionary</span>
-    <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListDict</span><span class="p">(</span>
-      <span class="n">obj</span><span class="p">,</span>
-      <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
-      <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">experiments</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListDict</span><span class="p">(</span>
+        <span class="n">obj</span><span class="p">,</span>
+        <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
+        <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
 
     <span class="c1"># Check the list is consistent</span>
     <span class="k">assert</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">is_consistent</span><span class="p">())</span>
@@ -809,6 +848,16 @@
 
     <span class="c1"># Now try as a pickle file</span>
     <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_pickle_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ExperimentListTemplateImporter"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListTemplateImporter">[docs]</a><span class="k">class</span> <span class="nc">ExperimentListTemplateImporter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&#39;&#39;&#39; A class to import an experiment list from a template. &#39;&#39;&#39;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">templates</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="n">DataBlockTemplateImporter</span>
+    <span class="n">importer</span> <span class="o">=</span> <span class="n">DataBlockTemplateImporter</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">importer</span><span class="o">.</span><span class="n">datablocks</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_datablock_and_crystal</span><span class="p">(</span><span class="n">db</span><span class="p">,</span><span class="kc">None</span><span class="p">))</span></div>
 </pre></div>
 
           </div>
