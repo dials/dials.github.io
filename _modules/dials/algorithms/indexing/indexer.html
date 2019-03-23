@@ -93,6 +93,8 @@
 <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Crystal</span>
 <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="k">import</span> <span class="n">Experiment</span><span class="p">,</span> <span class="n">ExperimentList</span>
 
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.max_cell</span> <span class="k">import</span> <span class="n">find_max_cell</span>
+
 <span class="n">max_cell_phil_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
 <span class="s2">max_cell_estimation</span>
 <span class="s2">  .expert_level = 1</span>
@@ -2303,113 +2305,6 @@
                 <span class="c1"># flag = {&#39;vec&#39;:test[&#39;vec&#39;],&#39;mod&#39;:test[&#39;mod&#39;],</span>
                 <span class="c1">#&#39;remainder&#39;:counter, &#39;trans&#39;:test[&#39;trans&#39;].elems}</span>
                 <span class="k">return</span> <span class="n">test</span><span class="p">[</span><span class="s2">&quot;trans&quot;</span><span class="p">]</span></div>
-
-
-<div class="viewcode-block" id="find_max_cell"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.indexer.find_max_cell">[docs]</a><span class="k">def</span> <span class="nf">find_max_cell</span><span class="p">(</span>
-    <span class="n">reflections</span><span class="p">,</span>
-    <span class="n">max_cell_multiplier</span><span class="p">,</span>
-    <span class="n">step_size</span><span class="p">,</span>
-    <span class="n">nearest_neighbor_percentile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">histogram_binning</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span>
-    <span class="n">nn_per_bin</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-    <span class="n">max_height_fraction</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
-    <span class="n">filter_ice</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">filter_overlaps</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">overlaps_border</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-<span class="p">):</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Finding suitable max_cell based on </span><span class="si">%i</span><span class="s2"> reflections&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
-    <span class="c1"># Exclude potential ice-ring spots from nearest neighbour analysis if needed</span>
-    <span class="k">if</span> <span class="n">filter_ice</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.spot_finding.per_image_analysis</span> <span class="k">import</span> <span class="n">ice_rings_selection</span>
-
-        <span class="n">ice_sel</span> <span class="o">=</span> <span class="n">ice_rings_selection</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
-        <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">~</span><span class="n">ice_sel</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-            <span class="s2">&quot;Rejecting </span><span class="si">%i</span><span class="s2"> reflections at ice ring resolution&quot;</span> <span class="o">%</span> <span class="n">ice_sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-        <span class="p">)</span>
-
-    <span class="c1"># need bounding box in reflections to find overlaps; this is not there if</span>
-    <span class="c1"># spots are from XDS (for example)</span>
-    <span class="k">if</span> <span class="n">filter_overlaps</span> <span class="ow">and</span> <span class="s2">&quot;bbox&quot;</span> <span class="ow">in</span> <span class="n">reflections</span><span class="p">:</span>
-        <span class="n">overlap_sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
-
-        <span class="n">overlaps</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">find_overlaps</span><span class="p">(</span><span class="n">border</span><span class="o">=</span><span class="n">overlaps_border</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">overlaps</span><span class="o">.</span><span class="n">edges</span><span class="p">():</span>
-            <span class="n">i0</span> <span class="o">=</span> <span class="n">overlaps</span><span class="o">.</span><span class="n">source</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-            <span class="n">i1</span> <span class="o">=</span> <span class="n">overlaps</span><span class="o">.</span><span class="n">target</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-            <span class="n">overlap_sel</span><span class="p">[</span><span class="n">i0</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="n">overlap_sel</span><span class="p">[</span><span class="n">i1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-            <span class="s2">&quot;Rejecting </span><span class="si">%i</span><span class="s2"> overlapping bounding boxes&quot;</span> <span class="o">%</span> <span class="n">overlap_sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">~</span><span class="n">overlap_sel</span><span class="p">)</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%i</span><span class="s2"> reflections remain for max_cell identification&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
-
-    <span class="c1"># Histogram spot counts in resolution bins: filter out outlier bin counts</span>
-    <span class="c1"># according to the Tukey method</span>
-    <span class="n">d_spacings</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
-    <span class="n">d_star_sq</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">d_spacings</span><span class="p">)</span>
-    <span class="n">hist</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">,</span> <span class="n">n_slots</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-    <span class="n">bin_counts</span> <span class="o">=</span> <span class="n">hist</span><span class="o">.</span><span class="n">slots</span><span class="p">()</span><span class="o">.</span><span class="n">as_double</span><span class="p">()</span>
-    <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">bin_counts</span><span class="p">)</span>
-    <span class="n">sorted_bin_counts</span> <span class="o">=</span> <span class="n">bin_counts</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
-    <span class="n">sorted_bin_counts</span> <span class="o">=</span> <span class="n">sorted_bin_counts</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sorted_bin_counts</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">sorted_bin_counts</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">libtbx.math_utils</span> <span class="k">import</span> <span class="n">nearest_integer</span> <span class="k">as</span> <span class="n">nint</span>
-
-        <span class="n">q1</span> <span class="o">=</span> <span class="n">sorted_bin_counts</span><span class="p">[</span><span class="n">nint</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sorted_bin_counts</span><span class="p">)</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)]</span>
-        <span class="n">q2</span> <span class="o">=</span> <span class="n">sorted_bin_counts</span><span class="p">[</span><span class="n">nint</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sorted_bin_counts</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)]</span>
-        <span class="n">q3</span> <span class="o">=</span> <span class="n">sorted_bin_counts</span><span class="p">[</span><span class="n">nint</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sorted_bin_counts</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)]</span>
-        <span class="n">iqr</span> <span class="o">=</span> <span class="n">q3</span> <span class="o">-</span> <span class="n">q1</span>
-        <span class="n">inlier_sel</span> <span class="o">=</span> <span class="p">(</span><span class="n">bin_counts</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">q1</span> <span class="o">-</span> <span class="mf">1.5</span> <span class="o">*</span> <span class="n">iqr</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">bin_counts</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">q3</span> <span class="o">+</span> <span class="mf">1.5</span> <span class="o">*</span> <span class="n">iqr</span><span class="p">))</span>
-
-        <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">d_star_sq</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i_slot</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">hist</span><span class="o">.</span><span class="n">slots</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">()):</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">inlier_sel</span><span class="p">[</span><span class="n">i_slot</span><span class="p">]:</span>
-                <span class="n">sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
-                    <span class="p">(</span>
-                        <span class="n">d_star_sq</span>
-                        <span class="o">&gt;</span> <span class="p">(</span><span class="n">hist</span><span class="o">.</span><span class="n">slot_centers</span><span class="p">()[</span><span class="n">i_slot</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">hist</span><span class="o">.</span><span class="n">slot_width</span><span class="p">())</span>
-                    <span class="p">)</span>
-                    <span class="o">&amp;</span> <span class="p">(</span>
-                        <span class="n">d_star_sq</span>
-                        <span class="o">&lt;=</span> <span class="p">(</span><span class="n">hist</span><span class="o">.</span><span class="n">slot_centers</span><span class="p">()[</span><span class="n">i_slot</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">hist</span><span class="o">.</span><span class="n">slot_width</span><span class="p">())</span>
-                    <span class="p">),</span>
-                    <span class="kc">False</span><span class="p">,</span>
-                <span class="p">)</span>
-
-        <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-    <span class="c1"># from libtbx import easy_pickle</span>
-    <span class="c1"># easy_pickle.dump(&#39;filtered.pickle&#39;, reflections)</span>
-
-    <span class="k">assert</span> <span class="p">(</span>
-        <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
-    <span class="p">),</span> <span class="s2">&quot;Too few spots remaining for nearest neighbour analysis (</span><span class="si">%d</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
-    <span class="c1"># The nearest neighbour analysis gets fooled when the same part of</span>
-    <span class="c1"># reciprocal space has been measured twice as this introduced small</span>
-    <span class="c1"># random differences in position between reflections measured twice.</span>
-    <span class="c1"># Therefore repeat the nearest neighbour analysis several times in small</span>
-    <span class="c1"># wedges where there shouldn&#39;t be any overlap in reciprocal space</span>
-    <span class="c1"># from rstbx.indexing_api.nearest_neighbor import neighbor_analysis</span>
-    <span class="k">if</span> <span class="s2">&quot;entering&quot;</span> <span class="ow">in</span> <span class="n">reflections</span><span class="p">:</span>
-        <span class="n">entering_flags</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;entering&quot;</span><span class="p">]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">entering_flags</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
-    <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.nearest_neighbor</span> <span class="k">import</span> <span class="n">neighbor_analysis</span>
-
-    <span class="n">phi_deg</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">180</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
-
-    <span class="n">NN</span> <span class="o">=</span> <span class="n">neighbor_analysis</span><span class="p">(</span>
-        <span class="n">reflections</span><span class="p">,</span>
-        <span class="n">step_size</span><span class="o">=</span><span class="n">step_size</span><span class="p">,</span>
-        <span class="n">max_height_fraction</span><span class="o">=</span><span class="n">max_height_fraction</span><span class="p">,</span>
-        <span class="n">tolerance</span><span class="o">=</span><span class="n">max_cell_multiplier</span><span class="p">,</span>
-        <span class="n">percentile</span><span class="o">=</span><span class="n">nearest_neighbor_percentile</span><span class="p">,</span>
-        <span class="n">histogram_binning</span><span class="o">=</span><span class="n">histogram_binning</span><span class="p">,</span>
-        <span class="n">nn_per_bin</span><span class="o">=</span><span class="n">nn_per_bin</span><span class="p">,</span>
-    <span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">NN</span></div>
 
 
 <div class="viewcode-block" id="optimise_basis_vectors"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.indexer.optimise_basis_vectors">[docs]</a><span class="k">def</span> <span class="nf">optimise_basis_vectors</span><span class="p">(</span><span class="n">reciprocal_lattice_points</span><span class="p">,</span> <span class="n">vectors</span><span class="p">):</span>
