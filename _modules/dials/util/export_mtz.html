@@ -64,8 +64,6 @@
 
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">time</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">defaultdict</span>
-<span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">ceil</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">floor</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">sin</span><span class="p">,</span> <span class="n">sqrt</span>
 
 <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="k">import</span> <span class="n">flex</span>
 <span class="kn">from</span> <span class="nn">dials.util.version</span> <span class="k">import</span> <span class="n">dials_version</span>
@@ -75,6 +73,8 @@
     <span class="n">assign_batches_to_reflections</span><span class="p">,</span>
     <span class="n">get_image_ranges</span><span class="p">,</span>
 <span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">dials.util.ext</span> <span class="k">import</span> <span class="n">dials_u_to_mosflm</span>
 <span class="kn">from</span> <span class="nn">iotbx</span> <span class="k">import</span> <span class="n">mtz</span>
 <span class="kn">from</span> <span class="nn">dials.util</span> <span class="k">import</span> <span class="n">Sorry</span>
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="k">import</span> <span class="n">matrix</span>
@@ -88,40 +88,6 @@
 
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-
-<div class="viewcode-block" id="dials_u_to_mosflm"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.dials_u_to_mosflm">[docs]</a><span class="k">def</span> <span class="nf">dials_u_to_mosflm</span><span class="p">(</span><span class="n">dials_U</span><span class="p">,</span> <span class="n">uc</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Compute the mosflm U matrix i.e. the U matrix from same UB definition</span>
-<span class="sd">    as DIALS, but with Busing &amp; Levy B matrix definition.&quot;&quot;&quot;</span>
-
-    <span class="n">parameters</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span>
-    <span class="n">dials_B</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">uc</span><span class="o">.</span><span class="n">fractionalization_matrix</span><span class="p">())</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
-    <span class="n">dials_UB</span> <span class="o">=</span> <span class="n">dials_U</span> <span class="o">*</span> <span class="n">dials_B</span>
-
-    <span class="n">r_parameters</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">reciprocal_parameters</span><span class="p">()</span>
-
-    <span class="n">a</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
-    <span class="n">al</span> <span class="o">=</span> <span class="p">[</span><span class="n">pi</span> <span class="o">*</span> <span class="n">p</span> <span class="o">/</span> <span class="mf">180.0</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">[</span><span class="mi">3</span><span class="p">:]]</span>
-    <span class="n">b</span> <span class="o">=</span> <span class="n">r_parameters</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
-    <span class="n">be</span> <span class="o">=</span> <span class="p">[</span><span class="n">pi</span> <span class="o">*</span> <span class="n">p</span> <span class="o">/</span> <span class="mf">180.0</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">r_parameters</span><span class="p">[</span><span class="mi">3</span><span class="p">:]]</span>
-
-    <span class="n">mosflm_B</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span>
-        <span class="p">(</span>
-            <span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-            <span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
-            <span class="n">b</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
-            <span class="mi">0</span><span class="p">,</span>
-            <span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
-            <span class="o">-</span><span class="n">b</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">be</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">al</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
-            <span class="mi">0</span><span class="p">,</span>
-            <span class="mi">0</span><span class="p">,</span>
-            <span class="mf">1.0</span> <span class="o">/</span> <span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
-
-    <span class="n">mosflm_U</span> <span class="o">=</span> <span class="n">dials_UB</span> <span class="o">*</span> <span class="n">mosflm_B</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
-
-    <span class="k">return</span> <span class="n">mosflm_U</span></div>
 
 
 <span class="k">def</span> <span class="nf">_add_batch</span><span class="p">(</span><span class="n">mtz</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">batch_number</span><span class="p">,</span> <span class="n">image_number</span><span class="p">,</span> <span class="n">force_static_model</span><span class="p">):</span>
@@ -186,7 +152,7 @@
     <span class="c1"># here we are just giving the effective axis so at scan angle 0 this will</span>
     <span class="c1"># not be correct... FIXME 2 not even sure we can express the stack of</span>
     <span class="c1"># matrices S * R * F * U * B in MTZ format?... see [=A=] below</span>
-    <span class="n">_U</span> <span class="o">=</span> <span class="n">dials_u_to_mosflm</span><span class="p">(</span><span class="n">F</span> <span class="o">*</span> <span class="n">_U</span><span class="p">,</span> <span class="n">_unit_cell</span><span class="p">)</span>
+    <span class="n">_U</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">dials_u_to_mosflm</span><span class="p">(</span><span class="n">F</span> <span class="o">*</span> <span class="n">_U</span><span class="p">,</span> <span class="n">_unit_cell</span><span class="p">))</span>
 
     <span class="c1"># FIXME need to get what was refined and what was constrained from the</span>
     <span class="c1"># crystal model - see https://github.com/dials/dials/issues/355</span>
