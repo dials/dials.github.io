@@ -159,8 +159,8 @@
         <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Beam</span>
 
         <span class="c1"># If None, return None</span>
-        <span class="k">if</span> <span class="n">d</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">d</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">None</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">from_dict</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -221,7 +221,7 @@
         <span class="k">assert</span> <span class="n">polarization_fraction</span> <span class="o">&gt;=</span> <span class="mf">0.0</span>
         <span class="k">assert</span> <span class="n">polarization_fraction</span> <span class="o">&lt;=</span> <span class="mf">1.0</span>
 
-        <span class="k">if</span> <span class="n">divergence</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">sigma_divergence</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">divergence</span> <span class="o">==</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">sigma_divergence</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">divergence</span> <span class="o">=</span> <span class="mf">0.0</span>
             <span class="n">sigma_divergence</span> <span class="o">=</span> <span class="mf">0.0</span>
 
@@ -305,12 +305,48 @@
 <span class="sd">        in this - it is the angle between the polarization plane and the</span>
 <span class="sd">        +Y laboratory frame vector.&quot;&quot;&quot;</span>
 
+        <span class="n">d2r</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">180.0</span>
+
         <span class="n">cbf_handle</span> <span class="o">=</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">cbf_handle_struct</span><span class="p">()</span>
-        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">read_widefile</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">MSG_DIGEST</span><span class="p">)</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">MSG_DIGEST</span><span class="p">)</span>
 
-        <span class="n">result</span> <span class="o">=</span> <span class="n">BeamFactory</span><span class="o">.</span><span class="n">imgCIF_H</span><span class="p">(</span><span class="n">cbf_handle</span><span class="p">)</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_category</span><span class="p">(</span><span class="s2">&quot;axis&quot;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">result</span></div>
+        <span class="c1"># find record with equipment = source</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;equipment&quot;</span><span class="p">)</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_row</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">)</span>
+
+        <span class="c1"># then get the vector and offset from this</span>
+        <span class="n">direction</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;vector[</span><span class="si">%d</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">direction</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_doublevalue</span><span class="p">())</span>
+
+        <span class="c1"># and the wavelength</span>
+        <span class="n">wavelength</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+
+        <span class="c1"># and information about the polarization - FIXME this should probably</span>
+        <span class="c1"># be a rotation about the beam not about the Z axis.</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">polar_fraction</span><span class="p">,</span> <span class="n">polar_angle</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_polarization</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">polar_fraction</span> <span class="o">=</span> <span class="mf">0.999</span>
+            <span class="n">polar_angle</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="n">polar_plane_normal</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">polar_angle</span> <span class="o">*</span> <span class="n">d2r</span><span class="p">),</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">polar_angle</span> <span class="o">*</span> <span class="n">d2r</span><span class="p">),</span>
+            <span class="mf">0.0</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">BeamFactory</span><span class="o">.</span><span class="n">make_polarized_beam</span><span class="p">(</span>
+            <span class="n">sample_to_source</span><span class="o">=</span><span class="n">direction</span><span class="p">,</span>
+            <span class="n">wavelength</span><span class="o">=</span><span class="n">wavelength</span><span class="p">,</span>
+            <span class="n">polarization</span><span class="o">=</span><span class="n">polar_plane_normal</span><span class="p">,</span>
+            <span class="n">polarization_fraction</span><span class="o">=</span><span class="n">polar_fraction</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
 <div class="viewcode-block" id="BeamFactory.imgCIF_H"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.imgCIF_H">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">imgCIF_H</span><span class="p">(</span><span class="n">cbf_handle</span><span class="p">):</span>
@@ -325,28 +361,21 @@
         <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_category</span><span class="p">(</span><span class="s2">&quot;axis&quot;</span><span class="p">)</span>
 
         <span class="c1"># find record with equipment = source</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;equipment&quot;</span><span class="p">)</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_row</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">)</span>
 
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;equipment&quot;</span><span class="p">)</span>
-            <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_row</span><span class="p">(</span><span class="s2">&quot;source&quot;</span><span class="p">)</span>
+        <span class="c1"># then get the vector and offset from this</span>
+        <span class="n">direction</span> <span class="o">=</span> <span class="p">[]</span>
 
-            <span class="c1"># then get the vector and offset from this</span>
-            <span class="n">direction</span> <span class="o">=</span> <span class="p">[]</span>
-
-            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;vector[</span><span class="si">%d</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
-                <span class="n">direction</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_doublevalue</span><span class="p">())</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;CBF_NOTFOUND&quot;</span><span class="p">:</span>
-                <span class="k">raise</span>
-            <span class="n">direction</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="s2">&quot;vector[</span><span class="si">%d</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">direction</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_doublevalue</span><span class="p">())</span>
 
         <span class="c1"># and the wavelength</span>
         <span class="n">wavelength</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
 
         <span class="c1"># and information about the polarization - FIXME this should probably</span>
-        <span class="c1"># be a rotation about the beam not about the Z axis. Should also check</span>
-        <span class="c1"># to see if this is Cu K-alpha wavelength (i.e. lab source...)</span>
+        <span class="c1"># be a rotation about the beam not about the Z axis.</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">polar_fraction</span><span class="p">,</span> <span class="n">polar_angle</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_polarization</span><span class="p">()</span>
