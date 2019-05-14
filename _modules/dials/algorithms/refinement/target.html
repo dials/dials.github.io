@@ -10,24 +10,23 @@
     <title>dials.algorithms.refinement.target &#8212; DIALS  documentation</title>
     <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/dials-styles.css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
     <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
     <script type="text/javascript" src="../../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
-    <script type="text/javascript" src="../../../../_static/language_data.js"></script>
-    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
     <link rel="author" title="About these documents" href="../../../../about.html" />
     <link rel="index" title="Index" href="../../../../genindex.html" />
@@ -79,706 +78,655 @@
 <span class="kn">import</span> <span class="nn">abc</span>
 
 <span class="c1"># constants</span>
-<span class="n">RAD_TO_DEG</span> <span class="o">=</span> <span class="mf">180.0</span> <span class="o">/</span> <span class="n">pi</span>
+<span class="n">RAD_TO_DEG</span> <span class="o">=</span> <span class="mf">180.</span> <span class="o">/</span> <span class="n">pi</span>
 
 <span class="c1"># PHIL</span>
 <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="k">import</span> <span class="n">parse</span>
+<span class="n">phil_str</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">    rmsd_cutoff = *fraction_of_bin_size absolute</span>
+<span class="s1">      .help = &quot;Method to choose rmsd cutoffs. This is currently either as a&quot;</span>
+<span class="s1">              &quot;fraction of the discrete units of the spot positional data, i.e.&quot;</span>
+<span class="s1">              &quot;(pixel width, pixel height, image thickness in phi), or a tuple&quot;</span>
+<span class="s1">              &quot;of absolute values to use as the cutoffs&quot;</span>
+<span class="s1">      .type = choice</span>
 
-<span class="n">phil_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">    rmsd_cutoff = *fraction_of_bin_size absolute</span>
-<span class="s2">      .help = &quot;Method to choose rmsd cutoffs. This is currently either as a&quot;</span>
-<span class="s2">              &quot;fraction of the discrete units of the spot positional data, i.e.&quot;</span>
-<span class="s2">              &quot;(pixel width, pixel height, image thickness in phi), or a tuple&quot;</span>
-<span class="s2">              &quot;of absolute values to use as the cutoffs&quot;</span>
-<span class="s2">      .type = choice</span>
+<span class="s1">    bin_size_fraction = 0.0</span>
+<span class="s1">      .help = &quot;Set this to a fractional value, say 0.2, to make a cut off in&quot;</span>
+<span class="s1">              &quot;the natural discrete units of positional data, viz.,&quot;</span>
+<span class="s1">              &quot;(pixel width, pixel height, image thickness in phi). This would&quot;</span>
+<span class="s1">              &quot;then determine when the RMSD target is achieved. Only used if&quot;</span>
+<span class="s1">              &quot;rmsd_cutoff = fraction_of_bin_size.&quot;</span>
+<span class="s1">      .type = float(value_min=0.)</span>
 
-<span class="s2">    bin_size_fraction = 0.0</span>
-<span class="s2">      .help = &quot;Set this to a fractional value, say 0.2, to make a cut off in&quot;</span>
-<span class="s2">              &quot;the natural discrete units of positional data, viz.,&quot;</span>
-<span class="s2">              &quot;(pixel width, pixel height, image thickness in phi). This would&quot;</span>
-<span class="s2">              &quot;then determine when the RMSD target is achieved. Only used if&quot;</span>
-<span class="s2">              &quot;rmsd_cutoff = fraction_of_bin_size.&quot;</span>
-<span class="s2">      .type = float(value_min=0.)</span>
+<span class="s1">    absolute_cutoffs = None</span>
+<span class="s1">      .help = &quot;Absolute Values for the RMSD target achieved cutoffs in X, Y and&quot;</span>
+<span class="s1">              &quot;Phi. The units are (mm, mm, rad).&quot;</span>
+<span class="s1">      .type = floats(size=3, value_min=0.)</span>
 
-<span class="s2">    absolute_cutoffs = None</span>
-<span class="s2">      .help = &quot;Absolute Values for the RMSD target achieved cutoffs in X, Y and&quot;</span>
-<span class="s2">              &quot;Phi. The units are (mm, mm, rad).&quot;</span>
-<span class="s2">      .type = floats(size=3, value_min=0.)</span>
-
-<span class="s2">    gradient_calculation_blocksize = None</span>
-<span class="s2">      .help = &quot;Maximum number of reflections to use for gradient calculation.&quot;</span>
-<span class="s2">              &quot;If there are more reflections than this in the manager then&quot;</span>
-<span class="s2">              &quot;the minimiser must do the full calculation in blocks.&quot;</span>
-<span class="s2">      .type = int(value_min=1)</span>
-<span class="s2">&quot;&quot;&quot;</span>
+<span class="s1">    gradient_calculation_blocksize = None</span>
+<span class="s1">      .help = &quot;Maximum number of reflections to use for gradient calculation.&quot;</span>
+<span class="s1">              &quot;If there are more reflections than this in the manager then&quot;</span>
+<span class="s1">              &quot;the minimiser must do the full calculation in blocks.&quot;</span>
+<span class="s1">      .type = int(value_min=1)</span>
+<span class="s1">&#39;&#39;&#39;</span>
 <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">phil_str</span><span class="p">)</span>
 
-
 <div class="viewcode-block" id="TargetFactory"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.TargetFactory">[docs]</a><span class="k">class</span> <span class="nc">TargetFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-<div class="viewcode-block" id="TargetFactory.from_parameters_and_experiments"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.TargetFactory.from_parameters_and_experiments">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">from_parameters_and_experiments</span><span class="p">(</span>
-        <span class="n">params</span><span class="p">,</span>
-        <span class="n">experiments</span><span class="p">,</span>
-        <span class="n">reflection_manager</span><span class="p">,</span>
-        <span class="n">predictor</span><span class="p">,</span>
-        <span class="n">pred_param</span><span class="p">,</span>
-        <span class="n">restraints_param</span><span class="p">,</span>
-        <span class="n">do_stills</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">do_sparse</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="p">):</span>
 
-        <span class="sd">&quot;&quot;&quot;Given a set of parameters, configure a factory to build a</span>
-<span class="sd">        target function</span>
+<div class="viewcode-block" id="TargetFactory.from_parameters_and_experiments"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.TargetFactory.from_parameters_and_experiments">[docs]</a>  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">from_parameters_and_experiments</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span>
+      <span class="n">reflection_manager</span><span class="p">,</span> <span class="n">predictor</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">restraints_param</span><span class="p">,</span>
+      <span class="n">do_stills</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">do_sparse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 
-<span class="sd">        Params:</span>
-<span class="sd">            params The input parameters</span>
+    <span class="sd">&quot;&quot;&quot;Given a set of parameters, configure a factory to build a</span>
+<span class="sd">    target function</span>
 
-<span class="sd">        Returns:</span>
-<span class="sd">            The target factory instance</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">    Params:</span>
+<span class="sd">        params The input parameters</span>
 
-        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">rmsd_cutoff</span> <span class="o">==</span> <span class="s2">&quot;fraction_of_bin_size&quot;</span><span class="p">:</span>
-            <span class="n">absolute_cutoffs</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">rmsd_cutoff</span> <span class="o">==</span> <span class="s2">&quot;absolute&quot;</span><span class="p">:</span>
-            <span class="n">absolute_cutoffs</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">absolute_cutoffs</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                <span class="s2">&quot;Target function rmsd_cutoff option&quot;</span>
-                <span class="o">+</span> <span class="n">params</span><span class="o">.</span><span class="n">rmsd_cutoff</span>
-                <span class="o">+</span> <span class="s2">&quot; not recognised&quot;</span>
-            <span class="p">)</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        The target factory instance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
-        <span class="c1"># Determine whether the target is in X, Y, Phi space or just X, Y to choose</span>
-        <span class="c1"># the right Target to instantiate</span>
-        <span class="k">if</span> <span class="n">do_stills</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">do_sparse</span><span class="p">:</span>
-                <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target_stills</span> <span class="k">import</span> <span class="p">(</span>
-                    <span class="n">LeastSquaresStillsResidualWithRmsdCutoffSparse</span> <span class="k">as</span> <span class="n">targ</span><span class="p">,</span>
-                <span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target_stills</span> <span class="k">import</span> <span class="p">(</span>
-                    <span class="n">LeastSquaresStillsResidualWithRmsdCutoff</span> <span class="k">as</span> <span class="n">targ</span><span class="p">,</span>
-                <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">do_sparse</span><span class="p">:</span>
-                <span class="n">targ</span> <span class="o">=</span> <span class="n">LeastSquaresPositionalResidualWithRmsdCutoffSparse</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">targ</span> <span class="o">=</span> <span class="n">LeastSquaresPositionalResidualWithRmsdCutoff</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">rmsd_cutoff</span> <span class="o">==</span> <span class="s2">&quot;fraction_of_bin_size&quot;</span><span class="p">:</span>
+      <span class="n">absolute_cutoffs</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">rmsd_cutoff</span> <span class="o">==</span> <span class="s2">&quot;absolute&quot;</span><span class="p">:</span>
+      <span class="n">absolute_cutoffs</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">absolute_cutoffs</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Target function rmsd_cutoff option&quot;</span> <span class="o">+</span>
+          <span class="n">params</span><span class="o">.</span><span class="n">rmsd_cutoff</span> <span class="o">+</span> <span class="s2">&quot; not recognised&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Here we pass in None for prediction_parameterisation and</span>
-        <span class="c1"># restraints_parameterisation, as these are not required for initialisation</span>
-        <span class="c1"># and will be linked to the object later</span>
-        <span class="k">return</span> <span class="n">targ</span><span class="p">(</span>
-            <span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
-            <span class="n">predictor</span><span class="o">=</span><span class="n">predictor</span><span class="p">,</span>
-            <span class="n">reflection_manager</span><span class="o">=</span><span class="n">reflection_manager</span><span class="p">,</span>
-            <span class="n">prediction_parameterisation</span><span class="o">=</span><span class="n">pred_param</span><span class="p">,</span>
-            <span class="n">restraints_parameterisation</span><span class="o">=</span><span class="n">restraints_param</span><span class="p">,</span>
-            <span class="n">frac_binsize_cutoff</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">bin_size_fraction</span><span class="p">,</span>
-            <span class="n">absolute_cutoffs</span><span class="o">=</span><span class="n">absolute_cutoffs</span><span class="p">,</span>
-            <span class="n">gradient_calculation_blocksize</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">gradient_calculation_blocksize</span><span class="p">,</span>
-        <span class="p">)</span></div></div>
+    <span class="c1"># Determine whether the target is in X, Y, Phi space or just X, Y to choose</span>
+    <span class="c1"># the right Target to instantiate</span>
+    <span class="k">if</span> <span class="n">do_stills</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">do_sparse</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target_stills</span> \
+          <span class="kn">import</span> <span class="nn">LeastSquaresStillsResidualWithRmsdCutoffSparse</span> <span class="k">as</span> <span class="nn">targ</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target_stills</span> \
+          <span class="kn">import</span> <span class="nn">LeastSquaresStillsResidualWithRmsdCutoff</span> <span class="k">as</span> <span class="nn">targ</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">do_sparse</span><span class="p">:</span>
+        <span class="n">targ</span> <span class="o">=</span> <span class="n">LeastSquaresPositionalResidualWithRmsdCutoffSparse</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">targ</span> <span class="o">=</span> <span class="n">LeastSquaresPositionalResidualWithRmsdCutoff</span>
+
+    <span class="c1"># Here we pass in None for prediction_parameterisation and</span>
+    <span class="c1"># restraints_parameterisation, as these are not required for initialisation</span>
+    <span class="c1"># and will be linked to the object later</span>
+    <span class="k">return</span> <span class="n">targ</span><span class="p">(</span><span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
+                <span class="n">predictor</span><span class="o">=</span><span class="n">predictor</span><span class="p">,</span>
+                <span class="n">reflection_manager</span><span class="o">=</span><span class="n">reflection_manager</span><span class="p">,</span>
+                <span class="n">prediction_parameterisation</span><span class="o">=</span><span class="n">pred_param</span><span class="p">,</span>
+                <span class="n">restraints_parameterisation</span><span class="o">=</span><span class="n">restraints_param</span><span class="p">,</span>
+                <span class="n">frac_binsize_cutoff</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">bin_size_fraction</span><span class="p">,</span>
+                <span class="n">absolute_cutoffs</span><span class="o">=</span><span class="n">absolute_cutoffs</span><span class="p">,</span>
+                <span class="n">gradient_calculation_blocksize</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">gradient_calculation_blocksize</span><span class="p">)</span></div></div>
 
 
 <div class="viewcode-block" id="Target"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target">[docs]</a><span class="k">class</span> <span class="nc">Target</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Abstract interface for a target function class</span>
-
-<span class="sd">    A Target object will be used by a Refinery. It will refer to a Reflection</span>
-<span class="sd">    Manager to get a list of observations. It will perform reflection prediction</span>
-<span class="sd">    on those observations and update the reflection manager with those</span>
-<span class="sd">    predictions. It will then query the reflection manager to get a list of</span>
-<span class="sd">    accepted reflections with observed and calculated positions. These are the</span>
-<span class="sd">    reflections for use in refinement. It obtains the gradients of reflection</span>
-<span class="sd">    positions from a relevant prediction parameterisation object. With all of</span>
-<span class="sd">    this information in place, it calculates the value of the target function,</span>
-<span class="sd">    the gradients of the target function and auxiliary information (e.g. RMSDs).</span>
-
-<span class="sd">    Concrete instances of this class implement the actual target function</span>
-<span class="sd">    calculation. The base class should not determine what type of target</span>
-<span class="sd">    function is used (e.g. least squares target), or limit whether the object</span>
-<span class="sd">    is used for a detector space &amp; phi residual, or a reciprocal space residual.</span>
-<span class="sd">    This should all be set by a derived class.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
-    <span class="n">_grad_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;dX_dp&quot;</span><span class="p">,</span> <span class="s2">&quot;dY_dp&quot;</span><span class="p">,</span> <span class="s2">&quot;dphi_dp&quot;</span><span class="p">]</span>
-    <span class="n">rmsd_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;RMSD_X&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_Y&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_Phi&quot;</span><span class="p">]</span>
-    <span class="n">rmsd_units</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;mm&quot;</span><span class="p">,</span> <span class="s2">&quot;mm&quot;</span><span class="p">,</span> <span class="s2">&quot;rad&quot;</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">experiments</span><span class="p">,</span>
-        <span class="n">predictor</span><span class="p">,</span>
-        <span class="n">reflection_manager</span><span class="p">,</span>
-        <span class="n">prediction_parameterisation</span><span class="p">,</span>
-        <span class="n">restraints_parameterisation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">gradient_calculation_blocksize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="p">):</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span> <span class="o">=</span> <span class="n">experiments</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_predictor</span> <span class="o">=</span> <span class="n">predictor</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span> <span class="o">=</span> <span class="n">reflection_manager</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span> <span class="o">=</span> <span class="n">prediction_parameterisation</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span> <span class="o">=</span> <span class="n">restraints_parameterisation</span>
-
-        <span class="c1"># Quantities to cache each step</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="c1"># Keep maximum number of reflections used for Jacobian calculation, if</span>
-        <span class="c1"># a cutoff is required</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_calculation_blocksize</span> <span class="o">=</span> <span class="n">gradient_calculation_blocksize</span>
-
-        <span class="k">return</span>
-
-    <span class="k">def</span> <span class="nf">_predict_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;perform prediction for the specified reflections&quot;&quot;&quot;</span>
-
-        <span class="c1"># If the prediction parameterisation has a compose method (true for the scan</span>
-        <span class="c1"># varying case) then call it. Prefer hasattr to try-except duck typing to</span>
-        <span class="c1"># avoid masking AttributeErrors that could be raised within the method.</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">,</span> <span class="s2">&quot;compose&quot;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="p">)</span>
-
-        <span class="c1"># do prediction (updates reflection table in situ). Scan-varying prediction</span>
-        <span class="c1"># is done automatically if the crystal has scan-points (assuming reflections</span>
-        <span class="c1"># have ub_matrix set)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_predictor</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
-
-        <span class="n">x_obs</span><span class="p">,</span> <span class="n">y_obs</span><span class="p">,</span> <span class="n">phi_obs</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
-        <span class="n">x_calc</span><span class="p">,</span> <span class="n">y_calc</span><span class="p">,</span> <span class="n">phi_calc</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzcal.mm&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
-
-        <span class="c1"># calculate residuals and assign columns</span>
-        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_calc</span> <span class="o">-</span> <span class="n">x_obs</span>
-        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
-        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y_calc</span> <span class="o">-</span> <span class="n">y_obs</span>
-        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
-        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;phi_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi_calc</span> <span class="o">-</span> <span class="n">phi_obs</span>
-        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;phi_resid2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;phi_resid&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
-
-        <span class="k">return</span> <span class="n">reflections</span>
-
-<div class="viewcode-block" id="Target.predict"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;perform reflection prediction for the working reflections and update the</span>
-<span class="sd">        reflection manager&quot;&quot;&quot;</span>
-
-        <span class="c1"># get the matches</span>
-        <span class="n">reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">get_obs</span><span class="p">()</span>
-
-        <span class="c1"># reset the &#39;use&#39; flag for all observations</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">reset_accepted_reflections</span><span class="p">()</span>
-
-        <span class="c1"># predict</span>
-        <span class="n">reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_core</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
-
-        <span class="c1"># set used_in_refinement flag to all those that had predictions</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">predicted</span><span class="p">)</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
-
-        <span class="c1"># collect the matches</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-        <span class="k">return</span></div>
-
-<div class="viewcode-block" id="Target.predict_for_free_reflections"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.predict_for_free_reflections">[docs]</a>    <span class="k">def</span> <span class="nf">predict_for_free_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;perform prediction for the reflections not used for refinement&quot;&quot;&quot;</span>
+  <span class="sd">&quot;&quot;&quot;Abstract interface for a target function class</span>
+
+<span class="sd">  A Target object will be used by a Refinery. It will refer to a Reflection</span>
+<span class="sd">  Manager to get a list of observations. It will perform reflection prediction</span>
+<span class="sd">  on those observations and update the reflection manager with those</span>
+<span class="sd">  predictions. It will then query the reflection manager to get a list of</span>
+<span class="sd">  accepted reflections with observed and calculated positions. These are the</span>
+<span class="sd">  reflections for use in refinement. It obtains the gradients of reflection</span>
+<span class="sd">  positions from a relevant prediction parameterisation object. With all of</span>
+<span class="sd">  this information in place, it calculates the value of the target function,</span>
+<span class="sd">  the gradients of the target function and auxiliary information (e.g. RMSDs).</span>
+
+<span class="sd">  Concrete instances of this class implement the actual target function</span>
+<span class="sd">  calculation. The base class should not determine what type of target</span>
+<span class="sd">  function is used (e.g. least squares target), or limit whether the object</span>
+<span class="sd">  is used for a detector space &amp; phi residual, or a reciprocal space residual.</span>
+<span class="sd">  This should all be set by a derived class.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">__metaclass__</span>  <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+  <span class="n">_grad_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;dX_dp&#39;</span><span class="p">,</span> <span class="s1">&#39;dY_dp&#39;</span><span class="p">,</span> <span class="s1">&#39;dphi_dp&#39;</span><span class="p">]</span>
+  <span class="n">rmsd_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;RMSD_X&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_Y&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_Phi&quot;</span><span class="p">]</span>
+  <span class="n">rmsd_units</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;mm&quot;</span><span class="p">,</span> <span class="s2">&quot;mm&quot;</span><span class="p">,</span> <span class="s2">&quot;rad&quot;</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">predictor</span><span class="p">,</span> <span class="n">reflection_manager</span><span class="p">,</span>
+               <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">restraints_parameterisation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">gradient_calculation_blocksize</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span> <span class="o">=</span> <span class="n">experiments</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_predictor</span> <span class="o">=</span> <span class="n">predictor</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span> <span class="o">=</span> <span class="n">reflection_manager</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span> <span class="o">=</span> <span class="n">prediction_parameterisation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span> <span class="o">=</span> <span class="n">restraints_parameterisation</span>
+
+    <span class="c1"># Quantities to cache each step</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Keep maximum number of reflections used for Jacobian calculation, if</span>
+    <span class="c1"># a cutoff is required</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_calculation_blocksize</span> <span class="o">=</span> <span class="n">gradient_calculation_blocksize</span>
+
+    <span class="k">return</span>
+
+  <span class="k">def</span> <span class="nf">_predict_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;perform prediction for the specified reflections&quot;&quot;&quot;</span>
+
+    <span class="c1"># If the prediction parameterisation has a compose method (true for the scan</span>
+    <span class="c1"># varying case) then call it. Prefer hasattr to try-except duck typing to</span>
+    <span class="c1"># avoid masking AttributeErrors that could be raised within the method.</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">,</span> <span class="s1">&#39;compose&#39;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span>
+          <span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="p">)</span>
+
+    <span class="c1"># do prediction (updates reflection table in situ). Scan-varying prediction</span>
+    <span class="c1"># is done automatically if the crystal has scan-points (assuming reflections</span>
+    <span class="c1"># have ub_matrix set)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_predictor</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="n">x_obs</span><span class="p">,</span> <span class="n">y_obs</span><span class="p">,</span> <span class="n">phi_obs</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;xyzobs.mm.value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">x_calc</span><span class="p">,</span> <span class="n">y_calc</span><span class="p">,</span> <span class="n">phi_calc</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;xyzcal.mm&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+
+    <span class="c1"># calculate residuals and assign columns</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;x_resid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_calc</span> <span class="o">-</span> <span class="n">x_obs</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;x_resid2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;x_resid&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;y_resid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y_calc</span> <span class="o">-</span> <span class="n">y_obs</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;y_resid2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;y_resid&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;phi_resid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi_calc</span> <span class="o">-</span> <span class="n">phi_obs</span>
+    <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;phi_resid2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;phi_resid&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+
+    <span class="k">return</span> <span class="n">reflections</span>
 
-        <span class="n">refs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">get_free_reflections</span><span class="p">()</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">refs</span>
+<div class="viewcode-block" id="Target.predict"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.predict">[docs]</a>  <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;perform reflection prediction for the working reflections and update the</span>
+<span class="sd">    reflection manager&quot;&quot;&quot;</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_core</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span></div>
+    <span class="c1"># get the matches</span>
+    <span class="n">reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">get_obs</span><span class="p">()</span>
 
-<div class="viewcode-block" id="Target.predict_for_reflection_table"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.predict_for_reflection_table">[docs]</a>    <span class="k">def</span> <span class="nf">predict_for_reflection_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;perform prediction for all reflections in the supplied table&quot;&quot;&quot;</span>
+    <span class="c1"># reset the &#39;use&#39; flag for all observations</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">reset_accepted_reflections</span><span class="p">()</span>
 
-        <span class="c1"># set the entering flags if this has not been done</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.reflection_manager</span> <span class="k">import</span> <span class="p">(</span>
-            <span class="n">calculate_entering_flags</span><span class="p">,</span>
-        <span class="p">)</span>
+    <span class="c1"># predict</span>
+    <span class="n">reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_core</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="s2">&quot;entering&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflections</span><span class="p">:</span>
-            <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;entering&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">calculate_entering_flags</span><span class="p">(</span>
-                <span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span>
-            <span class="p">)</span>
+    <span class="c1"># set used_in_refinement flag to all those that had predictions</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">predicted</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
 
-        <span class="c1"># can only predict for experiments that exist and within the scan range</span>
-        <span class="c1"># any other reflections will be left unchanged</span>
-        <span class="n">inc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
-        <span class="n">to_keep</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">inc</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
-
-        <span class="k">for</span> <span class="n">iexp</span><span class="p">,</span> <span class="n">exp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">):</span>
-            <span class="n">sel</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span>
-
-            <span class="c1"># keep all reflections if there is no rotation axis</span>
-            <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">to_keep</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-                <span class="k">continue</span>
-
-            <span class="c1"># trim reflections outside the scan range</span>
-            <span class="n">phi</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
-            <span class="n">phi_min</span><span class="p">,</span> <span class="n">phi_max</span> <span class="o">=</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">passed</span> <span class="o">=</span> <span class="p">(</span><span class="n">phi</span> <span class="o">&gt;=</span> <span class="n">phi_min</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">phi</span> <span class="o">&lt;=</span> <span class="n">phi_max</span><span class="p">)</span>
-            <span class="n">to_keep</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="n">passed</span><span class="p">)</span>
-
-        <span class="c1"># determine indices to include and predict on the subset</span>
-        <span class="n">inc</span> <span class="o">=</span> <span class="n">inc</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">to_keep</span><span class="p">)</span>
-        <span class="n">sub_refl</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">inc</span><span class="p">)</span>
-        <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_core</span><span class="p">(</span><span class="n">sub_refl</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="p">)</span>
-
-        <span class="c1"># set updated subset back into place</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">inc</span><span class="p">,</span> <span class="n">preds</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">reflections</span></div>
-
-<div class="viewcode-block" id="Target.calculate_gradients"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.calculate_gradients">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;delegate to the prediction_parameterisation object to calculate</span>
-<span class="sd">        gradients for all the matched reflections, or just for those specified&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="n">reflections</span><span class="p">:</span>
-            <span class="n">gradients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="o">.</span><span class="n">get_gradients</span><span class="p">(</span>
-                <span class="n">reflections</span><span class="p">,</span> <span class="n">callback</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">gradients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="o">.</span><span class="n">get_gradients</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">,</span> <span class="n">callback</span>
-            <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">gradients</span></div>
-
-<div class="viewcode-block" id="Target.get_num_matches"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.get_num_matches">[docs]</a>    <span class="k">def</span> <span class="nf">get_num_matches</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;return the number of reflections currently used in the calculation&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="Target.get_num_matches_for_experiment"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.get_num_matches_for_experiment">[docs]</a>    <span class="k">def</span> <span class="nf">get_num_matches_for_experiment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iexp</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;return the number of reflections currently used in the calculation&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-        <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span>
-        <span class="k">return</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="Target.get_num_matches_for_panel"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.get_num_matches_for_panel">[docs]</a>    <span class="k">def</span> <span class="nf">get_num_matches_for_panel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipanel</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;return the number of reflections currently used in the calculation&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-        <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s2">&quot;panel&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">ipanel</span>
-        <span class="k">return</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="Target.update_matches"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.update_matches">[docs]</a>    <span class="k">def</span> <span class="nf">update_matches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;ensure the observations matched to predictions are up to date&quot;&quot;&quot;</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span> <span class="ow">or</span> <span class="n">force</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
-
-        <span class="k">return</span></div>
-
-<div class="viewcode-block" id="Target.compute_functional_gradients_and_curvatures"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_functional_gradients_and_curvatures">[docs]</a>    <span class="k">def</span> <span class="nf">compute_functional_gradients_and_curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;calculate the value of the target function and its gradients. Set</span>
-<span class="sd">        approximate curvatures as a side-effect&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">block</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">matches</span> <span class="o">=</span> <span class="n">block</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span>
-        <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
-
-        <span class="c1"># This is a hack for the case where nref=0. This should not be necessary</span>
-        <span class="c1"># if bounds are provided for parameters to stop the algorithm exploring</span>
-        <span class="c1"># unreasonable regions of parameter space where no predictions exist.</span>
-        <span class="c1"># Unfortunately the L-BFGS line search does make such extreme trials.</span>
-        <span class="k">if</span> <span class="n">nref</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_curv</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">)</span>
-            <span class="k">return</span> <span class="mf">1.0e12</span><span class="p">,</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">)</span>
-
-        <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
-        <span class="n">w_resid</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="n">residuals</span>
-        <span class="n">residuals2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_squared_residuals</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
-
-        <span class="c1"># calculate target function</span>
-        <span class="n">L</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span> <span class="o">*</span> <span class="n">residuals2</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">process_one_gradient</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
-            <span class="c1"># copy gradients out of the result</span>
-            <span class="n">dX</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-            <span class="n">dY</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
-            <span class="n">dZ</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
-            <span class="c1"># reset result</span>
-            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                <span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="c1"># add new keys</span>
-            <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_concatenate_gradients</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">dZ</span><span class="p">)</span>
-            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;dL_dp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">w_resid</span> <span class="o">*</span> <span class="n">grads</span><span class="p">)</span>
-            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;curvature&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span> <span class="o">*</span> <span class="n">grads</span> <span class="o">*</span> <span class="n">grads</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">result</span>
-
-        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_gradients</span><span class="p">(</span><span class="n">matches</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="n">process_one_gradient</span><span class="p">)</span>
-
-        <span class="n">dL_dp</span> <span class="o">=</span> <span class="p">[</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;dL_dp&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
-        <span class="n">curvs</span> <span class="o">=</span> <span class="p">[</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;curvature&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
-
-        <span class="k">return</span> <span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">dL_dp</span><span class="p">,</span> <span class="n">curvs</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="Target.compute_restraints_functional_gradients_and_curvatures"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_restraints_functional_gradients_and_curvatures">[docs]</a>    <span class="k">def</span> <span class="nf">compute_restraints_functional_gradients_and_curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;use the restraints_parameterisation object, if present, to</span>
-<span class="sd">        calculate the least squares restraints objective plus gradients and</span>
-<span class="sd">        approximate curvatures&quot;&quot;&quot;</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
-        <span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span><span class="o">.</span><span class="n">get_residuals_gradients_and_weights</span><span class="p">()</span>
-        <span class="p">)</span>
-        <span class="n">w_resid</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="n">residuals</span>
-        <span class="n">residuals2</span> <span class="o">=</span> <span class="n">residuals</span> <span class="o">*</span> <span class="n">residuals</span>
-
-        <span class="c1"># calculate target function</span>
-        <span class="n">L</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span> <span class="o">*</span> <span class="n">residuals2</span><span class="p">)</span>
-
-        <span class="c1"># calculate gradients using the scalar product of sparse vector col with</span>
-        <span class="c1"># dense vector w_resid</span>
-        <span class="n">dL_dp</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="o">*</span> <span class="n">w_resid</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">jacobian</span><span class="o">.</span><span class="n">cols</span><span class="p">()]</span>
-
-        <span class="c1"># calculate lsq approximation to curvatures using weighted dot product</span>
-        <span class="n">curvs</span> <span class="o">=</span> <span class="p">[</span><span class="n">sparse</span><span class="o">.</span><span class="n">weighted_dot</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">jacobian</span><span class="o">.</span><span class="n">cols</span><span class="p">()]</span>
-
-        <span class="k">return</span> <span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">dL_dp</span><span class="p">,</span> <span class="n">curvs</span><span class="p">)</span></div>
-
-    <span class="c1"># def curvatures(self):</span>
-    <span class="c1">#  &quot;&quot;&quot;First order approximation to the diagonal of the Hessian based on the</span>
-    <span class="c1">#  least squares form of the target&quot;&quot;&quot;</span>
-    <span class="c1">#</span>
-    <span class="c1">#  # relies on compute_functional_and_gradients being called first to set</span>
-    <span class="c1">#  # self._curv</span>
-    <span class="c1">#</span>
-    <span class="c1">#  # Curvatures of zero will cause a crash, because their inverse is taken.</span>
-    <span class="c1">#  assert all([c &gt; 0.0 for c in self._curv])</span>
-    <span class="c1">#</span>
-    <span class="c1">#  return self._curv</span>
-
-<div class="viewcode-block" id="Target.compute_residuals"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_residuals">[docs]</a>    <span class="k">def</span> <span class="nf">compute_residuals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;return the vector of residuals plus their weights&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_residuals_and_weights</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="Target.split_matches_into_blocks"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.split_matches_into_blocks">[docs]</a>    <span class="k">def</span> <span class="nf">split_matches_into_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nproc</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return a list of the matches, split into blocks according to the</span>
-<span class="sd">        gradient_calculation_blocksize parameter and the number of processes (if relevant).</span>
-<span class="sd">        The number of blocks will be set such that the total number of reflections</span>
-<span class="sd">        being processed by concurrent processes does not exceed gradient_calculation_blocksize&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-
-        <span class="c1"># Need to be able to track the indices of the original matches table for</span>
-        <span class="c1"># scan-varying gradient calculations. A simple and robust (but slightly</span>
-        <span class="c1"># expensive) way to do this is to add an index column to the matches table</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s2">&quot;imatch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">))</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_calculation_blocksize</span><span class="p">:</span>
-            <span class="n">nblocks</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
-                <span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span> <span class="o">*</span> <span class="n">nproc</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_calculation_blocksize</span><span class="p">)</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">nblocks</span> <span class="o">=</span> <span class="n">nproc</span>
-        <span class="c1"># ensure at least 100 reflections per block</span>
-        <span class="n">nblocks</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nblocks</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span> <span class="o">/</span> <span class="mi">100</span><span class="p">))</span>
-        <span class="n">nblocks</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">nblocks</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="n">blocksize</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span> <span class="o">/</span> <span class="n">nblocks</span><span class="p">))</span>
-        <span class="n">blocks</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">block_num</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nblocks</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
-            <span class="n">start</span> <span class="o">=</span> <span class="n">block_num</span> <span class="o">*</span> <span class="n">blocksize</span>
-            <span class="n">end</span> <span class="o">=</span> <span class="p">(</span><span class="n">block_num</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">blocksize</span>
-            <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">])</span>
-        <span class="n">start</span> <span class="o">=</span> <span class="p">(</span><span class="n">nblocks</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">blocksize</span>
-        <span class="n">end</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span>
-        <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">blocks</span></div>
-
-<div class="viewcode-block" id="Target.compute_residuals_and_gradients"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_residuals_and_gradients">[docs]</a>    <span class="k">def</span> <span class="nf">compute_residuals_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;return the vector of residuals plus their gradients and weights for</span>
-<span class="sd">        non-linear least squares methods&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">block</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">matches</span> <span class="o">=</span> <span class="n">block</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span>
-
-        <span class="c1"># The gradients are provided as a list of dictionaries, where the</span>
-        <span class="c1"># dictionaries have keys corresponding to gradients of the different types</span>
-        <span class="c1"># of residual involved. For example, for scans the keys are &#39;dX_dp&#39;,</span>
-        <span class="c1"># &#39;dY_dp&#39;, &#39;dphi_dp&#39;. Reshape this data structure so that all the gradients</span>
-        <span class="c1"># of a particular type of residual are kept together</span>
-        <span class="n">gradients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_gradients</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
-        <span class="n">reshaped</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">:</span>
-            <span class="n">reshaped</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">g</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">gradients</span><span class="p">])</span>
-
-        <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
-
-        <span class="n">nelem</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">)</span>
-        <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">)</span>
-        <span class="n">jacobian</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_jacobian</span><span class="p">(</span><span class="o">*</span><span class="n">reshaped</span><span class="p">,</span> <span class="n">nelem</span><span class="o">=</span><span class="n">nelem</span><span class="p">,</span> <span class="n">nparam</span><span class="o">=</span><span class="n">nparam</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="Target.compute_restraints_residuals_and_gradients"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_restraints_residuals_and_gradients">[docs]</a>    <span class="k">def</span> <span class="nf">compute_restraints_residuals_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;delegate to the restraints_parameterisation object, if present, to</span>
-<span class="sd">        calculate the vector of restraints residuals plus their gradients and</span>
-<span class="sd">        weights for non-linear least squares methods&quot;&quot;&quot;</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span><span class="p">:</span>
-            <span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span><span class="o">.</span><span class="n">get_residuals_gradients_and_weights</span><span class="p">()</span>
-            <span class="p">)</span>
-            <span class="k">return</span> <span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
-
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span></div>
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_build_jacobian</span><span class="p">(</span><span class="n">dX_dp</span><span class="p">,</span> <span class="n">dY_dp</span><span class="p">,</span> <span class="n">dZ_dp</span><span class="p">,</span> <span class="n">nelem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nparam</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;construct Jacobian from lists of gradient vectors. This method may be</span>
-<span class="sd">        overridden for the case where these vectors use sparse storage&quot;&quot;&quot;</span>
-
-        <span class="n">jacobian</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">nelem</span><span class="p">,</span> <span class="n">nparam</span><span class="p">))</span>
-        <span class="c1"># loop over parameters</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparam</span><span class="p">):</span>
-            <span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">dZ</span> <span class="o">=</span> <span class="n">dX_dp</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dY_dp</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dZ_dp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">col</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">)</span>
-            <span class="n">col</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dZ</span><span class="p">)</span>
-            <span class="n">jacobian</span><span class="o">.</span><span class="n">matrix_paste_column_in_place</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">jacobian</span>
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_concatenate_gradients</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">dZ</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;concatenate three gradient vectors and return a flex.double. This method</span>
-<span class="sd">        may be overriden for the case where these vectors use sparse storage&quot;&quot;&quot;</span>
-
-        <span class="n">grads</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">)</span>
-        <span class="n">grads</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dZ</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">grads</span>
-
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span> <span class="nf">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;extract vector of residuals and corresponding weights. The space the</span>
-<span class="sd">        residuals are measured in (e.g. X, Y and Phi) and the order they are</span>
-<span class="sd">        returned is determined by a concrete implementation of a staticmethod&quot;&quot;&quot;</span>
-
-        <span class="k">pass</span>
-
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span> <span class="nf">_extract_squared_residuals</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;extract vector of squared residuals. The space the residuals are measured</span>
-<span class="sd">        in (e.g. X, Y and Phi) and the order they are returned is determined by a</span>
-<span class="sd">        concrete implementation of a staticmethod&quot;&quot;&quot;</span>
-
-        <span class="k">pass</span>
-
-<div class="viewcode-block" id="Target.rmsds"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.rmsds">[docs]</a>    <span class="k">def</span> <span class="nf">rmsds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the matches&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-
-        <span class="c1"># cache rmsd calculation for achieved test</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span></div>
-
-<div class="viewcode-block" id="Target.rmsds_for_reflection_table"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.rmsds_for_reflection_table">[docs]</a>    <span class="k">def</span> <span class="nf">rmsds_for_reflection_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the specified reflections. Caution: this</span>
-<span class="sd">        assumes that the table reflections has the keys expected by _rmsds_core&quot;&quot;&quot;</span>
-
-        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds_core</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="Target.rmsds_for_experiment"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.rmsds_for_experiment">[docs]</a>    <span class="k">def</span> <span class="nf">rmsds_for_experiment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iexp</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the selected experiment.&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-        <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span>
-        <span class="n">n</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
-        <span class="n">rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">rmsds</span></div>
-
-<div class="viewcode-block" id="Target.rmsds_for_panel"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.rmsds_for_panel">[docs]</a>    <span class="k">def</span> <span class="nf">rmsds_for_panel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipanel</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the selected panel.&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
-        <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s2">&quot;panel&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">ipanel</span>
-        <span class="n">n</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
-        <span class="n">rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">rmsds</span></div>
-
-<div class="viewcode-block" id="Target.achieved"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.achieved">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span> <span class="nf">achieved</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;return True to terminate the refinement.&quot;&quot;&quot;</span>
-
-        <span class="k">pass</span></div></div>
+    <span class="c1"># collect the matches</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
+    <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Target.predict_for_free_reflections"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.predict_for_free_reflections">[docs]</a>  <span class="k">def</span> <span class="nf">predict_for_free_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;perform prediction for the reflections not used for refinement&quot;&quot;&quot;</span>
+
+    <span class="n">refs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">get_free_reflections</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="n">refs</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_core</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Target.predict_for_reflection_table"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.predict_for_reflection_table">[docs]</a>  <span class="k">def</span> <span class="nf">predict_for_reflection_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;perform prediction for all reflections in the supplied table&quot;&quot;&quot;</span>
+
+    <span class="c1"># set the entering flags if this has not been done</span>
+    <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.reflection_manager</span> <span class="k">import</span> <span class="n">calculate_entering_flags</span>
+    <span class="k">if</span> <span class="s2">&quot;entering&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflections</span><span class="p">:</span>
+      <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;entering&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">calculate_entering_flags</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">)</span>
+
+    <span class="c1"># can only predict for experiments that exist and within the scan range</span>
+    <span class="c1"># any other reflections will be left unchanged</span>
+    <span class="n">inc</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
+    <span class="n">to_keep</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">inc</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">iexp</span><span class="p">,</span> <span class="n">exp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="p">):</span>
+      <span class="n">sel</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span>
+
+      <span class="c1"># keep all reflections if there is no rotation axis</span>
+      <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">to_keep</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="k">continue</span>
+
+      <span class="c1"># trim reflections outside the scan range</span>
+      <span class="n">phi</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;xyzobs.mm.value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+      <span class="n">phi_min</span><span class="p">,</span> <span class="n">phi_max</span> <span class="o">=</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+      <span class="n">passed</span> <span class="o">=</span> <span class="p">(</span><span class="n">phi</span> <span class="o">&gt;=</span> <span class="n">phi_min</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">phi</span> <span class="o">&lt;=</span> <span class="n">phi_max</span><span class="p">)</span>
+      <span class="n">to_keep</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="n">passed</span><span class="p">)</span>
+
+    <span class="c1"># determine indices to include and predict on the subset</span>
+    <span class="n">inc</span> <span class="o">=</span> <span class="n">inc</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">to_keep</span><span class="p">)</span>
+    <span class="n">sub_refl</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">inc</span><span class="p">)</span>
+    <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_core</span><span class="p">(</span><span class="n">sub_refl</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="p">)</span>
+
+    <span class="c1"># set updated subset back into place</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">inc</span><span class="p">,</span> <span class="n">preds</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">reflections</span></div>
+
+<div class="viewcode-block" id="Target.calculate_gradients"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.calculate_gradients">[docs]</a>  <span class="k">def</span> <span class="nf">calculate_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;delegate to the prediction_parameterisation object to calculate</span>
+<span class="sd">    gradients for all the matched reflections, or just for those specified&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">reflections</span><span class="p">:</span>
+      <span class="n">gradients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="o">.</span><span class="n">get_gradients</span><span class="p">(</span>
+        <span class="n">reflections</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">gradients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="o">.</span><span class="n">get_gradients</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">gradients</span></div>
+
+<div class="viewcode-block" id="Target.get_num_matches"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.get_num_matches">[docs]</a>  <span class="k">def</span> <span class="nf">get_num_matches</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;return the number of reflections currently used in the calculation&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Target.get_num_matches_for_experiment"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.get_num_matches_for_experiment">[docs]</a>  <span class="k">def</span> <span class="nf">get_num_matches_for_experiment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iexp</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;return the number of reflections currently used in the calculation&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+    <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span>
+    <span class="k">return</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Target.get_num_matches_for_panel"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.get_num_matches_for_panel">[docs]</a>  <span class="k">def</span> <span class="nf">get_num_matches_for_panel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipanel</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;return the number of reflections currently used in the calculation&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+    <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s1">&#39;panel&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">ipanel</span>
+    <span class="k">return</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Target.update_matches"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.update_matches">[docs]</a>  <span class="k">def</span> <span class="nf">update_matches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;ensure the observations matched to predictions are up to date&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span> <span class="ow">or</span> <span class="n">force</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
+
+    <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Target.compute_functional_gradients_and_curvatures"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_functional_gradients_and_curvatures">[docs]</a>  <span class="k">def</span> <span class="nf">compute_functional_gradients_and_curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate the value of the target function and its gradients. Set</span>
+<span class="sd">    approximate curvatures as a side-effect&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">block</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">matches</span> <span class="o">=</span> <span class="n">block</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span>
+    <span class="n">nref</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
+
+    <span class="c1"># This is a hack for the case where nref=0. This should not be necessary</span>
+    <span class="c1"># if bounds are provided for parameters to stop the algorithm exploring</span>
+    <span class="c1"># unreasonable regions of parameter space where no predictions exist.</span>
+    <span class="c1"># Unfortunately the L-BFGS line search does make such extreme trials.</span>
+    <span class="k">if</span> <span class="n">nref</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_curv</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">)</span>
+      <span class="k">return</span> <span class="mf">1.e12</span><span class="p">,</span> <span class="p">[</span><span class="mf">1.</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">)</span>
+
+    <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
+    <span class="n">w_resid</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="n">residuals</span>
+    <span class="n">residuals2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_squared_residuals</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
+
+    <span class="c1"># calculate target function</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span> <span class="o">*</span> <span class="n">residuals2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">process_one_gradient</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+      <span class="c1"># copy gradients out of the result</span>
+      <span class="n">dX</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+      <span class="n">dY</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+      <span class="n">dZ</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
+      <span class="c1"># reset result</span>
+      <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="c1"># add new keys</span>
+      <span class="n">grads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_concatenate_gradients</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">dZ</span><span class="p">)</span>
+      <span class="n">result</span><span class="p">[</span><span class="s1">&#39;dL_dp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">w_resid</span> <span class="o">*</span> <span class="n">grads</span><span class="p">)</span>
+      <span class="n">result</span><span class="p">[</span><span class="s1">&#39;curvature&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span> <span class="o">*</span> <span class="n">grads</span> <span class="o">*</span> <span class="n">grads</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">result</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_gradients</span><span class="p">(</span><span class="n">matches</span><span class="p">,</span>
+        <span class="n">callback</span><span class="o">=</span><span class="n">process_one_gradient</span><span class="p">)</span>
+
+    <span class="n">dL_dp</span> <span class="o">=</span> <span class="p">[</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;dL_dp&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+    <span class="n">curvs</span> <span class="o">=</span> <span class="p">[</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;curvature&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">dL_dp</span><span class="p">,</span> <span class="n">curvs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Target.compute_restraints_functional_gradients_and_curvatures"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_restraints_functional_gradients_and_curvatures">[docs]</a>  <span class="k">def</span> <span class="nf">compute_restraints_functional_gradients_and_curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;use the restraints_parameterisation object, if present, to</span>
+<span class="sd">    calculate the least squares restraints objective plus gradients and</span>
+<span class="sd">    approximate curvatures&#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span><span class="p">:</span> <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> \
+      <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span><span class="o">.</span><span class="n">get_residuals_gradients_and_weights</span><span class="p">()</span>
+    <span class="n">w_resid</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="n">residuals</span>
+    <span class="n">residuals2</span> <span class="o">=</span> <span class="n">residuals</span> <span class="o">*</span> <span class="n">residuals</span>
+
+    <span class="c1"># calculate target function</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span> <span class="o">*</span> <span class="n">residuals2</span><span class="p">)</span>
+
+    <span class="c1"># calculate gradients using the scalar product of sparse vector col with</span>
+    <span class="c1"># dense vector w_resid</span>
+    <span class="n">dL_dp</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="o">*</span> <span class="n">w_resid</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">jacobian</span><span class="o">.</span><span class="n">cols</span><span class="p">()]</span>
+
+    <span class="c1"># calculate lsq approximation to curvatures using weighted dot product</span>
+    <span class="n">curvs</span> <span class="o">=</span> <span class="p">[</span><span class="n">sparse</span><span class="o">.</span><span class="n">weighted_dot</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">jacobian</span><span class="o">.</span><span class="n">cols</span><span class="p">()]</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">dL_dp</span><span class="p">,</span> <span class="n">curvs</span><span class="p">)</span></div>
+
+  <span class="c1">#def curvatures(self):</span>
+  <span class="c1">#  &quot;&quot;&quot;First order approximation to the diagonal of the Hessian based on the</span>
+  <span class="c1">#  least squares form of the target&quot;&quot;&quot;</span>
+  <span class="c1">#</span>
+  <span class="c1">#  # relies on compute_functional_and_gradients being called first to set</span>
+  <span class="c1">#  # self._curv</span>
+  <span class="c1">#</span>
+  <span class="c1">#  # Curvatures of zero will cause a crash, because their inverse is taken.</span>
+  <span class="c1">#  assert all([c &gt; 0.0 for c in self._curv])</span>
+  <span class="c1">#</span>
+  <span class="c1">#  return self._curv</span>
+
+<div class="viewcode-block" id="Target.compute_residuals"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_residuals">[docs]</a>  <span class="k">def</span> <span class="nf">compute_residuals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;return the vector of residuals plus their weights&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_residuals_and_weights</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Target.split_matches_into_blocks"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.split_matches_into_blocks">[docs]</a>  <span class="k">def</span> <span class="nf">split_matches_into_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nproc</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a list of the matches, split into blocks according to the</span>
+<span class="sd">    gradient_calculation_blocksize parameter and the number of processes (if relevant).</span>
+<span class="sd">    The number of blocks will be set such that the total number of reflections</span>
+<span class="sd">    being processed by concurrent processes does not exceed gradient_calculation_blocksize&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+
+    <span class="c1"># Need to be able to track the indices of the original matches table for</span>
+    <span class="c1"># scan-varying gradient calculations. A simple and robust (but slightly</span>
+    <span class="c1"># expensive) way to do this is to add an index column to the matches table</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s1">&#39;imatch&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t_range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_calculation_blocksize</span><span class="p">:</span>
+      <span class="n">nblocks</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span> <span class="o">*</span> <span class="n">nproc</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_calculation_blocksize</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">nblocks</span> <span class="o">=</span> <span class="n">nproc</span>
+    <span class="c1"># ensure at least 100 reflections per block</span>
+    <span class="n">nblocks</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nblocks</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span><span class="o">/</span><span class="mi">100</span><span class="p">))</span>
+    <span class="n">nblocks</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">nblocks</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">blocksize</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span> <span class="o">/</span> <span class="n">nblocks</span><span class="p">))</span>
+    <span class="n">blocks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">block_num</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nblocks</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+      <span class="n">start</span> <span class="o">=</span> <span class="n">block_num</span> <span class="o">*</span> <span class="n">blocksize</span>
+      <span class="n">end</span> <span class="o">=</span> <span class="p">(</span><span class="n">block_num</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">blocksize</span>
+      <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">])</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="p">(</span><span class="n">nblocks</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">blocksize</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span>
+    <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">blocks</span></div>
+
+<div class="viewcode-block" id="Target.compute_residuals_and_gradients"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_residuals_and_gradients">[docs]</a>  <span class="k">def</span> <span class="nf">compute_residuals_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;return the vector of residuals plus their gradients and weights for</span>
+<span class="sd">    non-linear least squares methods&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">block</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">matches</span> <span class="o">=</span> <span class="n">block</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span>
+
+    <span class="c1"># The gradients are provided as a list of dictionaries, where the</span>
+    <span class="c1"># dictionaries have keys corresponding to gradients of the different types</span>
+    <span class="c1"># of residual involved. For example, for scans the keys are &#39;dX_dp&#39;,</span>
+    <span class="c1"># &#39;dY_dp&#39;, &#39;dphi_dp&#39;. Reshape this data structure so that all the gradients</span>
+    <span class="c1"># of a particular type of residual are kept together</span>
+    <span class="n">gradients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_gradients</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
+    <span class="n">reshaped</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">:</span>
+      <span class="n">reshaped</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">g</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">gradients</span><span class="p">])</span>
+
+    <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
+
+    <span class="n">nelem</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_grad_names</span><span class="p">)</span>
+    <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">)</span>
+    <span class="n">jacobian</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_jacobian</span><span class="p">(</span><span class="o">*</span><span class="n">reshaped</span><span class="p">,</span> <span class="n">nelem</span><span class="o">=</span><span class="n">nelem</span><span class="p">,</span> <span class="n">nparam</span><span class="o">=</span><span class="n">nparam</span><span class="p">)</span>
+
+    <span class="k">return</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Target.compute_restraints_residuals_and_gradients"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.compute_restraints_residuals_and_gradients">[docs]</a>  <span class="k">def</span> <span class="nf">compute_restraints_residuals_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;delegate to the restraints_parameterisation object, if present, to</span>
+<span class="sd">    calculate the vector of restraints residuals plus their gradients and</span>
+<span class="sd">    weights for non-linear least squares methods&#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span><span class="p">:</span>
+      <span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> \
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restraints_parameterisation</span><span class="o">.</span><span class="n">get_residuals_gradients_and_weights</span><span class="p">()</span>
+      <span class="k">return</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">jacobian</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span></div>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_build_jacobian</span><span class="p">(</span><span class="n">dX_dp</span><span class="p">,</span> <span class="n">dY_dp</span><span class="p">,</span> <span class="n">dZ_dp</span><span class="p">,</span> <span class="n">nelem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nparam</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;construct Jacobian from lists of gradient vectors. This method may be</span>
+<span class="sd">    overridden for the case where these vectors use sparse storage&quot;&quot;&quot;</span>
+
+    <span class="n">jacobian</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">nelem</span><span class="p">,</span> <span class="n">nparam</span><span class="p">))</span>
+    <span class="c1"># loop over parameters</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparam</span><span class="p">):</span>
+      <span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">dZ</span> <span class="o">=</span> <span class="n">dX_dp</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dY_dp</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dZ_dp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+      <span class="n">col</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">)</span>
+      <span class="n">col</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dZ</span><span class="p">)</span>
+      <span class="n">jacobian</span><span class="o">.</span><span class="n">matrix_paste_column_in_place</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">jacobian</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_concatenate_gradients</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">dZ</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;concatenate three gradient vectors and return a flex.double. This method</span>
+<span class="sd">    may be overriden for the case where these vectors use sparse storage&quot;&quot;&quot;</span>
+
+    <span class="n">grads</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">)</span>
+    <span class="n">grads</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dZ</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">grads</span>
+
+  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+  <span class="k">def</span> <span class="nf">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;extract vector of residuals and corresponding weights. The space the</span>
+<span class="sd">    residuals are measured in (e.g. X, Y and Phi) and the order they are</span>
+<span class="sd">    returned is determined by a concrete implementation of a staticmethod&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span>
+
+  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+  <span class="k">def</span> <span class="nf">_extract_squared_residuals</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;extract vector of squared residuals. The space the residuals are measured</span>
+<span class="sd">    in (e.g. X, Y and Phi) and the order they are returned is determined by a</span>
+<span class="sd">    concrete implementation of a staticmethod&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span>
+
+<div class="viewcode-block" id="Target.rmsds"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.rmsds">[docs]</a>  <span class="k">def</span> <span class="nf">rmsds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the matches&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+
+    <span class="c1"># cache rmsd calculation for achieved test</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span></div>
+
+<div class="viewcode-block" id="Target.rmsds_for_reflection_table"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.rmsds_for_reflection_table">[docs]</a>  <span class="k">def</span> <span class="nf">rmsds_for_reflection_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the specified reflections. Caution: this</span>
+<span class="sd">    assumes that the table reflections has the keys expected by _rmsds_core&quot;&quot;&quot;</span>
+
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds_core</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Target.rmsds_for_experiment"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.rmsds_for_experiment">[docs]</a>  <span class="k">def</span> <span class="nf">rmsds_for_experiment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iexp</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the selected experiment.&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+    <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">rmsds</span></div>
+
+<div class="viewcode-block" id="Target.rmsds_for_panel"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.rmsds_for_panel">[docs]</a>  <span class="k">def</span> <span class="nf">rmsds_for_panel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipanel</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the selected panel.&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_matches</span><span class="p">()</span>
+    <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="p">[</span><span class="s1">&#39;panel&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">ipanel</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matches</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">rmsds</span></div>
+
+<div class="viewcode-block" id="Target.achieved"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.Target.achieved">[docs]</a>  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+  <span class="k">def</span> <span class="nf">achieved</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;return True to terminate the refinement.&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div></div>
 
 <div class="viewcode-block" id="LeastSquaresPositionalResidualWithRmsdCutoff"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.LeastSquaresPositionalResidualWithRmsdCutoff">[docs]</a><span class="k">class</span> <span class="nc">LeastSquaresPositionalResidualWithRmsdCutoff</span><span class="p">(</span><span class="n">Target</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;An implementation of the target class providing a least squares residual</span>
-<span class="sd">    in terms of detector impact position X, Y and phi, terminating on achieved</span>
-<span class="sd">    rmsd (or on intrisic convergence of the chosen minimiser)&quot;&quot;&quot;</span>
+  <span class="sd">&quot;&quot;&quot;An implementation of the target class providing a least squares residual</span>
+<span class="sd">  in terms of detector impact position X, Y and phi, terminating on achieved</span>
+<span class="sd">  rmsd (or on intrisic convergence of the chosen minimiser)&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">experiments</span><span class="p">,</span>
-        <span class="n">predictor</span><span class="p">,</span>
-        <span class="n">reflection_manager</span><span class="p">,</span>
-        <span class="n">prediction_parameterisation</span><span class="p">,</span>
-        <span class="n">restraints_parameterisation</span><span class="p">,</span>
-        <span class="n">frac_binsize_cutoff</span><span class="o">=</span><span class="mf">0.33333</span><span class="p">,</span>
-        <span class="n">absolute_cutoffs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">gradient_calculation_blocksize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">predictor</span><span class="p">,</span> <span class="n">reflection_manager</span><span class="p">,</span>
+               <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">restraints_parameterisation</span><span class="p">,</span>
+               <span class="n">frac_binsize_cutoff</span><span class="o">=</span><span class="mf">0.33333</span><span class="p">,</span>
+               <span class="n">absolute_cutoffs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">gradient_calculation_blocksize</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 
-        <span class="n">Target</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-            <span class="bp">self</span><span class="p">,</span>
-            <span class="n">experiments</span><span class="p">,</span>
-            <span class="n">predictor</span><span class="p">,</span>
-            <span class="n">reflection_manager</span><span class="p">,</span>
-            <span class="n">prediction_parameterisation</span><span class="p">,</span>
-            <span class="n">restraints_parameterisation</span><span class="p">,</span>
-            <span class="n">gradient_calculation_blocksize</span><span class="p">,</span>
-        <span class="p">)</span>
+    <span class="n">Target</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">predictor</span><span class="p">,</span> <span class="n">reflection_manager</span><span class="p">,</span>
+                    <span class="n">prediction_parameterisation</span><span class="p">,</span> <span class="n">restraints_parameterisation</span><span class="p">,</span>
+                    <span class="n">gradient_calculation_blocksize</span><span class="p">)</span>
 
-        <span class="c1"># Set up the RMSD achieved criterion. For simplicity, we take models from</span>
-        <span class="c1"># the first Experiment only. If this is not appropriate for refinement over</span>
-        <span class="c1"># all experiments then absolute cutoffs should be used instead.</span>
-        <span class="k">if</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
-            <span class="n">image_width_rad</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">image_width_rad</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">detector</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector</span>
+    <span class="c1"># Set up the RMSD achieved criterion. For simplicity, we take models from</span>
+    <span class="c1"># the first Experiment only. If this is not appropriate for refinement over</span>
+    <span class="c1"># all experiments then absolute cutoffs should be used instead.</span>
+    <span class="k">if</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
+      <span class="n">image_width_rad</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">image_width_rad</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">detector</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">absolute_cutoffs</span><span class="p">:</span>
-            <span class="n">pixel_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">detector</span><span class="p">]</span>
-            <span class="n">min_px_size_x</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">pixel_sizes</span><span class="p">)</span>
-            <span class="n">min_px_size_y</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">pixel_sizes</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">min_px_size_x</span> <span class="o">*</span> <span class="n">frac_binsize_cutoff</span><span class="p">,</span>
-                <span class="n">min_px_size_y</span> <span class="o">*</span> <span class="n">frac_binsize_cutoff</span><span class="p">,</span>
-                <span class="n">image_width_rad</span> <span class="o">*</span> <span class="n">frac_binsize_cutoff</span><span class="p">,</span>
-            <span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">absolute_cutoffs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span> <span class="o">=</span> <span class="n">absolute_cutoffs</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">absolute_cutoffs</span><span class="p">:</span>
+      <span class="n">pixel_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">detector</span><span class="p">]</span>
+      <span class="n">min_px_size_x</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">pixel_sizes</span><span class="p">)</span>
+      <span class="n">min_px_size_y</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">pixel_sizes</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span> <span class="o">=</span> <span class="p">[</span><span class="n">min_px_size_x</span> <span class="o">*</span> <span class="n">frac_binsize_cutoff</span><span class="p">,</span>
+                               <span class="n">min_px_size_y</span> <span class="o">*</span> <span class="n">frac_binsize_cutoff</span><span class="p">,</span>
+                               <span class="n">image_width_rad</span> <span class="o">*</span> <span class="n">frac_binsize_cutoff</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">absolute_cutoffs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span> <span class="o">=</span> <span class="n">absolute_cutoffs</span>
 
-        <span class="k">return</span>
+    <span class="k">return</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
 
-        <span class="c1"># return residuals and weights as 1d flex.double vectors</span>
-        <span class="n">residuals</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s2">&quot;x_resid&quot;</span><span class="p">],</span> <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;y_resid&quot;</span><span class="p">])</span>
-        <span class="n">residuals</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s2">&quot;phi_resid&quot;</span><span class="p">])</span>
+    <span class="c1"># return residuals and weights as 1d flex.double vectors</span>
+    <span class="n">residuals</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s1">&#39;x_resid&#39;</span><span class="p">],</span>
+                                        <span class="n">matches</span><span class="p">[</span><span class="s1">&#39;y_resid&#39;</span><span class="p">])</span>
+    <span class="n">residuals</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s1">&#39;phi_resid&#39;</span><span class="p">])</span>
 
-        <span class="n">weights</span><span class="p">,</span> <span class="n">w_y</span><span class="p">,</span> <span class="n">w_z</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.weights&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
-        <span class="n">weights</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">w_y</span><span class="p">)</span>
-        <span class="n">weights</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">w_z</span><span class="p">)</span>
+    <span class="n">weights</span><span class="p">,</span> <span class="n">w_y</span><span class="p">,</span> <span class="n">w_z</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="s1">&#39;xyzobs.mm.weights&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">weights</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">w_y</span><span class="p">)</span>
+    <span class="n">weights</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">w_z</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span>
+    <span class="k">return</span> <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_extract_squared_residuals</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_extract_squared_residuals</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
 
-        <span class="n">residuals2</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s2">&quot;x_resid2&quot;</span><span class="p">],</span> <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;y_resid2&quot;</span><span class="p">])</span>
-        <span class="n">residuals2</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s2">&quot;phi_resid2&quot;</span><span class="p">])</span>
+    <span class="n">residuals2</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s1">&#39;x_resid2&#39;</span><span class="p">],</span>
+                                         <span class="n">matches</span><span class="p">[</span><span class="s1">&#39;y_resid2&#39;</span><span class="p">])</span>
+    <span class="n">residuals2</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s1">&#39;phi_resid2&#39;</span><span class="p">])</span>
 
-        <span class="k">return</span> <span class="n">residuals2</span>
+    <span class="k">return</span> <span class="n">residuals2</span>
 
-    <span class="k">def</span> <span class="nf">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the specified reflections&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the specified reflections&quot;&quot;&quot;</span>
 
-        <span class="n">resid_x</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid2&quot;</span><span class="p">])</span>
-        <span class="n">resid_y</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid2&quot;</span><span class="p">])</span>
-        <span class="n">resid_phi</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;phi_resid2&quot;</span><span class="p">])</span>
-        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="n">resid_x</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;x_resid2&#39;</span><span class="p">])</span>
+    <span class="n">resid_y</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;y_resid2&#39;</span><span class="p">])</span>
+    <span class="n">resid_phi</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s1">&#39;phi_resid2&#39;</span><span class="p">])</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
 
-        <span class="n">rmsds</span> <span class="o">=</span> <span class="p">(</span><span class="n">sqrt</span><span class="p">(</span><span class="n">resid_x</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">resid_y</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">resid_phi</span> <span class="o">/</span> <span class="n">n</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">rmsds</span>
+    <span class="n">rmsds</span> <span class="o">=</span> <span class="p">(</span><span class="n">sqrt</span><span class="p">(</span><span class="n">resid_x</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+             <span class="n">sqrt</span><span class="p">(</span><span class="n">resid_y</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+             <span class="n">sqrt</span><span class="p">(</span><span class="n">resid_phi</span> <span class="o">/</span> <span class="n">n</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">rmsds</span>
 
-<div class="viewcode-block" id="LeastSquaresPositionalResidualWithRmsdCutoff.achieved"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.LeastSquaresPositionalResidualWithRmsdCutoff.achieved">[docs]</a>    <span class="k">def</span> <span class="nf">achieved</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;RMSD criterion for target achieved &quot;&quot;&quot;</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">rmsds</span><span class="p">()</span>
+<div class="viewcode-block" id="LeastSquaresPositionalResidualWithRmsdCutoff.achieved"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.LeastSquaresPositionalResidualWithRmsdCutoff.achieved">[docs]</a>  <span class="k">def</span> <span class="nf">achieved</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;RMSD criterion for target achieved &quot;&quot;&quot;</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">rmsds</span><span class="p">()</span>
 
-        <span class="c1"># reset cached rmsds to avoid getting out of step</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># reset cached rmsds to avoid getting out of step</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="k">if</span> <span class="p">(</span>
-            <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="ow">and</span> <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="ow">and</span> <span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-        <span class="p">):</span>
-            <span class="k">return</span> <span class="kc">True</span>
-        <span class="k">return</span> <span class="kc">False</span></div></div>
-
+    <span class="k">if</span> <span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span>
+        <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span>
+        <span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span></div></div>
 
 <div class="viewcode-block" id="SparseGradientsMixin"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.SparseGradientsMixin">[docs]</a><span class="k">class</span> <span class="nc">SparseGradientsMixin</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Mixin class to build a sparse Jacobian from gradients of the prediction</span>
-<span class="sd">    formula stored as sparse vectors, and allow concatenation of gradient vectors</span>
-<span class="sd">    that employed sparse storage.&quot;&quot;&quot;</span>
+  <span class="sd">&quot;&quot;&quot;Mixin class to build a sparse Jacobian from gradients of the prediction</span>
+<span class="sd">  formula stored as sparse vectors, and allow concatenation of gradient vectors</span>
+<span class="sd">  that employed sparse storage.&quot;&quot;&quot;</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_build_jacobian</span><span class="p">(</span><span class="n">dX_dp</span><span class="p">,</span> <span class="n">dY_dp</span><span class="p">,</span> <span class="n">dZ_dp</span><span class="p">,</span> <span class="n">nelem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nparam</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;construct Jacobian from lists of sparse gradient vectors.&quot;&quot;&quot;</span>
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_build_jacobian</span><span class="p">(</span><span class="n">dX_dp</span><span class="p">,</span> <span class="n">dY_dp</span><span class="p">,</span> <span class="n">dZ_dp</span><span class="p">,</span> <span class="n">nelem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nparam</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;construct Jacobian from lists of sparse gradient vectors.&quot;&quot;&quot;</span>
 
-        <span class="n">nref</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nelem</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span>
-        <span class="n">X_mat</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">nparam</span><span class="p">)</span>
-        <span class="n">Y_mat</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">nparam</span><span class="p">)</span>
-        <span class="n">Z_mat</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">nparam</span><span class="p">)</span>
-        <span class="n">jacobian</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nelem</span><span class="p">,</span> <span class="n">nparam</span><span class="p">)</span>
+    <span class="n">nref</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nelem</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">X_mat</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">nparam</span><span class="p">)</span>
+    <span class="n">Y_mat</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">nparam</span><span class="p">)</span>
+    <span class="n">Z_mat</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">nparam</span><span class="p">)</span>
+    <span class="n">jacobian</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nelem</span><span class="p">,</span> <span class="n">nparam</span><span class="p">)</span>
 
-        <span class="c1"># loop over parameters, building full width blocks of the full Jacobian</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparam</span><span class="p">):</span>
-            <span class="n">X_mat</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dX_dp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">Y_mat</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dY_dp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">Z_mat</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dZ_dp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="c1"># loop over parameters, building full width blocks of the full Jacobian</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparam</span><span class="p">):</span>
+      <span class="n">X_mat</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dX_dp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+      <span class="n">Y_mat</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dY_dp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+      <span class="n">Z_mat</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dZ_dp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
 
-        <span class="c1"># set the blocks in the Jacobian</span>
-        <span class="n">jacobian</span><span class="o">.</span><span class="n">assign_block</span><span class="p">(</span><span class="n">X_mat</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="n">jacobian</span><span class="o">.</span><span class="n">assign_block</span><span class="p">(</span><span class="n">Y_mat</span><span class="p">,</span> <span class="n">nref</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="n">jacobian</span><span class="o">.</span><span class="n">assign_block</span><span class="p">(</span><span class="n">Z_mat</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">nref</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="c1"># set the blocks in the Jacobian</span>
+    <span class="n">jacobian</span><span class="o">.</span><span class="n">assign_block</span><span class="p">(</span><span class="n">X_mat</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">jacobian</span><span class="o">.</span><span class="n">assign_block</span><span class="p">(</span><span class="n">Y_mat</span><span class="p">,</span> <span class="n">nref</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">jacobian</span><span class="o">.</span><span class="n">assign_block</span><span class="p">(</span><span class="n">Z_mat</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">nref</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">jacobian</span>
+    <span class="k">return</span> <span class="n">jacobian</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_concatenate_gradients</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">dZ</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;concatenate three sparse gradient vectors and return a flex.double.&quot;&quot;&quot;</span>
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_concatenate_gradients</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">dZ</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;concatenate three sparse gradient vectors and return a flex.double.&quot;&quot;&quot;</span>
 
-        <span class="n">dX</span> <span class="o">=</span> <span class="n">dX</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span>
-        <span class="n">dY</span> <span class="o">=</span> <span class="n">dY</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span>
-        <span class="n">dZ</span> <span class="o">=</span> <span class="n">dZ</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span>
-        <span class="n">grads</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">)</span>
-        <span class="n">grads</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dZ</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">grads</span></div>
-
+    <span class="n">dX</span> <span class="o">=</span> <span class="n">dX</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span>
+    <span class="n">dY</span> <span class="o">=</span> <span class="n">dY</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span>
+    <span class="n">dZ</span> <span class="o">=</span> <span class="n">dZ</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">)</span>
+    <span class="n">grads</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dZ</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">grads</span></div>
 
 <div class="viewcode-block" id="LeastSquaresPositionalResidualWithRmsdCutoffSparse"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.LeastSquaresPositionalResidualWithRmsdCutoffSparse">[docs]</a><span class="k">class</span> <span class="nc">LeastSquaresPositionalResidualWithRmsdCutoffSparse</span><span class="p">(</span>
-    <span class="n">SparseGradientsMixin</span><span class="p">,</span> <span class="n">LeastSquaresPositionalResidualWithRmsdCutoff</span>
-<span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A version of the LeastSquaresPositionalResidualWithRmsdCutoff Target that</span>
-<span class="sd">    uses a sparse matrix data structure for memory efficiency when there are a</span>
-<span class="sd">    large number of Experiments&quot;&quot;&quot;</span>
+  <span class="n">SparseGradientsMixin</span><span class="p">,</span> <span class="n">LeastSquaresPositionalResidualWithRmsdCutoff</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A version of the LeastSquaresPositionalResidualWithRmsdCutoff Target that</span>
+<span class="sd">  uses a sparse matrix data structure for memory efficiency when there are a</span>
+<span class="sd">  large number of Experiments&quot;&quot;&quot;</span>
 
-    <span class="k">pass</span></div>
+  <span class="k">pass</span></div>
 </pre></div>
 
           </div>
