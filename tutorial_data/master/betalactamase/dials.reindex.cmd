@@ -1,0 +1,1 @@
+dials.reindex indexed.refl change_of_basis_op=a+b,-a+b,c

@@ -1,0 +1,1 @@
+dials.find_spots imported.expt nproc=4
