@@ -1,0 +1,1 @@
+dials.import /dls/science/groups/scisoft/DIALS/dials_data/thaumatin_i04/th_8_2_0*cbf
