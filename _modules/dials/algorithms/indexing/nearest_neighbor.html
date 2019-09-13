@@ -1,0 +1,283 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.nearest_neighbor &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for dials.algorithms.indexing.nearest_neighbor</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+
+
+<div class="viewcode-block" id="NeighborAnalysis"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.nearest_neighbor.NeighborAnalysis">[docs]</a><span class="k">class</span> <span class="nc">NeighborAnalysis</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">reflections</span><span class="p">,</span>
+        <span class="n">step_size</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span>
+        <span class="n">tolerance</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span>
+        <span class="n">max_height_fraction</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
+        <span class="n">percentile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">histogram_binning</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span>
+        <span class="n">nn_per_bin</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span> <span class="o">=</span> <span class="n">tolerance</span>  <span class="c1"># Margin of error for max unit cell estimate</span>
+        <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
+
+        <span class="n">NEAR</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">NNBIN</span> <span class="o">=</span> <span class="n">nn_per_bin</span>  <span class="c1"># target number of neighbors per histogram bin</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">histogram_binning</span> <span class="o">=</span> <span class="n">histogram_binning</span>
+
+        <span class="n">direct</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="s2">&quot;entering&quot;</span> <span class="ow">in</span> <span class="n">reflections</span><span class="p">:</span>
+            <span class="n">entering_flags</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;entering&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">entering_flags</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">rs_vectors</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span>
+        <span class="n">phi_deg</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">180</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+
+        <span class="n">d_spacings</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+        <span class="c1"># nearest neighbor analysis</span>
+        <span class="kn">from</span> <span class="nn">annlib_ext</span> <span class="k">import</span> <span class="n">AnnAdaptor</span>
+
+        <span class="k">for</span> <span class="n">imageset_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;imageset_id&quot;</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">sel_imageset</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;imageset_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">imageset_id</span>
+            <span class="k">if</span> <span class="n">sel_imageset</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">phi_min</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">phi_deg</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_imageset</span><span class="p">))</span>
+            <span class="n">phi_max</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">phi_deg</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_imageset</span><span class="p">))</span>
+            <span class="n">d_phi</span> <span class="o">=</span> <span class="n">phi_max</span> <span class="o">-</span> <span class="n">phi_min</span>
+            <span class="n">n_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">d_phi</span> <span class="o">/</span> <span class="n">step_size</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_steps</span><span class="p">):</span>
+                <span class="n">sel_step</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">sel_imageset</span>
+                    <span class="o">&amp;</span> <span class="p">(</span><span class="n">phi_deg</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">phi_min</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">))</span>
+                    <span class="o">&amp;</span> <span class="p">(</span><span class="n">phi_deg</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">phi_min</span> <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">))</span>
+                <span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">entering</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                    <span class="n">sel_entering</span> <span class="o">=</span> <span class="n">sel_step</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">entering_flags</span> <span class="o">==</span> <span class="n">entering</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">sel_entering</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">query</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+                    <span class="n">query</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">rs_vectors</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_entering</span><span class="p">)</span><span class="o">.</span><span class="n">as_double</span><span class="p">())</span>
+
+                    <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">IS_adapt</span> <span class="o">=</span> <span class="n">AnnAdaptor</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">IS_adapt</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+                    <span class="n">direct</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">IS_adapt</span><span class="o">.</span><span class="n">distances</span><span class="p">))</span>
+                    <span class="n">d_spacings</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">rs_vectors</span><span class="o">.</span><span class="n">norms</span><span class="p">())</span>
+
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">direct</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">NEAR</span>
+        <span class="p">),</span> <span class="s2">&quot;Too few spots (</span><span class="si">%d</span><span class="s2">) for nearest neighbour analysis.&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">direct</span><span class="p">)</span>
+
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">direct</span><span class="p">)</span>
+        <span class="n">direct</span> <span class="o">=</span> <span class="n">direct</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">d_spacings</span> <span class="o">=</span> <span class="n">d_spacings</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+
+        <span class="c1"># eliminate nonsensical direct space distances</span>
+        <span class="n">sel</span> <span class="o">=</span> <span class="n">direct</span> <span class="o">&gt;</span> <span class="mi">1</span>
+        <span class="n">direct</span> <span class="o">=</span> <span class="n">direct</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+        <span class="n">d_spacings</span> <span class="o">=</span> <span class="n">d_spacings</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">percentile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># reject top 1% of longest distances to hopefully get rid of any outliers</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="mf">0.99</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">direct</span><span class="p">)))</span>
+            <span class="n">direct</span> <span class="o">=</span> <span class="n">direct</span><span class="p">[:</span><span class="n">n</span><span class="p">]</span>
+            <span class="n">d_spacings</span> <span class="o">=</span> <span class="n">d_spacings</span><span class="p">[:</span><span class="n">n</span><span class="p">]</span>
+
+        <span class="c1"># determine the most probable nearest neighbor distance (direct space)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">histogram_binning</span> <span class="o">==</span> <span class="s2">&quot;log&quot;</span><span class="p">:</span>
+            <span class="n">hst</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span>
+                <span class="n">flex</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">direct</span><span class="p">),</span> <span class="n">n_slots</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">direct</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">NNBIN</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">hst</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">direct</span><span class="p">,</span> <span class="n">n_slots</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">direct</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">NNBIN</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">histogram_binning</span> <span class="o">==</span> <span class="s2">&quot;log&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slot_start</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span>
+                <span class="p">[</span><span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="n">s</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_width</span><span class="p">())</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_centers</span><span class="p">()]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slot_end</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span>
+                <span class="p">[</span><span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="n">s</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_width</span><span class="p">())</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_centers</span><span class="p">()]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slot_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slot_end</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">slot_start</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slot_start</span> <span class="o">=</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_centers</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_width</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slot_end</span> <span class="o">=</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_centers</span><span class="p">()</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_width</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slot_width</span> <span class="o">=</span> <span class="n">hst</span><span class="o">.</span><span class="n">slot_width</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relative_frequency</span> <span class="o">=</span> <span class="n">hst</span><span class="o">.</span><span class="n">slots</span><span class="p">()</span><span class="o">.</span><span class="n">as_double</span><span class="p">()</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">slot_width</span>
+        <span class="n">highest_bin_height</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">relative_frequency</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">percentile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># determine the nth-percentile direct-space distance</span>
+            <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">direct</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_cell</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span> <span class="o">*</span> <span class="n">direct</span><span class="p">[</span><span class="n">perm</span><span class="p">[</span><span class="nb">int</span><span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">percentile</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">direct</span><span class="p">))]]</span>
+            <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># choose a max cell based on bins above a given fraction of the highest bin height</span>
+            <span class="c1"># given multiple</span>
+            <span class="n">isel</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">relative_frequency</span><span class="o">.</span><span class="n">as_double</span><span class="p">()</span>
+                <span class="o">&gt;</span> <span class="p">(</span><span class="n">max_height_fraction</span> <span class="o">*</span> <span class="n">highest_bin_height</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_cell</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">slot_end</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">isel</span><span class="o">.</span><span class="n">as_double</span><span class="p">()))]</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_lattice_vectors</span> <span class="o">=</span> <span class="n">rs_vectors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">d_spacings</span> <span class="o">=</span> <span class="n">d_spacings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">direct</span> <span class="o">=</span> <span class="n">direct</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">histogram</span> <span class="o">=</span> <span class="n">hst</span>
+
+<div class="viewcode-block" id="NeighborAnalysis.plot_histogram"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.nearest_neighbor.NeighborAnalysis.plot_histogram">[docs]</a>    <span class="k">def</span> <span class="nf">plot_histogram</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;nn_hist.png&quot;</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">)):</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slot_start</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">relative_frequency</span><span class="p">,</span>
+            <span class="n">align</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span>
+            <span class="n">width</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slot_width</span><span class="p">,</span>
+            <span class="n">color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>
+            <span class="n">edgecolor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">histogram_binning</span> <span class="o">==</span> <span class="s2">&quot;log&quot;</span><span class="p">:</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="s2">&quot;log&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">vlines</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span><span class="p">,</span>
+            <span class="n">ymin</span><span class="p">,</span>
+            <span class="n">ymax</span><span class="p">,</span>
+            <span class="n">linestyles</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span>
+            <span class="n">colors</span><span class="o">=</span><span class="s2">&quot;g&quot;</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;estimated max cell&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">vlines</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_cell</span><span class="p">,</span>
+            <span class="n">ymin</span><span class="p">,</span>
+            <span class="n">ymax</span><span class="p">,</span>
+            <span class="n">colors</span><span class="o">=</span><span class="s2">&quot;g&quot;</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;estimated max cell (including tolerance)&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Direct space distance (A)&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Frequency&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper left&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2019, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

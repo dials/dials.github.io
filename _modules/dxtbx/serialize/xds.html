@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -10,23 +11,24 @@
     <title>dxtbx.serialize.xds &#8212; DIALS  documentation</title>
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/dials-styles.css" />
     <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -45,8 +47,6 @@
   </div>
   
 
-
-
   
 
     <div class="document">
@@ -59,418 +59,490 @@
   <h1>Source code for dxtbx.serialize.xds</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
-<span class="kn">import</span> <span class="nn">sys</span>
-<span class="kn">from</span> <span class="nn">scitbx</span> <span class="k">import</span> <span class="n">matrix</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="k">import</span> <span class="n">StringIO</span>
+
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="k">import</span> <span class="n">uctbx</span>
+<span class="kn">from</span> <span class="nn">cctbx.eltbx</span> <span class="k">import</span> <span class="n">attenuation_coefficient</span>
+<span class="kn">from</span> <span class="nn">cctbx.sgtbx</span> <span class="k">import</span> <span class="n">space_group</span><span class="p">,</span> <span class="n">space_group_symbols</span>
+<span class="kn">from</span> <span class="nn">iotbx.xds</span> <span class="k">import</span> <span class="n">xds_inp</span><span class="p">,</span> <span class="n">xparm</span>
+<span class="kn">from</span> <span class="nn">rstbx.cftbx.coordinate_frame_converter</span> <span class="k">import</span> <span class="n">coordinate_frame_converter</span>
 <span class="kn">from</span> <span class="nn">rstbx.cftbx.coordinate_frame_helpers</span> <span class="k">import</span> <span class="n">align_reference_frame</span>
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="k">import</span> <span class="n">matrix</span>
+
+<span class="kn">import</span> <span class="nn">dxtbx</span>
+<span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="k">import</span> <span class="n">ImageSetFactory</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Crystal</span><span class="p">,</span> <span class="n">MosaicCrystalKabsch2010</span><span class="p">,</span> <span class="n">ParallaxCorrectedPxMmStrategy</span>
 <span class="kn">from</span> <span class="nn">dxtbx.model.detector_helpers_types</span> <span class="k">import</span> <span class="n">detector_helpers_types</span>
 
+
 <div class="viewcode-block" id="to_imageset"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_imageset">[docs]</a><span class="k">def</span> <span class="nf">to_imageset</span><span class="p">(</span><span class="n">input_filename</span><span class="p">,</span> <span class="n">extra_filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-  <span class="sd">&#39;&#39;&#39;Get an image set from the xds input filename plus an extra filename</span>
+    <span class="sd">&quot;&quot;&quot;Get an image set from the xds input filename plus an extra filename</span>
 
-<span class="sd">  Params:</span>
-<span class="sd">      input_filename The XDS.INP file</span>
-<span class="sd">      extra_filename A (G)XPARM.XDS, INTGRATE.HKL or XDS_ASCII.HKL file</span>
+<span class="sd">    Params:</span>
+<span class="sd">        input_filename The XDS.INP file</span>
+<span class="sd">        extra_filename A (G)XPARM.XDS, INTGRATE.HKL or XDS_ASCII.HKL file</span>
 
-<span class="sd">  Returns:</span>
-<span class="sd">      The imageset</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        The imageset</span>
 
-<span class="sd">  &#39;&#39;&#39;</span>
-  <span class="kn">from</span> <span class="nn">iotbx.xds</span> <span class="k">import</span> <span class="n">xds_inp</span>
-  <span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="k">import</span> <span class="n">ImageSetFactory</span>
-  <span class="kn">import</span> <span class="nn">dxtbx</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Read the input filename</span>
+    <span class="n">handle</span> <span class="o">=</span> <span class="n">xds_inp</span><span class="o">.</span><span class="n">reader</span><span class="p">()</span>
+    <span class="n">handle</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">input_filename</span><span class="p">)</span>
 
-  <span class="c1"># Read the input filename</span>
-  <span class="n">handle</span> <span class="o">=</span> <span class="n">xds_inp</span><span class="o">.</span><span class="n">reader</span><span class="p">()</span>
-  <span class="n">handle</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">input_filename</span><span class="p">)</span>
+    <span class="c1"># Get the template</span>
+    <span class="n">template</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">name_template_of_data_frames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;?&quot;</span><span class="p">,</span> <span class="s2">&quot;#&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">template</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;h5&quot;</span><span class="p">):</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;######&quot;</span><span class="p">,</span> <span class="s2">&quot;master&quot;</span><span class="p">)</span>
+    <span class="n">image_range</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">data_range</span>
+    <span class="n">detector_name</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">detector</span>
 
-  <span class="c1"># Get the template</span>
-  <span class="n">template</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">name_template_of_data_frames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;?&#39;</span><span class="p">,</span> <span class="s1">&#39;#&#39;</span><span class="p">)</span>
-  <span class="k">if</span> <span class="n">template</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;h5&quot;</span><span class="p">):</span>
-    <span class="n">template</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;######&quot;</span><span class="p">,</span> <span class="s2">&quot;master&quot;</span><span class="p">)</span>
-  <span class="n">image_range</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">data_range</span>
-  <span class="n">detector_name</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">detector</span>
+    <span class="k">if</span> <span class="n">extra_filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># we can get all the extra dxtbx models from extra_filename</span>
+        <span class="n">check_format</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># we need the image files present to get the dxtbx models</span>
+        <span class="n">check_format</span> <span class="o">=</span> <span class="kc">True</span>
 
-  <span class="k">if</span> <span class="n">extra_filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="c1"># we can get all the extra dxtbx models from extra_filename</span>
-    <span class="n">check_format</span> <span class="o">=</span> <span class="kc">False</span>
-  <span class="k">else</span><span class="p">:</span>
-    <span class="c1"># we need the image files present to get the dxtbx models</span>
-    <span class="n">check_format</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="c1"># If an extra filename has been specified, try to load models</span>
+    <span class="k">if</span> <span class="n">extra_filename</span><span class="p">:</span>
+        <span class="n">models</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">extra_filename</span><span class="p">)</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">detector_name</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;PILATUS&quot;</span><span class="p">,</span> <span class="s2">&quot;EIGER&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">handle</span><span class="o">.</span><span class="n">silicon</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">handle</span><span class="o">.</span><span class="n">silicon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">table</span> <span class="o">=</span> <span class="n">attenuation_coefficient</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="s2">&quot;Si&quot;</span><span class="p">)</span>
+                <span class="n">wavelength</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+                <span class="n">mu</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">mu_at_angstrom</span><span class="p">(</span><span class="n">wavelength</span><span class="p">)</span> <span class="o">/</span> <span class="mf">10.0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">mu</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">silicon</span>
+            <span class="n">t0</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">sensor_thickness</span>
+            <span class="k">for</span> <span class="n">panel</span> <span class="ow">in</span> <span class="n">detector</span><span class="p">:</span>
+                <span class="n">panel</span><span class="o">.</span><span class="n">set_px_mm_strategy</span><span class="p">(</span><span class="n">ParallaxCorrectedPxMmStrategy</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">t0</span><span class="p">))</span>
+                <span class="n">panel</span><span class="o">.</span><span class="n">set_trusted_range</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">handle</span><span class="o">.</span><span class="n">minimum_valid_pixel_value</span><span class="p">,</span> <span class="n">handle</span><span class="o">.</span><span class="n">overload</span><span class="p">)</span>
+                <span class="p">)</span>
+        <span class="n">beam</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
+        <span class="n">goniometer</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span>
+        <span class="n">scan</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span>
+        <span class="n">scan</span><span class="o">.</span><span class="n">set_image_range</span><span class="p">(</span><span class="n">image_range</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">beam</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">goniometer</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">scan</span> <span class="o">=</span> <span class="kc">None</span>
 
-  <span class="c1"># If an extra filename has been specified, try to load models</span>
-  <span class="k">if</span> <span class="n">extra_filename</span><span class="p">:</span>
-    <span class="n">models</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">extra_filename</span><span class="p">)</span>
-    <span class="n">detector</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">detector_name</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;PILATUS&#39;</span><span class="p">,</span> <span class="s1">&#39;EIGER&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">handle</span><span class="o">.</span><span class="n">silicon</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-      <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">ParallaxCorrectedPxMmStrategy</span>
-      <span class="kn">from</span> <span class="nn">cctbx.eltbx</span> <span class="k">import</span> <span class="n">attenuation_coefficient</span>
-      <span class="k">if</span> <span class="n">handle</span><span class="o">.</span><span class="n">silicon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">table</span> <span class="o">=</span> <span class="n">attenuation_coefficient</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="s2">&quot;Si&quot;</span><span class="p">)</span>
-        <span class="n">wavelength</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
-        <span class="n">mu</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">mu_at_angstrom</span><span class="p">(</span><span class="n">wavelength</span><span class="p">)</span> <span class="o">/</span> <span class="mf">10.0</span>
-      <span class="k">else</span><span class="p">:</span>
-        <span class="n">mu</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">silicon</span>
-      <span class="n">t0</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">sensor_thickness</span>
-      <span class="k">for</span> <span class="n">panel</span> <span class="ow">in</span> <span class="n">detector</span><span class="p">:</span>
-        <span class="n">panel</span><span class="o">.</span><span class="n">set_px_mm_strategy</span><span class="p">(</span><span class="n">ParallaxCorrectedPxMmStrategy</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">t0</span><span class="p">))</span>
-        <span class="n">panel</span><span class="o">.</span><span class="n">set_trusted_range</span><span class="p">(</span>
-          <span class="p">(</span><span class="n">handle</span><span class="o">.</span><span class="n">minimum_valid_pixel_value</span><span class="p">,</span> <span class="n">handle</span><span class="o">.</span><span class="n">overload</span><span class="p">))</span>
-    <span class="n">beam</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span>
-    <span class="n">detector</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
-    <span class="n">goniometer</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span>
-    <span class="n">scan</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span>
-    <span class="n">scan</span><span class="o">.</span><span class="n">set_image_range</span><span class="p">(</span><span class="n">image_range</span><span class="p">)</span>
-  <span class="k">else</span><span class="p">:</span>
-    <span class="n">beam</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">detector</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">goniometer</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">scan</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># Create the imageset</span>
+    <span class="n">imageset</span> <span class="o">=</span> <span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">from_template</span><span class="p">(</span>
+        <span class="n">template</span><span class="p">,</span>
+        <span class="n">image_range</span><span class="o">=</span><span class="n">image_range</span><span class="p">,</span>
+        <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
+        <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
+        <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
+        <span class="n">goniometer</span><span class="o">=</span><span class="n">goniometer</span><span class="p">,</span>
+        <span class="n">scan</span><span class="o">=</span><span class="n">scan</span><span class="p">,</span>
+    <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
-  <span class="c1"># Create the imageset</span>
-  <span class="n">imageset</span> <span class="o">=</span> <span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">from_template</span><span class="p">(</span>
-    <span class="n">template</span><span class="p">,</span>
-    <span class="n">image_range</span><span class="o">=</span><span class="n">image_range</span><span class="p">,</span>
-    <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
-    <span class="n">beam</span> <span class="o">=</span> <span class="n">beam</span><span class="p">,</span>
-    <span class="n">detector</span> <span class="o">=</span> <span class="n">detector</span><span class="p">,</span>
-    <span class="n">goniometer</span> <span class="o">=</span> <span class="n">goniometer</span><span class="p">,</span>
-    <span class="n">scan</span> <span class="o">=</span> <span class="n">scan</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Return the imageset</span>
+    <span class="k">return</span> <span class="n">imageset</span></div>
 
-  <span class="c1"># Return the imageset</span>
-  <span class="k">return</span> <span class="n">imageset</span></div>
 
 <div class="viewcode-block" id="to_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_crystal">[docs]</a><span class="k">def</span> <span class="nf">to_crystal</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-  <span class="sd">&#39;&#39;&#39; Get the crystal model from the xparm file</span>
+    <span class="sd">&quot;&quot;&quot;Get the crystal model from the xparm file</span>
 
-<span class="sd">  Params:</span>
-<span class="sd">      filename The xparm/or integrate filename</span>
+<span class="sd">    Params:</span>
+<span class="sd">        filename The xparm/or integrate filename</span>
 
-<span class="sd">  Return:</span>
-<span class="sd">      The crystal model</span>
+<span class="sd">    Return:</span>
+<span class="sd">        The crystal model</span>
 
-<span class="sd">  &#39;&#39;&#39;</span>
-  <span class="kn">from</span> <span class="nn">rstbx.cftbx.coordinate_frame_converter</span> <span class="k">import</span> \
-      <span class="n">coordinate_frame_converter</span>
-  <span class="kn">from</span> <span class="nn">cctbx.sgtbx</span> <span class="k">import</span> <span class="n">space_group</span><span class="p">,</span> <span class="n">space_group_symbols</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Get the real space coordinate frame</span>
+    <span class="n">cfc</span> <span class="o">=</span> <span class="n">coordinate_frame_converter</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="n">real_space_a</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;real_space_a&quot;</span><span class="p">)</span>
+    <span class="n">real_space_b</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;real_space_b&quot;</span><span class="p">)</span>
+    <span class="n">real_space_c</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;real_space_c&quot;</span><span class="p">)</span>
+    <span class="n">sg</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;space_group_number&quot;</span><span class="p">)</span>
+    <span class="n">crystal_space_group</span> <span class="o">=</span> <span class="n">space_group</span><span class="p">(</span><span class="n">space_group_symbols</span><span class="p">(</span><span class="n">sg</span><span class="p">)</span><span class="o">.</span><span class="n">hall</span><span class="p">())</span>
+    <span class="n">mosaicity</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mosaicity&quot;</span><span class="p">)</span>
 
-  <span class="c1"># Get the real space coordinate frame</span>
-  <span class="n">cfc</span> <span class="o">=</span> <span class="n">coordinate_frame_converter</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-  <span class="n">real_space_a</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;real_space_a&#39;</span><span class="p">)</span>
-  <span class="n">real_space_b</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;real_space_b&#39;</span><span class="p">)</span>
-  <span class="n">real_space_c</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;real_space_c&#39;</span><span class="p">)</span>
-  <span class="n">sg</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;space_group_number&#39;</span><span class="p">)</span>
-  <span class="n">space_group</span> <span class="o">=</span> <span class="n">space_group</span><span class="p">(</span><span class="n">space_group_symbols</span><span class="p">(</span><span class="n">sg</span><span class="p">)</span><span class="o">.</span><span class="n">hall</span><span class="p">())</span>
-  <span class="n">mosaicity</span> <span class="o">=</span> <span class="n">cfc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mosaicity&#39;</span><span class="p">)</span>
+    <span class="c1"># Return the crystal model</span>
+    <span class="k">if</span> <span class="n">mosaicity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">crystal</span> <span class="o">=</span> <span class="n">Crystal</span><span class="p">(</span>
+            <span class="n">real_space_a</span><span class="o">=</span><span class="n">real_space_a</span><span class="p">,</span>
+            <span class="n">real_space_b</span><span class="o">=</span><span class="n">real_space_b</span><span class="p">,</span>
+            <span class="n">real_space_c</span><span class="o">=</span><span class="n">real_space_c</span><span class="p">,</span>
+            <span class="n">space_group</span><span class="o">=</span><span class="n">crystal_space_group</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">crystal</span> <span class="o">=</span> <span class="n">MosaicCrystalKabsch2010</span><span class="p">(</span>
+            <span class="n">real_space_a</span><span class="o">=</span><span class="n">real_space_a</span><span class="p">,</span>
+            <span class="n">real_space_b</span><span class="o">=</span><span class="n">real_space_b</span><span class="p">,</span>
+            <span class="n">real_space_c</span><span class="o">=</span><span class="n">real_space_c</span><span class="p">,</span>
+            <span class="n">space_group</span><span class="o">=</span><span class="n">crystal_space_group</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">crystal</span><span class="o">.</span><span class="n">set_mosaicity</span><span class="p">(</span><span class="n">mosaicity</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">crystal</span></div>
 
-  <span class="c1"># Return the crystal model</span>
-  <span class="k">if</span> <span class="p">(</span><span class="n">mosaicity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
-    <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Crystal</span>
-    <span class="n">crystal</span> <span class="o">=</span> <span class="n">Crystal</span><span class="p">(</span>
-        <span class="n">real_space_a</span><span class="o">=</span><span class="n">real_space_a</span><span class="p">,</span>
-        <span class="n">real_space_b</span><span class="o">=</span><span class="n">real_space_b</span><span class="p">,</span>
-        <span class="n">real_space_c</span><span class="o">=</span><span class="n">real_space_c</span><span class="p">,</span>
-        <span class="n">space_group</span><span class="o">=</span><span class="n">space_group</span><span class="p">)</span>
-  <span class="k">else</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">MosaicCrystalKabsch2010</span>
-    <span class="n">crystal</span> <span class="o">=</span> <span class="n">MosaicCrystalKabsch2010</span><span class="p">(</span>
-        <span class="n">real_space_a</span><span class="o">=</span><span class="n">real_space_a</span><span class="p">,</span>
-        <span class="n">real_space_b</span><span class="o">=</span><span class="n">real_space_b</span><span class="p">,</span>
-        <span class="n">real_space_c</span><span class="o">=</span><span class="n">real_space_c</span><span class="p">,</span>
-        <span class="n">space_group</span><span class="o">=</span><span class="n">space_group</span><span class="p">)</span>
-    <span class="n">crystal</span><span class="o">.</span><span class="n">set_mosaicity</span><span class="p">(</span><span class="n">mosaicity</span><span class="p">)</span>
-  <span class="k">return</span> <span class="n">crystal</span></div>
 
 <div class="viewcode-block" id="xds_detector_name"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.xds_detector_name">[docs]</a><span class="k">def</span> <span class="nf">xds_detector_name</span><span class="p">(</span><span class="n">dxtbx_name</span><span class="p">):</span>
-  <span class="sd">&#39;&#39;&#39;Translate from a xia2 name from the detector library to an XDS detector</span>
-<span class="sd">  name.&#39;&#39;&#39;</span>
-  <span class="c1"># http://xds.mpimf-heidelberg.mpg.de/html_doc/xds_parameters.html#DETECTOR=</span>
+    <span class="sd">&quot;&quot;&quot;Translate from a xia2 name from the detector library to an XDS detector</span>
+<span class="sd">    name.&quot;&quot;&quot;</span>
+    <span class="c1"># http://xds.mpimf-heidelberg.mpg.de/html_doc/xds_parameters.html#DETECTOR=</span>
 
-  <span class="k">if</span> <span class="s1">&#39;pilatus&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;PILATUS&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;eiger&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;PILATUS&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;rayonix&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;CCDCHESS&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;adsc&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;ADSC&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;holton&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;ADSC&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;saturn&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;SATURN&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;raxis&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;RAXIS&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;mar-345&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;MAR345&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;mar&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;MAR&#39;</span>
-  <span class="k">if</span> <span class="s1">&#39;unknown&#39;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
-    <span class="k">return</span> <span class="s1">&#39;ADSC&#39;</span>
+    <span class="k">if</span> <span class="s2">&quot;pilatus&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;PILATUS&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;eiger&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;PILATUS&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;rayonix&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;CCDCHESS&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;adsc&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;ADSC&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;holton&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;ADSC&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;saturn&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;SATURN&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;raxis&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;RAXIS&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;mar-345&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;MAR345&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;mar&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;MAR&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;unknown&quot;</span> <span class="ow">in</span> <span class="n">dxtbx_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;ADSC&quot;</span>
 
-  <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;detector </span><span class="si">%s</span><span class="s1"> unknown&#39;</span> <span class="o">%</span> <span class="n">dxtbx_name</span><span class="p">)</span></div>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;detector </span><span class="si">%s</span><span class="s2"> unknown&quot;</span> <span class="o">%</span> <span class="n">dxtbx_name</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="to_xds"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds">[docs]</a><span class="k">class</span> <span class="nc">to_xds</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-  <span class="sd">&#39;&#39;&#39;A class to export contents of a Sweep as XDS.INP or XPARM.XDS.&#39;&#39;&#39;</span>
+    <span class="sd">&quot;&quot;&quot;A class to export contents of a Sweep as XDS.INP or XPARM.XDS.&quot;&quot;&quot;</span>
 
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sweep</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span> <span class="o">=</span> <span class="n">sweep</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sweep</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span> <span class="o">=</span> <span class="n">sweep</span>
 
-    <span class="c1"># detector dimensions in pixels</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span>
-      <span class="nb">int</span><span class="p">,</span>
-      <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_raw_image_offset</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-           <span class="k">for</span> <span class="n">panel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()),</span>
-       <span class="nb">max</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_raw_image_offset</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
-           <span class="k">for</span> <span class="n">panel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">())))</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">fast</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span>
+        <span class="c1"># detector dimensions in pixels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">int</span><span class="p">(</span>
+                <span class="nb">max</span><span class="p">(</span>
+                    <span class="n">panel</span><span class="o">.</span><span class="n">get_raw_image_offset</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">panel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+            <span class="nb">int</span><span class="p">(</span>
+                <span class="nb">max</span><span class="p">(</span>
+                    <span class="n">panel</span><span class="o">.</span><span class="n">get_raw_image_offset</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">panel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fast</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span>
 
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-      <span class="n">fast</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_parent_fast_axis</span><span class="p">()</span>
-      <span class="n">slow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_parent_slow_axis</span><span class="p">()</span>
-      <span class="n">Rd</span> <span class="o">=</span> <span class="n">align_reference_frame</span><span class="p">(</span><span class="n">fast</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="n">slow</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
-      <span class="n">origin</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_parent_origin</span><span class="p">())</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="n">fast</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_fast_axis</span><span class="p">()</span>
-      <span class="n">slow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_slow_axis</span><span class="p">()</span>
-      <span class="n">Rd</span> <span class="o">=</span> <span class="n">align_reference_frame</span><span class="p">(</span><span class="n">fast</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="n">slow</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
-      <span class="n">origin</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_origin</span><span class="p">())</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">fast</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_parent_fast_axis</span><span class="p">()</span>
+            <span class="n">slow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_parent_slow_axis</span><span class="p">()</span>
+            <span class="n">Rd</span> <span class="o">=</span> <span class="n">align_reference_frame</span><span class="p">(</span><span class="n">fast</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">slow</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+            <span class="n">origin</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_parent_origin</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fast</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_fast_axis</span><span class="p">()</span>
+            <span class="n">slow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_slow_axis</span><span class="p">()</span>
+            <span class="n">Rd</span> <span class="o">=</span> <span class="n">align_reference_frame</span><span class="p">(</span><span class="n">fast</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">slow</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+            <span class="n">origin</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_origin</span><span class="p">())</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">detector_x_axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">fast</span><span class="p">))</span><span class="o">.</span><span class="n">elems</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">detector_y_axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">slow</span><span class="p">))</span><span class="o">.</span><span class="n">elems</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">detector_x_axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">fast</span><span class="p">))</span><span class="o">.</span><span class="n">elems</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">detector_y_axis</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">slow</span><span class="p">))</span><span class="o">.</span><span class="n">elems</span>
 
-    <span class="n">F</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">fast</span><span class="p">)</span>
-    <span class="n">S</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">slow</span><span class="p">)</span>
-    <span class="n">N</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">detector_normal</span> <span class="o">=</span> <span class="n">N</span><span class="o">.</span><span class="n">elems</span>
+        <span class="n">F</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">fast</span><span class="p">)</span>
+        <span class="n">S</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">slow</span><span class="p">)</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">detector_normal</span> <span class="o">=</span> <span class="n">N</span><span class="o">.</span><span class="n">elems</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span> <span class="c1"># assume all panels same pixel size</span>
+        <span class="c1"># assume all panels same pixel size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span>
 
-    <span class="n">centre</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">origin</span> <span class="o">-</span> <span class="n">origin</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">N</span><span class="p">)</span> <span class="o">*</span> <span class="n">N</span><span class="p">)</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">centre</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
-    <span class="n">y</span> <span class="o">=</span> <span class="n">centre</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+        <span class="n">centre</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">origin</span> <span class="o">-</span> <span class="n">origin</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">N</span><span class="p">)</span> <span class="o">*</span> <span class="n">N</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">centre</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">centre</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
 
-    <span class="n">f</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span> <span class="o">=</span> <span class="n">origin</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
-    <span class="c1"># Need to add 0.5 because XDS seems to do centroids in fortran coords</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">detector_origin</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="o">/</span><span class="n">f</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">y</span><span class="o">/</span><span class="n">f</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">f</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span> <span class="o">=</span> <span class="n">origin</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+        <span class="c1"># Need to add 0.5 because XDS seems to do centroids in fortran coords</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">detector_origin</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">/</span> <span class="n">f</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">y</span> <span class="o">/</span> <span class="n">f</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">imagecif_to_xds_transformation_matrix</span> <span class="o">=</span> <span class="n">Rd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">imagecif_to_xds_transformation_matrix</span> <span class="o">=</span> <span class="n">Rd</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">panel_limits</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">panel_x_axis</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">panel_y_axis</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">panel_origin</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">panel_distance</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">panel_normal</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">panel_limits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">panel_x_axis</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">panel_y_axis</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">panel_origin</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">panel_distance</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">panel_normal</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="k">for</span> <span class="n">panel_id</span><span class="p">,</span> <span class="n">panel</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()):</span>
+        <span class="k">for</span> <span class="n">panel_id</span><span class="p">,</span> <span class="n">panel</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()):</span>
 
-      <span class="n">f</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_fast_axis</span><span class="p">())</span>
-      <span class="n">s</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_slow_axis</span><span class="p">())</span>
-      <span class="n">n</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_fast_axis</span><span class="p">())</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_slow_axis</span><span class="p">())</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
 
-      <span class="n">xmin</span><span class="p">,</span> <span class="n">ymin</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_raw_image_offset</span><span class="p">()</span>
-      <span class="n">xmax</span> <span class="o">=</span> <span class="n">xmin</span> <span class="o">+</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-      <span class="n">ymax</span> <span class="o">=</span> <span class="n">ymin</span> <span class="o">+</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">panel_limits</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">xmin</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">ymin</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">ymax</span><span class="p">))</span>
+            <span class="n">xmin</span><span class="p">,</span> <span class="n">ymin</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_raw_image_offset</span><span class="p">()</span>
+            <span class="n">xmax</span> <span class="o">=</span> <span class="n">xmin</span> <span class="o">+</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">ymax</span> <span class="o">=</span> <span class="n">ymin</span> <span class="o">+</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">panel_limits</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">xmin</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">ymin</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ymax</span><span class="p">))</span>
 
-      <span class="n">o</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_origin</span><span class="p">())</span>
-      <span class="n">op</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span>
-      <span class="n">d0</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="o">-</span><span class="n">x</span><span class="p">,</span> <span class="o">-</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span><span class="p">))</span>
-      <span class="n">orgsx</span> <span class="o">=</span> <span class="p">(</span><span class="n">op</span> <span class="o">-</span> <span class="n">o</span> <span class="o">+</span> <span class="n">d0</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">xmin</span>
-      <span class="n">orgsy</span> <span class="o">=</span> <span class="p">(</span><span class="n">op</span> <span class="o">-</span> <span class="n">o</span> <span class="o">+</span> <span class="n">d0</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">ymin</span>
-      <span class="n">panel_distance</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">-</span> <span class="n">d0</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+            <span class="n">o</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_origin</span><span class="p">())</span>
+            <span class="n">op</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span>
+            <span class="n">d0</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="o">-</span><span class="n">x</span><span class="p">,</span> <span class="o">-</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span><span class="p">))</span>
+            <span class="n">orgsx</span> <span class="o">=</span> <span class="p">(</span><span class="n">op</span> <span class="o">-</span> <span class="n">o</span> <span class="o">+</span> <span class="n">d0</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">xmin</span>
+            <span class="n">orgsy</span> <span class="o">=</span> <span class="p">(</span><span class="n">op</span> <span class="o">-</span> <span class="n">o</span> <span class="o">+</span> <span class="n">d0</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">ymin</span>
+            <span class="n">panel_distance</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">-</span> <span class="n">d0</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
 
-      <span class="c1"># axes in local (i.e. detector) frame</span>
-      <span class="n">fl</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_local_fast_axis</span><span class="p">())</span>
-      <span class="n">sl</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_local_slow_axis</span><span class="p">())</span>
-      <span class="n">nl</span> <span class="o">=</span> <span class="n">fl</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">sl</span><span class="p">)</span>
+            <span class="c1"># axes in local (i.e. detector) frame</span>
+            <span class="n">fl</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_local_fast_axis</span><span class="p">())</span>
+            <span class="n">sl</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">get_local_slow_axis</span><span class="p">())</span>
+            <span class="n">nl</span> <span class="o">=</span> <span class="n">fl</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">sl</span><span class="p">)</span>
 
-      <span class="bp">self</span><span class="o">.</span><span class="n">panel_x_axis</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fl</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">panel_y_axis</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sl</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">panel_normal</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nl</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">panel_origin</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">orgsx</span><span class="p">,</span> <span class="n">orgsy</span><span class="p">))</span>
-      <span class="bp">self</span><span class="o">.</span><span class="n">panel_distance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">panel_distance</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">panel_x_axis</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fl</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">panel_y_axis</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sl</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">panel_normal</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nl</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">panel_origin</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">orgsx</span><span class="p">,</span> <span class="n">orgsy</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">panel_distance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">panel_distance</span><span class="p">)</span>
 
-    <span class="c1"># Beam stuff</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_direction</span><span class="p">())</span>
-    <span class="c1"># just to make sure it is the correct length</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span> <span class="c1">#/ self.wavelength</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="p">)</span><span class="o">.</span><span class="n">elems</span>
+        <span class="c1"># Beam stuff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span> <span class="o">=</span> <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_sample_to_source_direction</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="c1"># just to make sure it is the correct length</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>  <span class="c1"># / self.wavelength</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="p">)</span><span class="o">.</span><span class="n">elems</span>
 
-    <span class="c1"># Scan and goniometer stuff</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">starting_frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">starting_angle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">oscillation_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">rotation_axis</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span><span class="o">.</span><span class="n">get_rotation_axis</span><span class="p">()))</span><span class="o">.</span><span class="n">elems</span>
+        <span class="c1"># Scan and goniometer stuff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">starting_frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">starting_angle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oscillation_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rotation_axis</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">Rd</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span><span class="o">.</span><span class="n">get_rotation_axis</span><span class="p">())</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">elems</span>
 
-<div class="viewcode-block" id="to_xds.get_detector"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_detector">[docs]</a>  <span class="k">def</span> <span class="nf">get_detector</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span></div>
+<div class="viewcode-block" id="to_xds.get_detector"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_detector">[docs]</a>    <span class="k">def</span> <span class="nf">get_detector</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="to_xds.get_goniometer"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_goniometer">[docs]</a>  <span class="k">def</span> <span class="nf">get_goniometer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span></div>
+<div class="viewcode-block" id="to_xds.get_goniometer"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_goniometer">[docs]</a>    <span class="k">def</span> <span class="nf">get_goniometer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="to_xds.get_beam"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_beam">[docs]</a>  <span class="k">def</span> <span class="nf">get_beam</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span></div>
+<div class="viewcode-block" id="to_xds.get_beam"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_beam">[docs]</a>    <span class="k">def</span> <span class="nf">get_beam</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="to_xds.get_scan"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_scan">[docs]</a>  <span class="k">def</span> <span class="nf">get_scan</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span></div>
+<div class="viewcode-block" id="to_xds.get_scan"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_scan">[docs]</a>    <span class="k">def</span> <span class="nf">get_scan</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="to_xds.get_template"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_template">[docs]</a>  <span class="k">def</span> <span class="nf">get_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">try</span><span class="p">:</span>
-      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_template</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-      <span class="k">return</span> <span class="s1">&#39;FIXME####.h5&#39;</span></div>
+<div class="viewcode-block" id="to_xds.get_template"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.get_template">[docs]</a>    <span class="k">def</span> <span class="nf">get_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep</span><span class="o">.</span><span class="n">get_template</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;FIXME####.h5&quot;</span></div>
 
-<div class="viewcode-block" id="to_xds.XDS_INP"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.XDS_INP">[docs]</a>  <span class="k">def</span> <span class="nf">XDS_INP</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">space_group_number</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-              <span class="n">real_space_a</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">real_space_b</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">real_space_c</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-              <span class="n">job_card</span><span class="o">=</span><span class="s2">&quot;XYCORR INIT COLSPOT IDXREF DEFPIX INTEGRATE CORRECT&quot;</span><span class="p">,</span>
-              <span class="n">as_str</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="c1"># as_str is deprecated and will be removed in the future</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+<div class="viewcode-block" id="to_xds.XDS_INP"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.XDS_INP">[docs]</a>    <span class="k">def</span> <span class="nf">XDS_INP</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">space_group_number</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">real_space_a</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">real_space_b</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">real_space_c</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">job_card</span><span class="o">=</span><span class="s2">&quot;XYCORR INIT COLSPOT IDXREF DEFPIX INTEGRATE CORRECT&quot;</span><span class="p">,</span>
+        <span class="n">as_str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># as_str is deprecated and will be removed in the future</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="k">assert</span> <span class="p">[</span><span class="n">real_space_a</span><span class="p">,</span> <span class="n">real_space_b</span><span class="p">,</span> <span class="n">real_space_c</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="p">[</span><span class="n">real_space_a</span><span class="p">,</span> <span class="n">real_space_b</span><span class="p">,</span> <span class="n">real_space_c</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
 
-    <span class="n">sensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_type</span><span class="p">()</span>
-    <span class="n">fast</span><span class="p">,</span> <span class="n">slow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span>
-    <span class="n">f</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">f</span><span class="p">)</span>
-    <span class="n">ds</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span>
+        <span class="n">sensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_type</span><span class="p">()</span>
+        <span class="n">fast</span><span class="p">,</span> <span class="n">slow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span>
+        <span class="n">f</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span>
 
-    <span class="c1"># FIXME probably need to rotate by pi about the X axis</span>
+        <span class="c1"># FIXME probably need to rotate by pi about the X axis</span>
 
-    <span class="n">detector</span> <span class="o">=</span> <span class="n">xds_detector_name</span><span class="p">(</span>
-        <span class="n">detector_helpers_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sensor</span><span class="p">,</span> <span class="n">fast</span><span class="p">,</span> <span class="n">slow</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">ds</span><span class="p">))</span>
-    <span class="n">trusted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_trusted_range</span><span class="p">()</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">xds_detector_name</span><span class="p">(</span>
+            <span class="n">detector_helpers_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sensor</span><span class="p">,</span> <span class="n">fast</span><span class="p">,</span> <span class="n">slow</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">ds</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">trusted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_trusted_range</span><span class="p">()</span>
 
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-      <span class="s1">&#39;DETECTOR=</span><span class="si">%s</span><span class="s1"> MINIMUM_VALID_PIXEL_VALUE=</span><span class="si">%d</span><span class="s1"> OVERLOAD=</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> \
-        <span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">trusted</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">trusted</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="s2">&quot;DETECTOR=</span><span class="si">%s</span><span class="s2"> MINIMUM_VALID_PIXEL_VALUE=</span><span class="si">%d</span><span class="s2"> OVERLOAD=</span><span class="si">%d</span><span class="s2">&quot;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">trusted</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">trusted</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">detector</span> <span class="o">==</span> <span class="s1">&#39;PILATUS&#39;</span><span class="p">:</span>
-      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;SENSOR_THICKNESS= </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-        <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_thickness</span><span class="p">())</span>
-      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_material</span><span class="p">():</span>
-        <span class="kn">from</span> <span class="nn">cctbx.eltbx</span> <span class="k">import</span> <span class="n">attenuation_coefficient</span>
-        <span class="n">material</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_material</span><span class="p">()</span>
-        <span class="n">table</span> <span class="o">=</span> <span class="n">attenuation_coefficient</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="n">material</span><span class="p">)</span>
-        <span class="n">mu</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">mu_at_angstrom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">)</span> <span class="o">/</span> <span class="mf">10.0</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;!SENSOR_MATERIAL / THICKNESS </span><span class="si">%s</span><span class="s1"> </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="p">(</span><span class="n">material</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_thickness</span><span class="p">()))</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;!SILICON= </span><span class="si">%f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">mu</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">detector</span> <span class="o">==</span> <span class="s2">&quot;PILATUS&quot;</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="s2">&quot;SENSOR_THICKNESS= </span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_thickness</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_material</span><span class="p">():</span>
+                <span class="n">material</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_material</span><span class="p">()</span>
+                <span class="n">table</span> <span class="o">=</span> <span class="n">attenuation_coefficient</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="n">material</span><span class="p">)</span>
+                <span class="n">mu</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">mu_at_angstrom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">)</span> <span class="o">/</span> <span class="mf">10.0</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="s2">&quot;!SENSOR_MATERIAL / THICKNESS </span><span class="si">%s</span><span class="s2"> </span><span class="si">%.3f</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">material</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_thickness</span><span class="p">())</span>
+                <span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;!SILICON= </span><span class="si">%f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">mu</span><span class="p">)</span>
 
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;DIRECTION_OF_DETECTOR_X-AXIS= </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="bp">self</span><span class="o">.</span><span class="n">detector_x_axis</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="s2">&quot;DIRECTION_OF_DETECTOR_X-AXIS= </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_x_axis</span>
+        <span class="p">)</span>
 
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;DIRECTION_OF_DETECTOR_Y-AXIS= </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="bp">self</span><span class="o">.</span><span class="n">detector_y_axis</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="s2">&quot;DIRECTION_OF_DETECTOR_Y-AXIS= </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_y_axis</span>
+        <span class="p">)</span>
 
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;NX=</span><span class="si">%d</span><span class="s1"> NY=</span><span class="si">%d</span><span class="s1"> QX=</span><span class="si">%.4f</span><span class="s1"> QY=</span><span class="si">%.4f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">fast</span><span class="p">,</span> <span class="n">slow</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">s</span><span class="p">))</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;NX=</span><span class="si">%d</span><span class="s2"> NY=</span><span class="si">%d</span><span class="s2"> QX=</span><span class="si">%.4f</span><span class="s2"> QY=</span><span class="si">%.4f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">fast</span><span class="p">,</span> <span class="n">slow</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">s</span><span class="p">))</span>
 
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;DETECTOR_DISTANCE= </span><span class="si">%.6f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span><span class="p">)</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;ORGX= </span><span class="si">%.2f</span><span class="s1"> ORGY= </span><span class="si">%.2f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_origin</span><span class="p">)</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;ROTATION_AXIS= </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="bp">self</span><span class="o">.</span><span class="n">rotation_axis</span><span class="p">)</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;STARTING_ANGLE= </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="bp">self</span><span class="o">.</span><span class="n">starting_angle</span><span class="p">)</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;OSCILLATION_RANGE= </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="bp">self</span><span class="o">.</span><span class="n">oscillation_range</span><span class="p">)</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;X-RAY_WAVELENGTH= </span><span class="si">%.5f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">)</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;INCIDENT_BEAM_DIRECTION= </span><span class="si">%.3f</span><span class="s1"> </span><span class="si">%.3f</span><span class="s1"> </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="nb">tuple</span><span class="p">([</span><span class="n">b</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="p">]))</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;DETECTOR_DISTANCE= </span><span class="si">%.6f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;ORGX= </span><span class="si">%.2f</span><span class="s2"> ORGY= </span><span class="si">%.2f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector_origin</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;ROTATION_AXIS= </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotation_axis</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;STARTING_ANGLE= </span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">starting_angle</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;OSCILLATION_RANGE= </span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">oscillation_range</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;X-RAY_WAVELENGTH= </span><span class="si">%.5f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="s2">&quot;INCIDENT_BEAM_DIRECTION= </span><span class="si">%.3f</span><span class="s2"> </span><span class="si">%.3f</span><span class="s2"> </span><span class="si">%.3f</span><span class="s2">&quot;</span>
+            <span class="o">%</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">b</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="p">])</span>
+        <span class="p">)</span>
 
-    <span class="c1"># FIXME LATER</span>
-    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(),</span> <span class="s2">&quot;get_polarization_fraction&quot;</span><span class="p">):</span>
-      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;FRACTION_OF_POLARIZATION= </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_polarization_fraction</span><span class="p">())</span>
-      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;POLARIZATION_PLANE_NORMAL= </span><span class="si">%.3f</span><span class="s1"> </span><span class="si">%.3f</span><span class="s1"> </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-          <span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_polarization_normal</span><span class="p">())</span>
-    <span class="n">template</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_template</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">template</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;master.h5&#39;</span><span class="p">):</span>
-      <span class="n">template</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;master&#39;</span><span class="p">,</span> <span class="s1">&#39;??????&#39;</span><span class="p">)</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;NAME_TEMPLATE_OF_DATA_FRAMES= </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> \
-        <span class="n">template</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span> <span class="s1">&#39;?&#39;</span><span class="p">))</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;TRUSTED_REGION= 0.0 1.41&#39;</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">f0</span><span class="p">,</span> <span class="n">s0</span><span class="p">,</span> <span class="n">f1</span><span class="p">,</span> <span class="n">s1</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_mask</span><span class="p">():</span>
-      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;UNTRUSTED_RECTANGLE= </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> \
-            <span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="n">f1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">s0</span><span class="p">,</span> <span class="n">s1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="c1"># FIXME LATER</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(),</span> <span class="s2">&quot;get_polarization_fraction&quot;</span><span class="p">):</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="s2">&quot;FRACTION_OF_POLARIZATION= </span><span class="si">%.3f</span><span class="s2">&quot;</span>
+                <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_polarization_fraction</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="s2">&quot;POLARIZATION_PLANE_NORMAL= </span><span class="si">%.3f</span><span class="s2"> </span><span class="si">%.3f</span><span class="s2"> </span><span class="si">%.3f</span><span class="s2">&quot;</span>
+                <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span><span class="o">.</span><span class="n">get_polarization_normal</span><span class="p">()</span>
+            <span class="p">)</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_template</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">template</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;master.h5&quot;</span><span class="p">):</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;master&quot;</span><span class="p">,</span> <span class="s2">&quot;??????&quot;</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;NAME_TEMPLATE_OF_DATA_FRAMES= </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">template</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">,</span> <span class="s2">&quot;?&quot;</span><span class="p">))</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;TRUSTED_REGION= 0.0 1.41&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">f0</span><span class="p">,</span> <span class="n">s0</span><span class="p">,</span> <span class="n">f1</span><span class="p">,</span> <span class="n">s1</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_mask</span><span class="p">():</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;UNTRUSTED_RECTANGLE= </span><span class="si">%d</span><span class="s2"> </span><span class="si">%d</span><span class="s2"> </span><span class="si">%d</span><span class="s2"> </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="n">f1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">s0</span><span class="p">,</span> <span class="n">s1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
 
-    <span class="n">start_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
+        <span class="n">start_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="n">start_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-      <span class="n">start_end</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">start_end</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">start_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">start_end</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">start_end</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;DATA_RANGE= </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">start_end</span><span class="p">)</span>
-    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;JOB=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span><span class="n">job_card</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">space_group_number</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;SPACE_GROUP_NUMBER= </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span><span class="n">space_group_number</span><span class="p">)</span>
-    <span class="k">if</span> <span class="p">[</span><span class="n">real_space_a</span><span class="p">,</span> <span class="n">real_space_b</span><span class="p">,</span> <span class="n">real_space_c</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-      <span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagecif_to_xds_transformation_matrix</span>
-      <span class="n">unit_cell_a_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_a</span><span class="p">)</span>
-      <span class="n">unit_cell_b_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_b</span><span class="p">)</span>
-      <span class="n">unit_cell_c_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_c</span><span class="p">)</span>
-      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;UNIT_CELL_A-AXIS= </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2">&quot;</span> <span class="o">%</span><span class="n">unit_cell_a_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
-      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;UNIT_CELL_B-AXIS= </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2">&quot;</span> <span class="o">%</span><span class="n">unit_cell_b_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
-      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;UNIT_CELL_C-AXIS= </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2">&quot;</span> <span class="o">%</span><span class="n">unit_cell_c_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;DATA_RANGE= </span><span class="si">%d</span><span class="s2"> </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">start_end</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;JOB=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">job_card</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">space_group_number</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;SPACE_GROUP_NUMBER= </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">space_group_number</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">[</span><span class="n">real_space_a</span><span class="p">,</span> <span class="n">real_space_b</span><span class="p">,</span> <span class="n">real_space_c</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagecif_to_xds_transformation_matrix</span>
+            <span class="n">unit_cell_a_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_a</span><span class="p">)</span>
+            <span class="n">unit_cell_b_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_b</span><span class="p">)</span>
+            <span class="n">unit_cell_c_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_c</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;UNIT_CELL_A-AXIS= </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">unit_cell_a_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;UNIT_CELL_B-AXIS= </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">unit_cell_b_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;UNIT_CELL_C-AXIS= </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2"> </span><span class="si">%.6f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">unit_cell_c_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">panel_x_axis</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-      <span class="k">for</span> <span class="n">panel_id</span><span class="p">,</span> <span class="n">panel_x_axis</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">panel_x_axis</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">panel_x_axis</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">panel_id</span><span class="p">,</span> <span class="n">panel_x_axis</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">panel_x_axis</span><span class="p">):</span>
 
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="n">out</span><span class="p">)</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;!&quot;</span><span class="p">)</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;! SEGMENT </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">panel_id</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;!&quot;</span><span class="p">)</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;SEGMENT= </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">panel_limits</span><span class="p">[</span><span class="n">panel_id</span><span class="p">])</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;DIRECTION_OF_SEGMENT_X-AXIS= </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-                      <span class="n">panel_x_axis</span><span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;!&quot;</span><span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;! SEGMENT </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">panel_id</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;!&quot;</span><span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;SEGMENT= </span><span class="si">%d</span><span class="s2"> </span><span class="si">%d</span><span class="s2"> </span><span class="si">%d</span><span class="s2"> </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">panel_limits</span><span class="p">[</span><span class="n">panel_id</span><span class="p">])</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="s2">&quot;DIRECTION_OF_SEGMENT_X-AXIS= </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">panel_x_axis</span>
+                <span class="p">)</span>
 
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;DIRECTION_OF_SEGMENT_Y-AXIS= </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1"> </span><span class="si">%.5f</span><span class="s1">&#39;</span> <span class="o">%</span> \
-                      <span class="bp">self</span><span class="o">.</span><span class="n">panel_y_axis</span><span class="p">[</span><span class="n">panel_id</span><span class="p">])</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="s2">&quot;DIRECTION_OF_SEGMENT_Y-AXIS= </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2"> </span><span class="si">%.5f</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">panel_y_axis</span><span class="p">[</span><span class="n">panel_id</span><span class="p">]</span>
+                <span class="p">)</span>
 
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;SEGMENT_DISTANCE= </span><span class="si">%.3f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">panel_distance</span><span class="p">[</span><span class="n">panel_id</span><span class="p">])</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;SEGMENT_DISTANCE= </span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">panel_distance</span><span class="p">[</span><span class="n">panel_id</span><span class="p">])</span>
 
-        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;SEGMENT_ORGX= </span><span class="si">%.2f</span><span class="s1"> SEGMENT_ORGY= </span><span class="si">%.2f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">panel_origin</span><span class="p">[</span><span class="n">panel_id</span><span class="p">])</span>
-    <span class="k">return</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="s2">&quot;SEGMENT_ORGX= </span><span class="si">%.2f</span><span class="s2"> SEGMENT_ORGY= </span><span class="si">%.2f</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">panel_origin</span><span class="p">[</span><span class="n">panel_id</span><span class="p">]</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="to_xds.xparm_xds"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.xparm_xds">[docs]</a>  <span class="k">def</span> <span class="nf">xparm_xds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">real_space_a</span><span class="p">,</span> <span class="n">real_space_b</span><span class="p">,</span> <span class="n">real_space_c</span><span class="p">,</span>
-                <span class="n">space_group</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="kn">from</span> <span class="nn">cctbx</span> <span class="k">import</span> <span class="n">uctbx</span>
-    <span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagecif_to_xds_transformation_matrix</span>
-    <span class="n">unit_cell_a_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_a</span><span class="p">)</span>
-    <span class="n">unit_cell_b_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_b</span><span class="p">)</span>
-    <span class="n">unit_cell_c_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_c</span><span class="p">)</span>
-    <span class="n">A_inv</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">unit_cell_a_axis</span><span class="o">.</span><span class="n">elems</span> <span class="o">+</span>
-                       <span class="n">unit_cell_b_axis</span><span class="o">.</span><span class="n">elems</span> <span class="o">+</span>
-                       <span class="n">unit_cell_c_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
-    <span class="n">metrical_matrix</span> <span class="o">=</span> <span class="p">(</span><span class="n">A_inv</span> <span class="o">*</span> <span class="n">A_inv</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span><span class="o">.</span><span class="n">as_sym_mat3</span><span class="p">()</span>
-    <span class="n">unit_cell</span> <span class="o">=</span> <span class="n">uctbx</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(</span><span class="n">metrical_matrix</span><span class="o">=</span><span class="n">metrical_matrix</span><span class="p">)</span>
-    <span class="kn">from</span> <span class="nn">iotbx.xds</span> <span class="k">import</span> <span class="n">xparm</span>
-    <span class="n">writer</span> <span class="o">=</span> <span class="n">xparm</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">starting_frame</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">starting_angle</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">oscillation_range</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">rotation_axis</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="p">,</span>
-        <span class="n">space_group</span><span class="p">,</span>
-        <span class="n">unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span>
-        <span class="n">unit_cell_a_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
-        <span class="n">unit_cell_b_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
-        <span class="n">unit_cell_c_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
-        <span class="kc">None</span><span class="p">,</span> <span class="c1"># num_segments</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">detector_origin</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">detector_x_axis</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">detector_y_axis</span><span class="p">,</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">detector_normal</span><span class="p">,</span>
-        <span class="n">segments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">orientation</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-    <span class="n">writer</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">out</span><span class="o">=</span><span class="n">out</span><span class="p">)</span></div></div>
+<div class="viewcode-block" id="to_xds.xparm_xds"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.xds.to_xds.xparm_xds">[docs]</a>    <span class="k">def</span> <span class="nf">xparm_xds</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">real_space_a</span><span class="p">,</span> <span class="n">real_space_b</span><span class="p">,</span> <span class="n">real_space_c</span><span class="p">,</span> <span class="n">space_group</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagecif_to_xds_transformation_matrix</span>
+        <span class="n">unit_cell_a_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_a</span><span class="p">)</span>
+        <span class="n">unit_cell_b_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_b</span><span class="p">)</span>
+        <span class="n">unit_cell_c_axis</span> <span class="o">=</span> <span class="n">R</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">real_space_c</span><span class="p">)</span>
+        <span class="n">A_inv</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span>
+            <span class="n">unit_cell_a_axis</span><span class="o">.</span><span class="n">elems</span> <span class="o">+</span> <span class="n">unit_cell_b_axis</span><span class="o">.</span><span class="n">elems</span> <span class="o">+</span> <span class="n">unit_cell_c_axis</span><span class="o">.</span><span class="n">elems</span>
+        <span class="p">)</span>
+        <span class="n">metrical_matrix</span> <span class="o">=</span> <span class="p">(</span><span class="n">A_inv</span> <span class="o">*</span> <span class="n">A_inv</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span><span class="o">.</span><span class="n">as_sym_mat3</span><span class="p">()</span>
+        <span class="n">unit_cell</span> <span class="o">=</span> <span class="n">uctbx</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(</span><span class="n">metrical_matrix</span><span class="o">=</span><span class="n">metrical_matrix</span><span class="p">)</span>
+
+        <span class="n">b</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">xparm</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">starting_frame</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">starting_angle</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oscillation_range</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rotation_axis</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="p">,</span>
+            <span class="n">space_group</span><span class="p">,</span>
+            <span class="n">unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span>
+            <span class="n">unit_cell_a_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
+            <span class="n">unit_cell_b_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
+            <span class="n">unit_cell_c_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>  <span class="c1"># num_segments</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_origin</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_x_axis</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_y_axis</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_normal</span><span class="p">,</span>
+            <span class="n">segments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">orientation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">out</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="n">old</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
+        <span class="n">new</span> <span class="o">=</span> <span class="n">xparm</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">starting_frame</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">starting_angle</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oscillation_range</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rotation_axis</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">beam_vector</span><span class="p">,</span>
+            <span class="n">space_group</span><span class="p">,</span>
+            <span class="n">unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span>
+            <span class="n">unit_cell_a_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
+            <span class="n">unit_cell_b_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
+            <span class="n">unit_cell_c_axis</span><span class="o">.</span><span class="n">elems</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>  <span class="c1"># num_segments</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_size</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_origin</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_distance</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_x_axis</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_y_axis</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector_normal</span><span class="p">,</span>
+            <span class="n">segments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">orientation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">assert</span> <span class="n">old</span> <span class="o">==</span> <span class="n">new</span>
+        <span class="k">if</span> <span class="n">out</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;out= parameter is deprecated. Use return value instead&quot;</span><span class="p">,</span>
+                <span class="ne">DeprecationWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new</span></div></div>
 </pre></div>
 
           </div>
@@ -498,9 +570,9 @@
       <div class="clearer"></div>
     </div>
   <div class="footer container">
-  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
-  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
-  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../_static/LBL-logo-wide.jpeg" /></a>
   <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../_static/STFC_logo.png" /></a>
   </div>
 

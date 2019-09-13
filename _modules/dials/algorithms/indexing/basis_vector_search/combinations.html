@@ -1,0 +1,312 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.basis_vector_search.combinations &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for dials.algorithms.indexing.basis_vector_search.combinations</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="k">import</span> <span class="n">sgtbx</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Crystal</span>
+
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.symmetry</span> <span class="k">import</span> <span class="n">find_matching_symmetry</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.compare_orientation_matrices</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">difference_rotation_matrix_axis_angle</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="candidate_orientation_matrices"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.basis_vector_search.combinations.candidate_orientation_matrices">[docs]</a><span class="k">def</span> <span class="nf">candidate_orientation_matrices</span><span class="p">(</span><span class="n">basis_vectors</span><span class="p">,</span> <span class="n">max_combinations</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+    <span class="c1"># select unique combinations of input vectors to test</span>
+    <span class="c1"># the order of combinations is such that combinations comprising vectors</span>
+    <span class="c1"># nearer the beginning of the input list will appear before combinations</span>
+    <span class="c1"># comprising vectors towards the end of the list</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">basis_vectors</span><span class="p">)</span>
+    <span class="c1"># hardcoded limit on number of vectors, fixes issue #72</span>
+    <span class="c1"># https://github.com/dials/dials/issues/72</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+    <span class="n">basis_vectors</span> <span class="o">=</span> <span class="n">basis_vectors</span><span class="p">[:</span><span class="n">n</span><span class="p">]</span>
+    <span class="n">combinations</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_int</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">nested_loop</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">)))</span>
+    <span class="n">combinations</span> <span class="o">=</span> <span class="n">combinations</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">combinations</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span><span class="o">.</span><span class="n">norms</span><span class="p">())</span>
+    <span class="p">)</span>
+
+    <span class="c1"># select only those combinations where j &gt; i and k &gt; j</span>
+    <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="n">combinations</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+    <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">combinations</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="n">sel</span> <span class="o">&amp;=</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="n">i</span>
+    <span class="n">sel</span> <span class="o">&amp;=</span> <span class="n">k</span> <span class="o">&gt;</span> <span class="n">j</span>
+    <span class="n">combinations</span> <span class="o">=</span> <span class="n">combinations</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">max_combinations</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">max_combinations</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">combinations</span><span class="p">):</span>
+        <span class="n">combinations</span> <span class="o">=</span> <span class="n">combinations</span><span class="p">[:</span><span class="n">max_combinations</span><span class="p">]</span>
+
+    <span class="n">half_pi</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+    <span class="n">min_angle</span> <span class="o">=</span> <span class="mi">20</span> <span class="o">/</span> <span class="mi">180</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>  <span class="c1"># 20 degrees, arbitrary cutoff</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">combinations</span><span class="p">:</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">basis_vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">basis_vectors</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">angle</span> <span class="o">&lt;</span> <span class="n">min_angle</span> <span class="ow">or</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">-</span> <span class="n">angle</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_angle</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">a_cross_b</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gamma</span> <span class="o">&lt;</span> <span class="n">half_pi</span><span class="p">:</span>
+            <span class="c1"># all angles obtuse if possible please</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="o">-</span><span class="n">b</span>
+            <span class="n">a_cross_b</span> <span class="o">=</span> <span class="o">-</span><span class="n">a_cross_b</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">basis_vectors</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">half_pi</span> <span class="o">-</span> <span class="n">a_cross_b</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">c</span><span class="p">))</span> <span class="o">&lt;</span> <span class="n">min_angle</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">alpha</span> <span class="o">&lt;</span> <span class="n">half_pi</span><span class="p">:</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="o">-</span><span class="n">c</span>
+        <span class="k">if</span> <span class="n">a_cross_b</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># we want right-handed basis set, therefore invert all vectors</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="o">-</span><span class="n">a</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="o">-</span><span class="n">b</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="o">-</span><span class="n">c</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Crystal</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">space_group_symbol</span><span class="o">=</span><span class="s2">&quot;P 1&quot;</span><span class="p">)</span>
+        <span class="n">uc</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
+        <span class="n">cb_op_to_niggli</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">change_of_basis_op_to_niggli_cell</span><span class="p">()</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_to_niggli</span><span class="p">)</span>
+
+        <span class="n">uc</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">uc</span><span class="o">.</span><span class="n">volume</span><span class="p">()</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">params</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="mi">100</span><span class="p">):</span>
+            <span class="c1"># unit cell volume cutoff from labelit 2004 paper</span>
+            <span class="k">yield</span> <span class="n">model</span></div>
+
+
+<div class="viewcode-block" id="filter_known_symmetry"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.basis_vector_search.combinations.filter_known_symmetry">[docs]</a><span class="k">def</span> <span class="nf">filter_known_symmetry</span><span class="p">(</span>
+    <span class="n">crystal_models</span><span class="p">,</span>
+    <span class="n">target_symmetry</span><span class="p">,</span>
+    <span class="n">relative_length_tolerance</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">absolute_angle_tolerance</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">max_delta</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Filter crystal models for known symmetry.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        crystal_models (list): A list of :class:`dxtbx.model.Crystal` objects.</span>
+<span class="sd">        target_symmetry (cctbx.crystal.symmetry): The target symmetry for filtering.</span>
+<span class="sd">        relative_length_tolerance (float): Relative tolerance for unit cell lengths in</span>
+<span class="sd">            unit cell comparision (default value is 0.1).</span>
+<span class="sd">        absolute_angle_tolerance (float): Angular tolerance (in degrees) in unit cell</span>
+<span class="sd">            comparison (default value is 5).</span>
+<span class="sd">        max_delta (float): Maximum allowed Le Page delta used in searching for basis</span>
+<span class="sd">            vector combinations that are consistent with the given symmetry (default</span>
+<span class="sd">            value is 5).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">cb_op_ref_to_primitive</span> <span class="o">=</span> <span class="n">target_symmetry</span><span class="o">.</span><span class="n">change_of_basis_op_to_primitive_setting</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">target_symmetry</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">target_symmetry_primitive</span> <span class="o">=</span> <span class="n">target_symmetry</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_ref_to_primitive</span><span class="p">)</span>
+        <span class="n">target_min_cell</span> <span class="o">=</span> <span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">minimum_cell</span><span class="p">()</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">target_symmetry_primitive</span> <span class="o">=</span> <span class="n">target_symmetry</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span>
+            <span class="n">space_group_info</span><span class="o">=</span><span class="n">target_symmetry</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">()</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span>
+                <span class="n">cb_op_ref_to_primitive</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">target_min_cell</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">transformations</span> <span class="o">=</span> <span class="p">[</span><span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">()]</span>
+
+    <span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="n">crystal_models</span><span class="p">:</span>
+        <span class="n">best_model</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">T</span> <span class="ow">in</span> <span class="n">transformations</span><span class="p">:</span>
+            <span class="n">uc</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
+            <span class="n">det</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">c</span><span class="p">()</span><span class="o">.</span><span class="n">r</span><span class="p">()</span><span class="o">.</span><span class="n">determinant</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">det</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">primitive_volume</span> <span class="o">=</span> <span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">volume</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">det</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">abs</span><span class="p">(</span><span class="n">uc</span><span class="o">.</span><span class="n">volume</span><span class="p">()</span> <span class="o">/</span> <span class="n">primitive_volume</span> <span class="o">-</span> <span class="n">det</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-1</span><span class="p">:</span>
+                <span class="n">uc</span> <span class="o">=</span> <span class="n">uc</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">best_subgroup</span> <span class="o">=</span> <span class="n">find_matching_symmetry</span><span class="p">(</span>
+                <span class="n">uc</span><span class="p">,</span> <span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">space_group</span><span class="p">(),</span> <span class="n">max_delta</span><span class="o">=</span><span class="n">max_delta</span>
+            <span class="p">)</span>
+            <span class="n">cb_op_extra</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">best_subgroup</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">cb_op_ref_to_primitive</span><span class="o">.</span><span class="n">is_identity_op</span><span class="p">():</span>
+                    <span class="c1"># if we have been told we have a centred unit cell check that</span>
+                    <span class="c1"># indexing hasn&#39;t found the centred unit cell instead of the</span>
+                    <span class="c1"># primitive cell</span>
+                    <span class="n">best_subgroup</span> <span class="o">=</span> <span class="n">find_matching_symmetry</span><span class="p">(</span>
+                        <span class="n">uc</span><span class="p">,</span>
+                        <span class="n">target_symmetry</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span><span class="o">.</span><span class="n">build_derived_point_group</span><span class="p">(),</span>
+                        <span class="n">max_delta</span><span class="o">=</span><span class="n">max_delta</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">cb_op_extra</span> <span class="o">=</span> <span class="n">cb_op_ref_to_primitive</span>
+                    <span class="k">if</span> <span class="n">best_subgroup</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">continue</span>
+            <span class="n">cb_op_inp_best</span> <span class="o">=</span> <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">]</span>
+            <span class="n">best_subsym</span> <span class="o">=</span> <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;best_subsym&quot;</span><span class="p">]</span>
+            <span class="n">cb_op_best_ref</span> <span class="o">=</span> <span class="n">best_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_reference_setting</span><span class="p">()</span>
+            <span class="n">ref_subsym</span> <span class="o">=</span> <span class="n">best_subsym</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_best_ref</span><span class="p">)</span>
+            <span class="n">cb_op_ref_primitive</span> <span class="o">=</span> <span class="n">ref_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_primitive_setting</span><span class="p">()</span>
+            <span class="n">cb_op_to_primitive</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">cb_op_ref_primitive</span> <span class="o">*</span> <span class="n">cb_op_best_ref</span> <span class="o">*</span> <span class="n">cb_op_inp_best</span> <span class="o">*</span> <span class="n">T</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">cb_op_extra</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">cb_op_to_primitive</span> <span class="o">=</span> <span class="n">cb_op_extra</span> <span class="o">*</span> <span class="n">cb_op_to_primitive</span>
+            <span class="n">best_model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_to_primitive</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span>
+                <span class="n">best_model</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">is_similar_to</span><span class="p">(</span>
+                    <span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span>
+                    <span class="n">relative_length_tolerance</span><span class="o">=</span><span class="n">relative_length_tolerance</span><span class="p">,</span>
+                    <span class="n">absolute_angle_tolerance</span><span class="o">=</span><span class="n">absolute_angle_tolerance</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="ow">or</span> <span class="n">best_model</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
+                <span class="o">.</span><span class="n">minimum_cell</span><span class="p">()</span>
+                <span class="o">.</span><span class="n">is_similar_to</span><span class="p">(</span>
+                    <span class="n">target_min_cell</span><span class="p">,</span>
+                    <span class="n">relative_length_tolerance</span><span class="o">=</span><span class="n">relative_length_tolerance</span><span class="p">,</span>
+                    <span class="n">absolute_angle_tolerance</span><span class="o">=</span><span class="n">absolute_angle_tolerance</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">):</span>
+                <span class="n">best_model</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="k">if</span> <span class="n">best_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">best_model</span></div>
+
+
+<div class="viewcode-block" id="filter_similar_orientations"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.basis_vector_search.combinations.filter_similar_orientations">[docs]</a><span class="k">def</span> <span class="nf">filter_similar_orientations</span><span class="p">(</span>
+    <span class="n">crystal_models</span><span class="p">,</span> <span class="n">other_crystal_models</span><span class="p">,</span> <span class="n">minimum_angular_separation</span><span class="o">=</span><span class="mi">5</span>
+<span class="p">):</span>
+    <span class="k">for</span> <span class="n">cryst</span> <span class="ow">in</span> <span class="n">crystal_models</span><span class="p">:</span>
+        <span class="n">orientation_too_similar</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">i_a</span><span class="p">,</span> <span class="n">cryst_a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">other_crystal_models</span><span class="p">):</span>
+            <span class="n">R_ab</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="n">cb_op_ab</span> <span class="o">=</span> <span class="n">difference_rotation_matrix_axis_angle</span><span class="p">(</span>
+                <span class="n">cryst_a</span><span class="p">,</span> <span class="n">cryst</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">minimum_angular_separation</span><span class="p">:</span>  <span class="c1"># degrees</span>
+                <span class="n">orientation_too_similar</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="n">orientation_too_similar</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;skipping crystal: too similar to other crystals&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">yield</span> <span class="n">cryst</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2019, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

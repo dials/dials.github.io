@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -10,23 +11,24 @@
     <title>dxtbx.model.scan &#8212; DIALS  documentation</title>
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/button.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/button.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/dials-styles.css" />
     <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -45,8 +47,6 @@
   </div>
   
 
-
-
   
 
     <div class="document">
@@ -57,260 +57,261 @@
           <div class="body" role="main">
             
   <h1>Source code for dxtbx.model.scan</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
-<span class="c1">#!/usr/bin/env python</span>
-<span class="c1"># scan.py</span>
-<span class="c1">#   Copyright (C) 2011 Diamond Light Source, Graeme Winter</span>
-<span class="c1">#</span>
-<span class="c1">#   This code is distributed under the BSD license, a copy of which is</span>
-<span class="c1">#   included in the root directory of this package.</span>
-<span class="c1">#</span>
-<span class="c1"># A model for the scan for the &quot;updated experimental model&quot; project documented</span>
-<span class="c1"># in internal ticket #1555. This is not designed to be used outside of the</span>
-<span class="c1"># XSweep classes.</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">builtins</span> <span class="k">import</span> <span class="nb">object</span><span class="p">,</span> <span class="nb">range</span>
+
+<span class="kn">import</span> <span class="nn">libtbx.phil</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
 
 <span class="kn">import</span> <span class="nn">pycbf</span>
-<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model.scan_helpers</span> <span class="k">import</span> <span class="n">scan_helper_image_files</span><span class="p">,</span> <span class="n">scan_helper_image_formats</span>
 <span class="kn">from</span> <span class="nn">dxtbx_model_ext</span> <span class="k">import</span> <span class="n">Scan</span>
 
-<span class="kn">from</span> <span class="nn">dxtbx.model.scan_helpers</span> <span class="k">import</span> <span class="n">scan_helper_image_files</span>
-<span class="kn">from</span> <span class="nn">dxtbx.model.scan_helpers</span> <span class="k">import</span> <span class="n">scan_helper_image_formats</span>
-<span class="kn">import</span> <span class="nn">libtbx.phil</span>
+<span class="n">scan_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  scan</span>
+<span class="sd">    .expert_level = 1</span>
+<span class="sd">    .short_caption = &quot;Scan overrides&quot;</span>
+<span class="sd">  {</span>
 
-<span class="n">scan_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
-<span class="s1">  scan</span>
-<span class="s1">    .expert_level = 1</span>
-<span class="s1">    .short_caption = &quot;Scan overrides&quot;</span>
-<span class="s1">  {</span>
+<span class="sd">    image_range = None</span>
+<span class="sd">      .type = ints(size=2)</span>
+<span class="sd">      .help = &quot;Override the image range&quot;</span>
+<span class="sd">      .short_caption = &quot;Image range&quot;</span>
 
-<span class="s1">    image_range = None</span>
-<span class="s1">      .type = ints(size=2)</span>
-<span class="s1">      .help = &quot;Override the image range&quot;</span>
-<span class="s1">      .short_caption = &quot;Image range&quot;</span>
+<span class="sd">    extrapolate_scan = False</span>
+<span class="sd">      .type = bool</span>
+<span class="sd">      .help = &quot;When overriding the image range, extrapolate exposure and epoch information from existing images&quot;</span>
+<span class="sd">      .short_caption = &quot;Extrapolate scan&quot;</span>
 
-<span class="s1">    extrapolate_scan = False</span>
-<span class="s1">      .type = bool</span>
-<span class="s1">      .help = &quot;When overriding the image range, extrapolate exposure and epoch information from existing images&quot;</span>
-<span class="s1">      .short_caption = &quot;Extrapolate scan&quot;</span>
+<span class="sd">    oscillation = None</span>
+<span class="sd">      .type = floats(size=2)</span>
+<span class="sd">      .help = &quot;Override the image oscillation&quot;</span>
+<span class="sd">      .short_caption = &quot;Oscillation&quot;</span>
 
-<span class="s1">    oscillation = None</span>
-<span class="s1">      .type = floats(size=2)</span>
-<span class="s1">      .help = &quot;Override the image oscillation&quot;</span>
-<span class="s1">      .short_caption = &quot;Oscillation&quot;</span>
+<span class="sd">    batch_offset = None</span>
+<span class="sd">      .type = int(value_min=0)</span>
+<span class="sd">      .help = &quot;Override the batch offset&quot;</span>
+<span class="sd">      .short_caption = &quot;Batch offset&quot;</span>
+<span class="sd">  }</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="p">)</span>
 
-<span class="s1">    batch_offset = None</span>
-<span class="s1">      .type = int(value_min=0)</span>
-<span class="s1">      .help = &quot;Override the batch offset&quot;</span>
-<span class="s1">      .short_caption = &quot;Batch offset&quot;</span>
-<span class="s1">  }</span>
-<span class="s1">&#39;&#39;&#39;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="ScanFactory"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory">[docs]</a><span class="k">class</span> <span class="nc">ScanFactory</span><span class="p">:</span>
-  <span class="sd">&#39;&#39;&#39;A factory for scan instances, to help with constructing the classes</span>
-<span class="sd">  in a set of common circumstances.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="ScanFactory"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory">[docs]</a><span class="k">class</span> <span class="nc">ScanFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A factory for scan instances, to help with constructing the classes</span>
+<span class="sd">    in a set of common circumstances.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ScanFactory.from_phil"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.from_phil">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Generate a scan model from phil parameters</span>
+<div class="viewcode-block" id="ScanFactory.from_phil"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.from_phil">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a scan model from phil parameters</span>
 
-<span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">None</span>
-      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;No image range set&#39;</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;No oscillation set&#39;</span><span class="p">)</span>
-      <span class="n">scan</span> <span class="o">=</span> <span class="n">Scan</span><span class="p">(</span>
-        <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">,</span>
-        <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="n">scan</span> <span class="o">=</span> <span class="n">reference</span>
-
-      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">most_recent_image_index</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">scan</span><span class="o">.</span><span class="n">set_oscillation</span><span class="p">(</span>
-          <span class="n">scan</span><span class="o">.</span><span class="n">get_image_oscillation</span><span class="p">(</span>
-            <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
-        <span class="n">scan</span><span class="o">.</span><span class="n">set_image_range</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">extrapolate_scan</span> <span class="ow">and</span> \
-            <span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">most_recent_image_index</span><span class="p">:</span>
-          <span class="n">exposure_times</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_exposure_times</span><span class="p">()</span>
-          <span class="n">epochs</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_epochs</span><span class="p">()</span>
-          <span class="n">exposure_time</span> <span class="o">=</span> <span class="n">exposure_times</span><span class="p">[</span><span class="n">most_recent_image_index</span><span class="p">]</span>
-          <span class="n">epoch_correction</span> <span class="o">=</span> <span class="n">epochs</span><span class="p">[</span><span class="n">most_recent_image_index</span><span class="p">]</span>
-          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">most_recent_image_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> \
-              <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-            <span class="n">exposure_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">exposure_time</span>
-            <span class="n">epoch_correction</span> <span class="o">+=</span> <span class="n">exposure_time</span>
-            <span class="n">epochs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">epoch_correction</span>
-          <span class="n">scan</span><span class="o">.</span><span class="n">set_epochs</span><span class="p">(</span><span class="n">epochs</span><span class="p">)</span>
-          <span class="n">scan</span><span class="o">.</span><span class="n">set_exposure_times</span><span class="p">(</span><span class="n">exposure_times</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">scan</span><span class="o">.</span><span class="n">set_oscillation</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">batch_offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-      <span class="n">scan</span><span class="o">.</span><span class="n">set_batch_offset</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">batch_offset</span><span class="p">)</span>
-
-    <span class="c1"># Return the model</span>
-    <span class="k">return</span> <span class="n">scan</span></div>
-
-<div class="viewcode-block" id="ScanFactory.from_dict"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.from_dict">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39; Convert the dictionary to a scan model</span>
-
-<span class="sd">    Params:</span>
-<span class="sd">        d The dictionary of parameters</span>
-<span class="sd">        t The template dictionary to use</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        The scan model</span>
-
-<span class="sd">    &#39;&#39;&#39;</span>
-    <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Scan</span>
-    <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span> <span class="c1"># import dependency</span>
-
-    <span class="c1"># If None, return None</span>
-    <span class="k">if</span> <span class="n">d</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
-      <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="k">return</span> <span class="kc">None</span>
-      <span class="k">else</span><span class="p">:</span> <span class="k">return</span> <span class="n">from_dict</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">t</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
-      <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="o">+</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;exposure_time&#39;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
-      <span class="n">d</span><span class="p">[</span><span class="s1">&#39;exposure_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;exposure_time&#39;</span><span class="p">]]</span>
-
-    <span class="n">d</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;batch_offset&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="c1"># backwards compatibility 20180205</span>
-    <span class="k">if</span> <span class="s1">&#39;valid_image_ranges&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
-      <span class="n">d</span><span class="p">[</span><span class="s1">&#39;valid_image_ranges&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span> <span class="c1"># backwards compatibility 20181113</span>
-    <span class="c1"># Create the model from the dictionary</span>
-    <span class="k">return</span> <span class="n">Scan</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="ScanFactory.make_scan"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.make_scan">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">make_scan</span><span class="p">(</span><span class="n">image_range</span><span class="p">,</span> <span class="n">exposure_times</span><span class="p">,</span> <span class="n">oscillation</span><span class="p">,</span> <span class="n">epochs</span><span class="p">,</span>
-                <span class="n">batch_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-    <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exposure_times</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-      <span class="n">num_images</span> <span class="o">=</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
-      <span class="n">exposure_times</span> <span class="o">=</span> <span class="p">[</span><span class="n">exposure_times</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_images</span><span class="p">)]</span>
-    <span class="k">else</span><span class="p">:</span>
-      <span class="n">num_images</span> <span class="o">=</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
-      <span class="n">num_exp</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">exposure_times</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">num_exp</span> <span class="o">!=</span> <span class="n">num_images</span><span class="p">:</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">num_exp</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
-          <span class="n">exposure_times</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_images</span><span class="p">)]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No image range set&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No oscillation set&quot;</span><span class="p">)</span>
+            <span class="n">scan</span> <span class="o">=</span> <span class="n">Scan</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">,</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-          <span class="n">exposure_times</span> <span class="o">=</span> <span class="n">exposure_times</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">exposure_times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_images</span> <span class="o">-</span> <span class="n">num_exp</span><span class="p">)])</span>
+            <span class="n">scan</span> <span class="o">=</span> <span class="n">reference</span>
 
-    <span class="n">epoch_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">epochs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">epochs</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">most_recent_image_index</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="n">scan</span><span class="o">.</span><span class="n">set_oscillation</span><span class="p">(</span>
+                    <span class="n">scan</span><span class="o">.</span><span class="n">get_image_oscillation</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="p">)</span>
+                <span class="n">scan</span><span class="o">.</span><span class="n">set_image_range</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">extrapolate_scan</span>
+                    <span class="ow">and</span> <span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="o">&gt;</span> <span class="n">most_recent_image_index</span>
+                <span class="p">):</span>
+                    <span class="n">exposure_times</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_exposure_times</span><span class="p">()</span>
+                    <span class="n">epochs</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_epochs</span><span class="p">()</span>
+                    <span class="n">exposure_time</span> <span class="o">=</span> <span class="n">exposure_times</span><span class="p">[</span><span class="n">most_recent_image_index</span><span class="p">]</span>
+                    <span class="n">epoch_correction</span> <span class="o">=</span> <span class="n">epochs</span><span class="p">[</span><span class="n">most_recent_image_index</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span>
+                        <span class="n">most_recent_image_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                        <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="p">):</span>
+                        <span class="n">exposure_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">exposure_time</span>
+                        <span class="n">epoch_correction</span> <span class="o">+=</span> <span class="n">exposure_time</span>
+                        <span class="n">epochs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">epoch_correction</span>
+                    <span class="n">scan</span><span class="o">.</span><span class="n">set_epochs</span><span class="p">(</span><span class="n">epochs</span><span class="p">)</span>
+                    <span class="n">scan</span><span class="o">.</span><span class="n">set_exposure_times</span><span class="p">(</span><span class="n">exposure_times</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">scan</span><span class="o">.</span><span class="n">set_oscillation</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">Scan</span><span class="p">(</span>
-        <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">image_range</span><span class="p">)),</span>
-        <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">oscillation</span><span class="p">)),</span>
-        <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">exposure_times</span><span class="p">))),</span>
-        <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">epoch_list</span><span class="p">))),</span>
-        <span class="n">batch_offset</span><span class="p">,</span>
-        <span class="n">deg</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">batch_offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">scan</span><span class="o">.</span><span class="n">set_batch_offset</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">batch_offset</span><span class="p">)</span>
 
-<div class="viewcode-block" id="ScanFactory.single"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.single">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">single</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">exposure_times</span><span class="p">,</span> <span class="n">osc_start</span><span class="p">,</span> <span class="n">osc_width</span><span class="p">,</span> <span class="n">epoch</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Construct an scan instance for a single image.&#39;&#39;&#39;</span>
+        <span class="c1"># Return the model</span>
+        <span class="k">return</span> <span class="n">scan</span></div>
 
-    <span class="kn">import</span> <span class="nn">os</span>
-    <span class="n">index</span> <span class="o">=</span> <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">image_to_index</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-    <span class="k">if</span> <span class="n">epoch</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-      <span class="n">epoch</span> <span class="o">=</span> <span class="mf">0.0</span>
-    <span class="k">return</span> <span class="n">ScanFactory</span><span class="o">.</span><span class="n">make_scan</span><span class="p">(</span>
-                <span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span> <span class="n">exposure_times</span><span class="p">,</span> <span class="p">(</span><span class="n">osc_start</span><span class="p">,</span> <span class="n">osc_width</span><span class="p">),</span>
-                <span class="p">{</span><span class="n">index</span><span class="p">:</span><span class="n">epoch</span><span class="p">})</span></div>
+<div class="viewcode-block" id="ScanFactory.from_dict"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.from_dict">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Convert the dictionary to a scan model</span>
 
-<div class="viewcode-block" id="ScanFactory.imgCIF"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.imgCIF">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">imgCIF</span><span class="p">(</span><span class="n">cif_file</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Initialize a scan model from an imgCIF file.&#39;&#39;&#39;</span>
+<span class="sd">        Params:</span>
+<span class="sd">            d The dictionary of parameters</span>
+<span class="sd">            t The template dictionary to use</span>
 
-    <span class="n">cbf_handle</span> <span class="o">=</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">cbf_handle_struct</span><span class="p">()</span>
-    <span class="n">cbf_handle</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">MSG_DIGEST</span><span class="p">)</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            The scan model</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">d</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">joint</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="n">t</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">ScanFactory</span><span class="o">.</span><span class="n">imgCIF_H</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">cbf_handle</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">joint</span><span class="p">[</span><span class="s2">&quot;exposure_time&quot;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">joint</span><span class="p">[</span><span class="s2">&quot;exposure_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">joint</span><span class="p">[</span><span class="s2">&quot;exposure_time&quot;</span><span class="p">]]</span>
+        <span class="n">joint</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;batch_offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># backwards compatibility 20180205</span>
+        <span class="n">joint</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;valid_image_ranges&quot;</span><span class="p">,</span> <span class="p">{})</span>  <span class="c1"># backwards compatibility 20181113</span>
 
-<div class="viewcode-block" id="ScanFactory.imgCIF_H"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.imgCIF_H">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">imgCIF_H</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">cbf_handle</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Initialize a scan model from an imgCIF file handle, where it is</span>
-<span class="sd">    assumed that the file has already been read.&#39;&#39;&#39;</span>
+        <span class="c1"># Create the model from the joint dictionary</span>
+        <span class="k">return</span> <span class="n">Scan</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span></div>
 
-    <span class="n">exposure</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_integration_time</span><span class="p">()</span>
-    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_timestamp</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+<div class="viewcode-block" id="ScanFactory.make_scan"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.make_scan">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_scan</span><span class="p">(</span>
+        <span class="n">image_range</span><span class="p">,</span> <span class="n">exposure_times</span><span class="p">,</span> <span class="n">oscillation</span><span class="p">,</span> <span class="n">epochs</span><span class="p">,</span> <span class="n">batch_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exposure_times</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">num_images</span> <span class="o">=</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">exposure_times</span> <span class="o">=</span> <span class="p">[</span><span class="n">exposure_times</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_images</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">num_images</span> <span class="o">=</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">num_exp</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">exposure_times</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">num_exp</span> <span class="o">!=</span> <span class="n">num_images</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">num_exp</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">exposure_times</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_images</span><span class="p">)]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">exposure_times</span> <span class="o">=</span> <span class="n">exposure_times</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                        <span class="p">[</span><span class="n">exposure_times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_images</span> <span class="o">-</span> <span class="n">num_exp</span><span class="p">)]</span>
+                    <span class="p">)</span>
 
-    <span class="n">gonio</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">construct_goniometer</span><span class="p">()</span>
-    <span class="k">try</span><span class="p">:</span>
-      <span class="n">angles</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">gonio</span><span class="o">.</span><span class="n">get_rotation_range</span><span class="p">())</span>
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-      <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;CBFlib Error(s): CBF_NOTFOUND&#39;</span><span class="p">:</span>
-        <span class="c1"># probaby a still shot -&gt; no scan object</span>
-        <span class="k">return</span> <span class="kc">None</span>
-      <span class="k">raise</span>
+        <span class="n">epoch_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">epochs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">epochs</span><span class="p">)]</span>
 
-    <span class="c1"># xia2-56 handle gracefully reverse turning goniometers - this assumes the</span>
-    <span class="c1"># rotation axis is correctly inverted in the goniometer factory</span>
-    <span class="k">if</span> <span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-      <span class="n">angles</span> <span class="o">=</span> <span class="o">-</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">Scan</span><span class="p">(</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">image_range</span><span class="p">)),</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">oscillation</span><span class="p">)),</span>
+            <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">exposure_times</span><span class="p">))),</span>
+            <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">epoch_list</span><span class="p">))),</span>
+            <span class="n">batch_offset</span><span class="p">,</span>
+            <span class="n">deg</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
-    <span class="n">index</span> <span class="o">=</span> <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">image_to_index</span><span class="p">(</span><span class="n">cif_file</span><span class="p">)</span>
+<div class="viewcode-block" id="ScanFactory.single"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.single">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">single</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">exposure_times</span><span class="p">,</span> <span class="n">osc_start</span><span class="p">,</span> <span class="n">osc_width</span><span class="p">,</span> <span class="n">epoch</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Construct an scan instance for a single image.&quot;&quot;&quot;</span>
 
-    <span class="n">gonio</span><span class="o">.</span><span class="n">__swig_destroy__</span><span class="p">(</span><span class="n">gonio</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">image_to_index</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">epoch</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">epoch</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">return</span> <span class="n">ScanFactory</span><span class="o">.</span><span class="n">make_scan</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span> <span class="n">exposure_times</span><span class="p">,</span> <span class="p">(</span><span class="n">osc_start</span><span class="p">,</span> <span class="n">osc_width</span><span class="p">),</span> <span class="p">{</span><span class="n">index</span><span class="p">:</span> <span class="n">epoch</span><span class="p">}</span>
+        <span class="p">)</span></div>
 
-    <span class="k">return</span> <span class="n">ScanFactory</span><span class="o">.</span><span class="n">make_scan</span><span class="p">(</span>
-        <span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span> <span class="n">exposure</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="p">{</span><span class="n">index</span><span class="p">:</span><span class="n">timestamp</span><span class="p">})</span></div>
+<div class="viewcode-block" id="ScanFactory.imgCIF"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.imgCIF">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">imgCIF</span><span class="p">(</span><span class="n">cif_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize a scan model from an imgCIF file.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ScanFactory.add"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.add">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">scans</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Sum a list of scans wrapping the sligtly clumsy idiomatic method:</span>
-<span class="sd">    sum(scans[1:], scans[0]).&#39;&#39;&#39;</span>
-    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">scans</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">scans</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+        <span class="n">cbf_handle</span> <span class="o">=</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">cbf_handle_struct</span><span class="p">()</span>
+        <span class="n">cbf_handle</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">MSG_DIGEST</span><span class="p">)</span>
 
-<div class="viewcode-block" id="ScanFactory.search"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.search">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">search</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Get a list of files which appear to match the template and</span>
-<span class="sd">    directory implied by the input filename. This could well be used</span>
-<span class="sd">    to get a list of image headers to read and hence construct scans</span>
-<span class="sd">    from.&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">ScanFactory</span><span class="o">.</span><span class="n">imgCIF_H</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">cbf_handle</span><span class="p">)</span></div>
 
-    <span class="n">template</span><span class="p">,</span> <span class="n">directory</span> <span class="o">=</span> \
-              <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">image_to_template_directory</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+<div class="viewcode-block" id="ScanFactory.imgCIF_H"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.imgCIF_H">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">imgCIF_H</span><span class="p">(</span><span class="n">cif_file</span><span class="p">,</span> <span class="n">cbf_handle</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize a scan model from an imgCIF file handle, where it is</span>
+<span class="sd">        assumed that the file has already been read.&quot;&quot;&quot;</span>
 
-    <span class="n">indices</span> <span class="o">=</span> <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">template_directory_to_indices</span><span class="p">(</span>
-        <span class="n">template</span><span class="p">,</span> <span class="n">directory</span><span class="p">)</span>
+        <span class="n">exposure</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_integration_time</span><span class="p">()</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_timestamp</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
 
-    <span class="k">return</span> <span class="p">[</span><span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">template_directory_index_to_image</span><span class="p">(</span>
-        <span class="n">template</span><span class="p">,</span> <span class="n">directory</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span></div>
+        <span class="n">gonio</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">construct_goniometer</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">angles</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">gonio</span><span class="o">.</span><span class="n">get_rotation_range</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;CBFlib Error(s): CBF_NOTFOUND&quot;</span><span class="p">:</span>
+                <span class="c1"># probaby a still shot -&gt; no scan object</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">raise</span>
 
-<div class="viewcode-block" id="ScanFactory.format"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.format">[docs]</a>  <span class="nd">@staticmethod</span>
-  <span class="k">def</span> <span class="nf">format</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Return the correct format token for a given name, for example:</span>
+        <span class="c1"># xia2-56 handle gracefully reverse turning goniometers - this assumes the</span>
+        <span class="c1"># rotation axis is correctly inverted in the goniometer factory</span>
+        <span class="k">if</span> <span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">angles</span> <span class="o">=</span> <span class="o">-</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 
-<span class="sd">    cbf, CBF</span>
-<span class="sd">    smv, SMV</span>
-<span class="sd">    tiff, tif, TIFF</span>
-<span class="sd">    raxis, RAXIS</span>
-<span class="sd">    mar, MAR</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">image_to_index</span><span class="p">(</span><span class="n">cif_file</span><span class="p">)</span>
 
-<span class="sd">    to the appropriate static token which will be used as a handle</span>
-<span class="sd">    everywhere else in this.&#39;&#39;&#39;</span>
+        <span class="n">gonio</span><span class="o">.</span><span class="n">__swig_destroy__</span><span class="p">(</span><span class="n">gonio</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;CBF&#39;</span><span class="p">:</span>
-      <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_CBF</span>
-    <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;SMV&#39;</span><span class="p">:</span>
-      <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_SMV</span>
-    <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;TIF&#39;</span> <span class="ow">or</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;TIFF&#39;</span><span class="p">:</span>
-      <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_TIFF</span>
-    <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;RAXIS&#39;</span><span class="p">:</span>
-      <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_RAXIS</span>
-    <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;MAR&#39;</span><span class="p">:</span>
-      <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_MAR</span>
+        <span class="k">return</span> <span class="n">ScanFactory</span><span class="o">.</span><span class="n">make_scan</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span> <span class="n">exposure</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="p">{</span><span class="n">index</span><span class="p">:</span> <span class="n">timestamp</span><span class="p">}</span>
+        <span class="p">)</span></div>
 
-    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;name </span><span class="si">%s</span><span class="s1"> not known&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span></div></div>
+<div class="viewcode-block" id="ScanFactory.add"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.add">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">scans</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sum a list of scans wrapping the sligtly clumsy idiomatic method:</span>
+<span class="sd">        sum(scans[1:], scans[0]).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">scans</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">scans</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="ScanFactory.search"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.search">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">search</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a list of files which appear to match the template and</span>
+<span class="sd">        directory implied by the input filename. This could well be used</span>
+<span class="sd">        to get a list of image headers to read and hence construct scans</span>
+<span class="sd">        from.&quot;&quot;&quot;</span>
+
+        <span class="n">template</span><span class="p">,</span> <span class="n">directory</span> <span class="o">=</span> <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">image_to_template_directory</span><span class="p">(</span>
+            <span class="n">filename</span>
+        <span class="p">)</span>
+
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">template_directory_to_indices</span><span class="p">(</span>
+            <span class="n">template</span><span class="p">,</span> <span class="n">directory</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">scan_helper_image_files</span><span class="o">.</span><span class="n">template_directory_index_to_image</span><span class="p">(</span>
+                <span class="n">template</span><span class="p">,</span> <span class="n">directory</span><span class="p">,</span> <span class="n">index</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span>
+        <span class="p">]</span></div>
+
+<div class="viewcode-block" id="ScanFactory.format"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.format">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">format</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the correct format token for a given name, for example:</span>
+
+<span class="sd">        cbf, CBF</span>
+<span class="sd">        smv, SMV</span>
+<span class="sd">        tiff, tif, TIFF</span>
+<span class="sd">        raxis, RAXIS</span>
+<span class="sd">        mar, MAR</span>
+
+<span class="sd">        to the appropriate static token which will be used as a handle</span>
+<span class="sd">        everywhere else in this.&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;CBF&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_CBF</span>
+        <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;SMV&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_SMV</span>
+        <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;TIF&quot;</span> <span class="ow">or</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;TIFF&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_TIFF</span>
+        <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;RAXIS&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_RAXIS</span>
+        <span class="k">elif</span> <span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;MAR&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scan_helper_image_formats</span><span class="o">.</span><span class="n">FORMAT_MAR</span>
+
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;name </span><span class="si">%s</span><span class="s2"> not known&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span></div></div>
 </pre></div>
 
           </div>
@@ -338,9 +339,9 @@
       <div class="clearer"></div>
     </div>
   <div class="footer container">
-  <a href="http://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
-  <a href="http://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
-  <a href="http://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../_static/LBL-logo-wide.jpeg" /></a>
   <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../_static/STFC_logo.png" /></a>
   </div>
 
