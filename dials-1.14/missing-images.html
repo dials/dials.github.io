@@ -1,0 +1,162 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Processing Sweeps with Missing Images &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="_static/dials-styles.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="User guide for scaling data with DIALS" href="dials_scale_user_guide.html" />
+    <link rel="prev" title="DIALS How-To guides" href="howto.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="index.html">
+  <img class="logoheader" alt="DIALS" src="_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <div class="seealso">
+    This documentation page refers to a previous release of DIALS (1.14).<br/>
+    <a href="index.html/../../missing-images.html">Click here to go to the corresponding page for the latest version of DIALS</a><br/>
+  </div>
+  <div class="section" id="processing-sweeps-with-missing-images">
+<h1>Processing Sweeps with Missing Images<a class="headerlink" href="#processing-sweeps-with-missing-images" title="Permalink to this headline">¶</a></h1>
+<p>DIALS treats sweeps as a contiguous set of rotation images, and in some circumstances deviations from this will cause problems. A clear example of this is having one or more “bad” images in your data set - simply removing them <em>will not</em> be enough to allow processing to complete smoothly.</p>
+<div class="section" id="importing">
+<h2>Importing<a class="headerlink" href="#importing" title="Permalink to this headline">¶</a></h2>
+<p>Importing the images with <code class="docutils literal notranslate"><span class="pre">template=blah_####.cbf</span></code> will not work, as this checks for continuous images, and it will be necessary to use <code class="docutils literal notranslate"><span class="pre">allow_multiple_sweeps=true</span></code>. After this, finding spots and indexing work as usual, but with multiple imagesets.</p>
+</div>
+<div class="section" id="refinement">
+<h2>Refinement<a class="headerlink" href="#refinement" title="Permalink to this headline">¶</a></h2>
+<p>Refinement <em>without</em> <code class="docutils literal notranslate"><span class="pre">scan_varying=true</span></code> will work fine, but following that, scan varying refinement will fail with an error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Sorry</span><span class="p">:</span> <span class="n">A</span> <span class="n">single</span> <span class="n">scan</span><span class="o">-</span><span class="n">varying</span> <span class="n">crystal</span> <span class="n">model</span> <span class="n">cannot</span> <span class="n">be</span> <span class="n">refined</span> <span class="n">when</span> <span class="n">associated</span> <span class="k">with</span> <span class="n">more</span> <span class="n">than</span> <span class="n">one</span> <span class="n">scan</span> <span class="ow">or</span> <span class="n">goniometer</span>
+</pre></div>
+</div>
+<p>The issue here is that scan-varying refinement requires that each crystal being refined is associated with a single scan. In our case, we have a single crystal model from indexing, but this is associated with multiple scans. To proceed, we can split the experiment list into individual files. This breaks the sharing of models between experiments by making copies of each model for each file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">split_experiments</span> <span class="n">indexed</span><span class="o">.</span><span class="n">pickle</span> <span class="n">experiments</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>From this point, we could process each block as per the usual tutorial instructions (ideally in separate directories). However, this will refine the beam and the detector, which <em>should</em> be shared, separately for each process. A better way to proceed would be to recombine the experiments as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">combine_experiments</span> <span class="n">experiments_</span><span class="o">*.</span><span class="n">json</span> <span class="n">reflections_</span><span class="o">*.</span><span class="n">pickle</span> \
+  <span class="n">reference_from_experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">=</span><span class="mi">0</span> \
+  <span class="n">reference_from_experiment</span><span class="o">.</span><span class="n">detector</span><span class="o">=</span><span class="mi">0</span> \
+  <span class="n">reference_from_experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">=</span><span class="mi">0</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">reference_from_experiment</span></code> options tells <code class="docutils literal notranslate"><span class="pre">dials.combine_experiments</span></code> to take the goniometer, detector and beam models only from the first experiment (although any would have done as these are merely copies of each other). The resulting <code class="docutils literal notranslate"><span class="pre">combined_experiments.json</span></code> file has a separate (but identical) crystal model for each scan, alongside shared goniometer, detector and beam models. Scan-varying refinement and integration can now proceed as usual:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">refine</span> <span class="n">combined_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">combined_reflections</span><span class="o">.</span><span class="n">pickle</span> <span class="n">scan_varying</span><span class="o">=</span><span class="n">true</span>
+<span class="n">dials</span><span class="o">.</span><span class="n">integrate</span> <span class="n">refined_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">refined</span><span class="o">.</span><span class="n">pickle</span> <span class="n">nproc</span><span class="o">=</span><span class="mi">4</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="export">
+<h2>Export<a class="headerlink" href="#export" title="Permalink to this headline">¶</a></h2>
+<p>Currently, <code class="docutils literal notranslate"><span class="pre">dials.export</span></code> will not allow MTZ export of the multiple-experiment integration, but we can rely on <code class="docutils literal notranslate"><span class="pre">dials.split_experiments</span></code> again:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>dials.split_experiments integrated_experiments.json integrated.pickle
+i=0
+for e in $(ls experiments_*.json)
+do
+  r=reflections_$i.pickle
+  echo &quot;dials.export $e $r mtz.hklout=integrated_$i.mtz&quot;
+  ((i++))
+done
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2019, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

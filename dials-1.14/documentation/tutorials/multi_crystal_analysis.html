@@ -1,0 +1,1162 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Multi-crystal analysis with DIALS and BLEND &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/dials-styles.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Refining multi-tile detector metrology with DIALS" href="metrology_corrections.html" />
+    <link rel="prev" title="Using DIALS at Diamond Light Source" href="diamond.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <div class="seealso">
+    This documentation page refers to a previous release of DIALS (1.14).<br/>
+    <a href="../../index.html/../../documentation/tutorials/multi_crystal_analysis.html">Click here to go to the corresponding page for the latest version of DIALS</a><br/>
+  </div>
+  <div class="section" id="multi-crystal-analysis-with-dials-and-blend">
+<h1>Multi-crystal analysis with DIALS and BLEND<a class="headerlink" href="#multi-crystal-analysis-with-dials-and-blend" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="http://www.ccp4.ac.uk/html/blend.html">BLEND</a> is a CCP4 program for analysis of multiple data sets. It attempts to
+identify isomorphous clusters that may be scaled and merged together to form a
+more complete multi-crystal dataset. Clustering in blend is based on the refined
+cell parameters from integration, so it is important that these are determined
+accurately. Unfortunately, for narrow wedges of data (where BLEND is most
+useful) cell refinement may be complicated by issues such as the high
+correlation between e.g. the detector distance and the cell volume.</p>
+<p>One solution is to fix detector parameters during cell refinement so that the
+detector is the same for every dataset processed. However, this is only feasible
+if an accurate detector model is determined ahead of time, which might require
+the use of a well-diffracting sacrificial crystal. If we only have the narrow
+wedges of data available then it is more complicated to determine what the best
+detector model would be to fix.</p>
+<p>If we can make the assumption that the beam and detector <em>did not move</em> during
+and between all of the datasets we collected then we can use DIALS joint
+refinement to refine all of the crystal cells <em>at the same time</em>, simultaneously
+with shared detector and beam models.</p>
+<p>In this tutorial, we will attempt to do that for 73 sweeps of data collected
+from crystals of TehA, a well-diffracting integral membrane protein measured
+using <em>in situ</em> diffraction from crystallisation plates at room temperature.
+Each sweep provides between 4 and 10 degrees of data.</p>
+<p>This tutorial is relatively advanced in that it requires high level scripting
+of the DIALS command line programs, however candidate scripts are provided and
+the tutorial will hopefully be easy enough to follow.</p>
+</div>
+<div class="section" id="individual-processing">
+<h2>Individual processing<a class="headerlink" href="#individual-processing" title="Permalink to this headline">¶</a></h2>
+<p>We start with a directory full of images. It is easy enough to figure out
+which files belong with which sweep from the filename templates, however note
+that the pattern between templates is not totally consistent. Most of the sweeps
+start with the prefix <code class="samp docutils literal notranslate"><span class="pre">xtal</span></code>, but some have just <code class="samp docutils literal notranslate"><span class="pre">xta</span></code>. One way of
+getting around this annoyance would be to use the fact that each dataset has
+a single <code class="samp docutils literal notranslate"><span class="pre">*.log</span></code> file associated with it and identify the different
+datasets that way. However, we would prefer to come up with a protocol that
+would work more generally, not just for the TehA data. Happily we  can just
+let DIALS figure it out for us:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>dials.import /path/to/TehA/*.cbf
+
+The following parameters have been modified:
+
+input {
+  datablock = &lt;image files&gt;
+}
+
+--------------------------------------------------------------------------------
+DataBlock 0
+  format: &lt;class &#39;dxtbx.format.FormatCBFMiniPilatus.FormatCBFMiniPilatus&#39;&gt;
+  num images: 2711
+  num sweeps: 73
+  num stills: 0
+--------------------------------------------------------------------------------
+Writing datablocks to datablock.json
+</pre></div>
+</div>
+<p>With a single command we have determined that there are 73 individual sweeps
+comprising 2711 total images. Running the following command will give us
+information about each one of these datasets:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">show</span> <span class="n">datablock</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>That was a smooth start, but now things get abruptly more difficult.
+Before we perform the joint analysis, we want to do the individual analysis
+to compare to. This will also give us intermediate files so that we don’t have
+to start from scratch when setting up the joint refinement job. Essentially
+we just want to run a sequence of DIALS commands to process each recorded sweep.
+However we can’t (currently) split the datablock into individual sweeps with
+a single command. We will have to start again with <strong class="program">dials.import</strong> for
+each sweep individually - but we really don’t want to run this manually 73
+times.</p>
+<p>The solution is to write a script that will take the <code class="samp docutils literal notranslate"><span class="pre">datablock.json</span></code> as
+input, extract the filename templates, and run the same processing commands
+for each dataset. This script could be written in BASH, tcsh, perl,
+ruby - whatever you feel most comfortable with. However here we will use Python,
+or more specifically <strong class="program">dials.python</strong> because we will take advantage of
+features in the cctbx to make it easy to write scripts that take advantage
+of <a class="reference external" href="http://cctbx.sourceforge.net/current/python/libtbx.easy_mp.html">parallel execution</a>.
+Also we would like to read <code class="samp docutils literal notranslate"><span class="pre">datablock.json</span></code> with the DIALS API rather than
+extracting the sweep templates using something like <strong class="program">grep</strong>.</p>
+<p>The script we used to do this is reproduced below. You can copy this into a file,
+save it as <code class="samp docutils literal notranslate"><span class="pre">process_TehA.py</span></code> and then run it as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">time</span> <span class="n">dials</span><span class="o">.</span><span class="n">python</span> <span class="n">process_TehA</span><span class="o">.</span><span class="n">py</span> <span class="n">datablock</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>On a Linux desktop with a Core i7 CPU running at 3.07GHz the script took about 8
+minutes to run (though file i/o is a significant factor)
+and successfully processed 41 datasets. If time is short, you
+might like to start running it now before reading the description of what the
+script does. If time is <em>really</em> short then try uncommenting the line
+<code class="samp docutils literal notranslate"><span class="pre">tasklist</span> <span class="pre">=</span> <span class="pre">tasklist[0:35]</span></code> to reduce the number of datasets processed.:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/env dials.python</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_run</span><span class="p">,</span> <span class="n">easy_mp</span>
+<span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="kn">import</span> <span class="n">DataBlockFactory</span>
+<span class="kn">from</span> <span class="nn">dials.test</span> <span class="kn">import</span> <span class="n">cd</span>
+
+<span class="k">def</span> <span class="nf">process_sweep</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Process a single sweep of data. The parameter &#39;task&#39; will be a</span>
+<span class="sd">  tuple, the first element of which is an integer job number and the</span>
+<span class="sd">  second is the filename template of the images to process&quot;&quot;&quot;</span>
+
+  <span class="n">num</span> <span class="o">=</span> <span class="n">task</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+  <span class="n">template</span> <span class="o">=</span> <span class="n">task</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+  <span class="c1"># create directory</span>
+  <span class="k">with</span> <span class="n">cd</span><span class="p">(</span><span class="s2">&quot;sweep_</span><span class="si">%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">num</span><span class="p">):</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.import template={0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="s2">&quot;dials.find_spots datablock.json&quot;</span><span class="p">)</span>
+
+    <span class="c1"># initial indexing in P 1</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.index datablock.json strong.pickle &quot;</span> <span class="o">+</span>\
+          <span class="s2">&quot;output.experiments=P1_experiments.json&quot;</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;P1_experiments.json&quot;</span><span class="p">):</span>
+      <span class="k">print</span> <span class="s2">&quot;Job </span><span class="si">%02d</span><span class="s2"> failed in initial indexing&quot;</span> <span class="o">%</span> <span class="n">num</span>
+      <span class="k">return</span>
+
+    <span class="c1"># bootstrap from the refined P 1 cell</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.index P1_experiments.json strong.pickle space_group=&#39;H 3&#39;&quot;</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;experiments.json&quot;</span><span class="p">):</span>
+      <span class="k">print</span> <span class="s2">&quot;Job </span><span class="si">%02d</span><span class="s2"> failed in indexing&quot;</span> <span class="o">%</span> <span class="n">num</span>
+      <span class="k">return</span>
+
+    <span class="c1"># static model refinement</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.refine experiments.json indexed.pickle &quot;</span> <span class="o">+</span> \
+          <span class="s2">&quot;outlier.algorithm=tukey use_all_reflections=true&quot;</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;refined_experiments.json&quot;</span><span class="p">):</span>
+      <span class="k">print</span> <span class="s2">&quot;Job </span><span class="si">%02d</span><span class="s2"> failed in refinement&quot;</span> <span class="o">%</span> <span class="n">num</span>
+      <span class="k">return</span>
+
+    <span class="c1"># WARNING! Fast and dirty integration.</span>
+    <span class="c1"># Do not use the result for scaling/merging!</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.integrate refined_experiments.json indexed.pickle &quot;</span> <span class="o">+</span> \
+          <span class="s2">&quot;profile.fitting=False prediction.dmin=8.0 prediction.dmax=8.1&quot;</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;integrated.pickle&quot;</span><span class="p">):</span>
+      <span class="k">print</span> <span class="s2">&quot;Job </span><span class="si">%02d</span><span class="s2"> failed during integration&quot;</span> <span class="o">%</span> <span class="n">num</span>
+      <span class="k">return</span>
+
+    <span class="c1"># create MTZ</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.export refined_experiments.json integrated.pickle &quot;</span> <span class="o">+</span>\
+          <span class="s2">&quot;mtz.hklout=integrated.mtz&quot;</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;integrated.mtz&quot;</span><span class="p">):</span>
+      <span class="k">print</span> <span class="s2">&quot;Job </span><span class="si">%02d</span><span class="s2"> failed during MTZ export&quot;</span> <span class="o">%</span> <span class="n">num</span>
+      <span class="k">return</span>
+
+  <span class="c1"># if we got this far, return the path to the MTZ</span>
+  <span class="k">return</span> <span class="s2">&quot;sweep_</span><span class="si">%02d</span><span class="s2">/integrated.mtz&quot;</span> <span class="o">%</span> <span class="n">num</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s2">&quot;Usage: dials.python process_TehA.py datablock.json&quot;</span><span class="p">)</span>
+
+  <span class="n">datablock_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+  <span class="n">datablock</span> <span class="o">=</span> <span class="n">DataBlockFactory</span><span class="o">.</span><span class="n">from_serialized_format</span><span class="p">(</span><span class="n">datablock_path</span><span class="p">,</span>
+    <span class="n">check_format</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+  <span class="n">sweeps</span> <span class="o">=</span> <span class="n">datablock</span><span class="o">.</span><span class="n">extract_sweeps</span><span class="p">()</span>
+  <span class="n">templates</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">get_template</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">sweeps</span><span class="p">]</span>
+  <span class="n">tasklist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">templates</span><span class="p">)))</span>
+
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasklist</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s2">&quot;No images found!&quot;</span><span class="p">)</span>
+
+  <span class="c1"># uncomment the following line if short on time!</span>
+  <span class="c1">#tasklist = tasklist[0:35]</span>
+
+  <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">Auto</span>
+  <span class="n">nproc</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">get_processes</span><span class="p">(</span><span class="n">Auto</span><span class="p">)</span>
+
+  <span class="k">print</span> <span class="s2">&quot;Attempting to process the following datasets, with {} processes&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nproc</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasklist</span><span class="p">:</span>
+    <span class="k">print</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">task</span>
+
+  <span class="n">results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
+    <span class="n">func</span><span class="o">=</span><span class="n">process_sweep</span><span class="p">,</span>
+    <span class="n">iterable</span><span class="o">=</span><span class="n">tasklist</span><span class="p">,</span>
+    <span class="n">processes</span><span class="o">=</span><span class="n">nproc</span><span class="p">,</span>
+    <span class="n">preserve_order</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+  <span class="n">good_results</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">]</span>
+  <span class="k">print</span> <span class="s2">&quot;Successfully created the following MTZs:&quot;</span>
+  <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">good_results</span><span class="p">:</span>
+    <span class="k">print</span> <span class="n">result</span>
+</pre></div>
+</div>
+<p>We will now describe what is in this script. The first lines are
+just imports to bring in modules from the Python standard library as well as
+<code class="samp docutils literal notranslate"><span class="pre">easy_run</span></code> and <code class="samp docutils literal notranslate"><span class="pre">easy_mp</span></code> from <code class="samp docutils literal notranslate"><span class="pre">libtbx</span></code> (part of cctbx),
+<code class="samp docutils literal notranslate"><span class="pre">DataBlockFactory</span></code> from <code class="samp docutils literal notranslate"><span class="pre">dxtbx</span></code> to read in the datablock and
+a class from the <code class="samp docutils literal notranslate"><span class="pre">dials.test</span></code> package that simplifies running commands in
+a new directory. Following that is a definition for the function
+<code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code> which will perform all the steps required to process one
+dataset from images to unmerged MTZ. The code block under:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+</pre></div>
+</div>
+<p>are the lines that are executed when the script starts. First we check that the
+script has been passed a path to a datablock. We then extract the 73 sweeps
+from this into a list, then get the filename templates from each element in the
+list. We associate each of these templates with a number to form a list of
+‘tasks’ to pass into <code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code>, but instead
+of doing this in serial we can use <code class="samp docutils literal notranslate"><span class="pre">easy_mp</span></code> to run in parallel. This will
+be okay because inside <code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code>, we ensure that all results are
+written into a new directory. First we use a facility of the <code class="samp docutils literal notranslate"><span class="pre">easy_mp</span></code>
+module to determine the number of processes to run in parallel and then we submit
+the job with <code class="samp docutils literal notranslate"><span class="pre">parallel_map</span></code>.</p>
+<p>Within <code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code> all external commands are run within a <code class="samp docutils literal notranslate"><span class="pre">with</span></code>
+block where execution is controlled by the <em>context manager</em> <code class="samp docutils literal notranslate"><span class="pre">cd</span></code>. If you
+want the gory details, they are <a class="reference external" href="https://docs.python.org/2/reference/datamodel.html#context-managers">here</a>.
+Essentially this is a way to write clean code that tidies up after itself
+properly. In this case, we will create a new directory, execute commands in that
+directory, then change back to the old directory afterwards. If the directory
+already exists, this will fail with an error.</p>
+<p>The commands that are run inside the managed block are usual dials commands,
+familiar from other tutorials. There are a couple of interesting points
+to note though. We know that the correct space group is <em>H</em> 3, but it turns out
+that if we ask <strong class="program">dials.index</strong> to find an <em>H</em> 3 cell right from the start
+then many of the sweeps fail to index. This is simply because the initial models
+contained in <code class="samp docutils literal notranslate"><span class="pre">datablock.json</span></code> are too poor to locate a cell with the
+symmetry constraints. However, for many of the sweeps the indexing program will
+refine the <em>P</em> 1 solution to the correct cell. For this reason we first run
+indexing in <em>P</em> 1:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">index</span> <span class="n">datablock</span><span class="o">.</span><span class="n">json</span> <span class="n">strong</span><span class="o">.</span><span class="n">pickle</span> <span class="n">output</span><span class="o">.</span><span class="n">experiments</span><span class="o">=</span><span class="n">P1_experiments</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>and then we feed the refined <code class="file docutils literal notranslate"><span class="pre">P1_experiments.json</span></code> back into
+<strong class="program">dials.index</strong> specifying the correct symmetry:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">index</span> <span class="n">P1_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">strong</span><span class="o">.</span><span class="n">pickle</span> <span class="n">space_group</span><span class="o">=</span><span class="s1">&#39;H 3&#39;</span>
+</pre></div>
+</div>
+<p>When <strong class="program">dials.index</strong> is passed an <code class="file docutils literal notranslate"><span class="pre">experiments.json</span></code> containing
+a crystal model rather than just a <code class="file docutils literal notranslate"><span class="pre">databock.json</span></code> then it automatically
+uses a <code class="samp docutils literal notranslate"><span class="pre">known_orientation</span></code> indexer, which avoids doing the basis vector
+search again. It uses the basis of the refined <em>P</em> 1 cell and just assigns
+indices under the assumption of <em>H</em> 3 symmetry. The symmetry constraints are
+then enforced during the refinement steps carried out by <strong class="program">dials.index</strong>.
+This procedure gives us a greater success rate of indexing in <em>H</em> 3, and required
+no manual intervention.</p>
+<p>Following indexing we do scan-static cell refinement:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">refine</span> <span class="n">experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">indexed</span><span class="o">.</span><span class="n">pickle</span> <span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span><span class="o">=</span><span class="n">tukey</span> <span class="n">use_all_reflections</span><span class="o">=</span><span class="n">true</span>
+</pre></div>
+</div>
+<p>Outlier rejection was switched on in an attempt to avoid any zingers or other
+errant spots from affecting our refined cells. Without analysing the data closer
+it is not clear whether there are any particularly bad outliers here. We could repeat
+the whole analysis with this switched off if we want to investigate more closely,
+or look through all the <code class="file docutils literal notranslate"><span class="pre">dials.refine.log</span></code> files to see results of the
+outlier rejection step.</p>
+<p>We elected use all reflections rather than taking a random subset because these
+are narrow wedges and there are few reflections anyway. Taking a random subset
+is only a time-saving procedure, and it won’t provide much benefit here anyway.</p>
+<p>We don’t bother with the time-consuming step of scan-varying refinement, because
+it is the scan-static cell that will be written into the MTZ header. Scan-
+varying refinement would give us better models for integration but as we will
+only be running blend in ‘analysis’ mode we are in the unusual situation of not
+actually caring what the intensities are. In this case, the MTZ file is just a
+carrier for the globally refined unit cell!</p>
+<p>Following refinement we integrate the data in a very quick and dirty way, simply
+to get an MTZ file as fast as possible. This is a terrible way to integrate
+data usually!:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">integrate</span> <span class="n">refined_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">indexed</span><span class="o">.</span><span class="n">pickle</span> <span class="n">profile</span><span class="o">.</span><span class="n">fitting</span><span class="o">=</span><span class="bp">False</span> <span class="n">prediction</span><span class="o">.</span><span class="n">dmin</span><span class="o">=</span><span class="mf">8.0</span> <span class="n">prediction</span><span class="o">.</span><span class="n">dmax</span><span class="o">=</span><span class="mf">8.1</span>
+</pre></div>
+</div>
+<p>The <code class="samp docutils literal notranslate"><span class="pre">profile.fitting=False</span></code> option ensures we only do summation integration,
+no profile fitting, while the <code class="samp docutils literal notranslate"><span class="pre">prediction.dmin=8.0</span></code> and
+<code class="samp docutils literal notranslate"><span class="pre">prediction.dmax=8.1</span></code> options only integrate data between 8.0 and 8.1 Angstroms.
+As a result very few reflections will be integrated. The MTZ file here is just
+being used as a carrier of the cell information into blend. By restricting the
+resolution range this way we are making it obvious that the content of the file
+is useless for any other purpose.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Do not use the data produced by this script for scaling and merging. More
+careful processing should be done first!</p>
+</div>
+<p>Finally we use <strong class="program">dials.export</strong> to create an MTZ file:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">export</span> <span class="n">refined_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">integrated</span><span class="o">.</span><span class="n">pickle</span> <span class="n">mtz</span><span class="o">.</span><span class="n">hklout</span><span class="o">=</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+</pre></div>
+</div>
+<p>After each of these major steps we check whether the last command ran successfully
+by checking for the existence of an expected output file. If the file does not
+exist we make no effort to rescue the dataset, we just return early from the
+<code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code> function, freeing up a process so that
+<code class="samp docutils literal notranslate"><span class="pre">parallel_map</span></code> can start up the next.</p>
+<p>Here is the output of a run of the script:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Attempting</span> <span class="n">to</span> <span class="n">process</span> <span class="n">the</span> <span class="n">following</span> <span class="n">datasets</span><span class="p">,</span> <span class="k">with</span> <span class="mi">5</span> <span class="n">processes</span>
+<span class="mi">0</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xta30_1_</span><span class="c1">####.cbf</span>
+<span class="mi">1</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xta31_1_</span><span class="c1">####.cbf</span>
+<span class="mi">2</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xta32_1_</span><span class="c1">####.cbf</span>
+<span class="mi">3</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xta33_1_</span><span class="c1">####.cbf</span>
+<span class="mi">4</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xta34_1_</span><span class="c1">####.cbf</span>
+<span class="mi">5</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xta9_1_</span><span class="c1">####.cbf</span>
+<span class="mi">6</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xta9_2_</span><span class="c1">####.cbf</span>
+<span class="mi">7</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal10_1_</span><span class="c1">####.cbf</span>
+<span class="mi">8</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal11_1_</span><span class="c1">####.cbf</span>
+<span class="mi">9</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal12_1_</span><span class="c1">####.cbf</span>
+<span class="mi">10</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal12_2_</span><span class="c1">####.cbf</span>
+<span class="mi">11</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal13_1_</span><span class="c1">####.cbf</span>
+<span class="mi">12</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal14_1_</span><span class="c1">####.cbf</span>
+<span class="mi">13</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal15_1_</span><span class="c1">####.cbf</span>
+<span class="mi">14</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal16_1_</span><span class="c1">####.cbf</span>
+<span class="mi">15</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal17_1_</span><span class="c1">####.cbf</span>
+<span class="mi">16</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal18_1_</span><span class="c1">####.cbf</span>
+<span class="mi">17</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal19_1_</span><span class="c1">####.cbf</span>
+<span class="mi">18</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal1_1_</span><span class="c1">####.cbf</span>
+<span class="mi">19</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal20_1_</span><span class="c1">####.cbf</span>
+<span class="mi">20</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal21_1_</span><span class="c1">####.cbf</span>
+<span class="mi">21</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal22_1_</span><span class="c1">####.cbf</span>
+<span class="mi">22</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal23_1_</span><span class="c1">####.cbf</span>
+<span class="mi">23</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal24_1_</span><span class="c1">####.cbf</span>
+<span class="mi">24</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal25_1_</span><span class="c1">####.cbf</span>
+<span class="mi">25</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal26_1_</span><span class="c1">####.cbf</span>
+<span class="mi">26</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal26_2_</span><span class="c1">####.cbf</span>
+<span class="mi">27</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal27_1_</span><span class="c1">####.cbf</span>
+<span class="mi">28</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal28_1_</span><span class="c1">####.cbf</span>
+<span class="mi">29</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal29_1_</span><span class="c1">####.cbf</span>
+<span class="mi">30</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal2_1_</span><span class="c1">####.cbf</span>
+<span class="mi">31</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal35_1_</span><span class="c1">####.cbf</span>
+<span class="mi">32</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal36_1_</span><span class="c1">####.cbf</span>
+<span class="mi">33</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal37_1_</span><span class="c1">####.cbf</span>
+<span class="mi">34</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal37_2_</span><span class="c1">####.cbf</span>
+<span class="mi">35</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal38_1_</span><span class="c1">####.cbf</span>
+<span class="mi">36</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal39_1_</span><span class="c1">####.cbf</span>
+<span class="mi">37</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal3_2_</span><span class="c1">####.cbf</span>
+<span class="mi">38</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal40_1_</span><span class="c1">####.cbf</span>
+<span class="mi">39</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal40_2_</span><span class="c1">####.cbf</span>
+<span class="mi">40</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal40_3_</span><span class="c1">####.cbf</span>
+<span class="mi">41</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal40_4_</span><span class="c1">####.cbf</span>
+<span class="mi">42</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal41_1_</span><span class="c1">####.cbf</span>
+<span class="mi">43</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal42_1_</span><span class="c1">####.cbf</span>
+<span class="mi">44</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal43_1_</span><span class="c1">####.cbf</span>
+<span class="mi">45</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal44_1_</span><span class="c1">####.cbf</span>
+<span class="mi">46</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal45_1_</span><span class="c1">####.cbf</span>
+<span class="mi">47</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal46_1_</span><span class="c1">####.cbf</span>
+<span class="mi">48</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal47_1_</span><span class="c1">####.cbf</span>
+<span class="mi">49</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal48_1_</span><span class="c1">####.cbf</span>
+<span class="mi">50</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal49_1_</span><span class="c1">####.cbf</span>
+<span class="mi">51</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal4_3_</span><span class="c1">####.cbf</span>
+<span class="mi">52</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal50_1_</span><span class="c1">####.cbf</span>
+<span class="mi">53</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal50_2_</span><span class="c1">####.cbf</span>
+<span class="mi">54</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal51_1_</span><span class="c1">####.cbf</span>
+<span class="mi">55</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal52_1_</span><span class="c1">####.cbf</span>
+<span class="mi">56</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal53_1_</span><span class="c1">####.cbf</span>
+<span class="mi">57</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal54_1_</span><span class="c1">####.cbf</span>
+<span class="mi">58</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal55_1_</span><span class="c1">####.cbf</span>
+<span class="mi">59</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal55_2_</span><span class="c1">####.cbf</span>
+<span class="mi">60</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal56_1_</span><span class="c1">####.cbf</span>
+<span class="mi">61</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal56_2_</span><span class="c1">####.cbf</span>
+<span class="mi">62</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal57_1_</span><span class="c1">####.cbf</span>
+<span class="mi">63</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal58_1_</span><span class="c1">####.cbf</span>
+<span class="mi">64</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal58_2_</span><span class="c1">####.cbf</span>
+<span class="mi">65</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal58_3_</span><span class="c1">####.cbf</span>
+<span class="mi">66</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal59_1_</span><span class="c1">####.cbf</span>
+<span class="mi">67</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal5_1_</span><span class="c1">####.cbf</span>
+<span class="mi">68</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal60_1_</span><span class="c1">####.cbf</span>
+<span class="mi">69</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal60_2_</span><span class="c1">####.cbf</span>
+<span class="mi">70</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal6_1_</span><span class="c1">####.cbf</span>
+<span class="mi">71</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal7_1_</span><span class="c1">####.cbf</span>
+<span class="mi">72</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">david</span><span class="o">/</span><span class="n">xray</span><span class="o">/</span><span class="n">TehA</span><span class="o">/</span><span class="n">xtal8_1_</span><span class="c1">####.cbf</span>
+<span class="n">Job</span> <span class="mo">04</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mo">06</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mo">07</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">08</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">11</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">10</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">13</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">12</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">15</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">21</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">20</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">32</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">37</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">35</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">38</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">39</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">41</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">40</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">45</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">44</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">47</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">52</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">49</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">55</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">57</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">61</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">62</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">69</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">70</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">68</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">71</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
+<span class="n">Job</span> <span class="mi">72</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
+<span class="n">Successfully</span> <span class="n">created</span> <span class="n">the</span> <span class="n">following</span> <span class="n">MTZs</span><span class="p">:</span>
+<span class="n">sweep_00</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_01</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_02</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_03</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_05</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_09</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_14</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_16</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_17</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_18</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_19</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_22</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_23</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_24</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_25</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_26</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_27</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_28</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_29</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_30</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_31</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_33</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_34</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_36</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_42</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_43</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_46</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_48</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_50</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_51</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_53</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_54</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_56</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_58</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_59</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_60</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_63</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_64</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_65</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_66</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sweep_67</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+
+<span class="n">real</span>  <span class="mi">7</span><span class="n">m45</span><span class="o">.</span><span class="mi">656</span><span class="n">s</span>
+<span class="n">user</span>  <span class="mi">25</span><span class="n">m32</span><span class="o">.</span><span class="mi">532</span><span class="n">s</span>
+<span class="n">sys</span>   <span class="mi">1</span><span class="n">m34</span><span class="o">.</span><span class="mi">090</span><span class="n">s</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="analysis-of-individually-processed-datasets">
+<h2>Analysis of individually processed datasets<a class="headerlink" href="#analysis-of-individually-processed-datasets" title="Permalink to this headline">¶</a></h2>
+<p>The paths to <code class="file docutils literal notranslate"><span class="pre">integrated.mtz</span></code> files can be copied directly into a file,
+say <code class="file docutils literal notranslate"><span class="pre">individual_mtzs.dat</span></code>, and passed to blend for analysis:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s2">&quot;END&quot;</span> <span class="o">|</span> <span class="n">blend</span> <span class="o">-</span><span class="n">a</span> <span class="n">individual_mtzs</span><span class="o">.</span><span class="n">dat</span>
+</pre></div>
+</div>
+<p>The dendrogram resulting from clustering is shown here:</p>
+<blockquote>
+<div><img alt="../../_images/tree_01.png" src="../../_images/tree_01.png" />
+</div></blockquote>
+<p>Immediately the dendrogram shows that dataset 27 is an extreme outlier.
+From <code class="file docutils literal notranslate"><span class="pre">FINAL_list_of_files.dat</span></code> we can see that this refers to
+<code class="file docutils literal notranslate"><span class="pre">sweep_46/integrated.mtz</span></code>.
+As we kept all the dials <code class="file docutils literal notranslate"><span class="pre">.log</span></code> files
+from DIALS processing we could investigate this further, however as this is
+only one sweep out of 41, we decide just to throw it away and
+move on. So, edit <code class="file docutils literal notranslate"><span class="pre">individual_mtzs.dat</span></code> to remove
+the line <code class="file docutils literal notranslate"><span class="pre">sweep_46/integrated.mtz</span></code>
+and rerun blend.</p>
+<p>Now the dendrogram looks better:</p>
+<blockquote>
+<div><img alt="../../_images/tree_02.png" src="../../_images/tree_02.png" />
+</div></blockquote>
+<p>The Linear Cell Variation (LCV) is now less than 1%, with an absolute value
+of 1.03 Angstroms, indicating good isomorphism amongst all the remaining
+datasets.</p>
+</div>
+<div class="section" id="joint-refinement">
+<h2>Joint refinement<a class="headerlink" href="#joint-refinement" title="Permalink to this headline">¶</a></h2>
+<p>Now that we have done the BLEND analysis for individually processed datasets,
+we would like to do joint refinement of the crystals to reduce correlations
+between the detector or beam parameters with individual crystals. As motivation
+we may look at these correlations for one of these datasets. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">sweep_00</span>
+<span class="n">dials</span><span class="o">.</span><span class="n">refine</span> <span class="n">experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">indexed</span><span class="o">.</span><span class="n">pickle</span> \
+  <span class="n">track_parameter_correlation</span><span class="o">=</span><span class="n">true</span> <span class="n">correlation_plot</span><span class="o">.</span><span class="n">filename</span><span class="o">=</span><span class="n">corrplot</span><span class="o">.</span><span class="n">png</span>
+<span class="n">cd</span> <span class="o">..</span>
+</pre></div>
+</div>
+<p>The new file <code class="file docutils literal notranslate"><span class="pre">sweep_00/corrplot.png</span></code> shows correlations between parameters
+refined with this single 8 degree dataset. Clearly parameters like the
+detector distance and the crystal metrical matrix parameters are highly
+correlated.</p>
+<blockquote>
+<div><img alt="../../_images/sweep_00_corrplot.png" src="../../_images/sweep_00_corrplot.png" />
+</div></blockquote>
+<p>Although the DIALS toolkit has a sophisticated mechanism for modelling
+multi-experiment data, the user interface for handling such data is still
+rather limited. In order to do joint refinement of the sweeps we need to combine them
+into a single multi-experiment <code class="file docutils literal notranslate"><span class="pre">experiments.json</span></code> and corresponding
+<code class="file docutils literal notranslate"><span class="pre">reflections.pickle</span></code>. Whilst doing this we want to reduce the separate
+detector, beam and goniometer models for each experiment into a single shared
+model of each type. The program <strong class="program">dials.combine_experiments</strong> can
+be used for this, but first we have to prepare an input file with a text editor
+listing the individual sweeps in order. We can use
+<code class="file docutils literal notranslate"><span class="pre">individual_mtzs.dat</span></code> as a template to start with. In our case the final
+file looks like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">input</span> <span class="p">{</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_00/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_01/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_02/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_03/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_05/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_09/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_14/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_16/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_17/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_18/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_19/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_22/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_23/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_24/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_25/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_26/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_27/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_28/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_29/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_30/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_31/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_33/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_34/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_36/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_42/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_43/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_48/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_50/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_51/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_53/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_54/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_56/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_58/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_59/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_60/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_63/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_64/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_65/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_66/refined_experiments.json&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_67/refined_experiments.json&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_00/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_01/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_02/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_03/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_05/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_09/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_14/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_16/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_17/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_18/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_19/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_22/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_23/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_24/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_25/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_26/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_27/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_28/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_29/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_30/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_31/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_33/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_34/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_36/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_42/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_43/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_48/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_50/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_51/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_53/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_54/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_56/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_58/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_59/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_60/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_63/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_64/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_65/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_66/indexed.pickle&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_67/indexed.pickle&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>We called this file <code class="file docutils literal notranslate"><span class="pre">experiments_and_reflections.phil</span></code> then run
+<strong class="program">dials.combine_experiments</strong> like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">combine_experiments</span> <span class="n">experiments_and_reflections</span><span class="o">.</span><span class="n">phil</span> \
+  <span class="n">reference_from_experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">=</span><span class="mi">0</span> \
+  <span class="n">reference_from_experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">=</span><span class="mi">0</span> \
+  <span class="n">reference_from_experiment</span><span class="o">.</span><span class="n">detector</span><span class="o">=</span><span class="mi">0</span>
+</pre></div>
+</div>
+<p>The <code class="samp docutils literal notranslate"><span class="pre">reference_from_experiment</span></code> options tell the program to replace all
+beam, goniometer and detector models in the input experiments with those
+models taken from the first experiment, i.e. experiment ‘0’ using 0-based
+indexing. The output lists the number of reflections in each sweep contributing
+to the final <code class="file docutils literal notranslate"><span class="pre">combined_reflections.pickle</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">---------------------</span>
+<span class="o">|</span> <span class="n">Experiment</span> <span class="o">|</span> <span class="n">Nref</span> <span class="o">|</span>
+<span class="o">---------------------</span>
+<span class="o">|</span> <span class="mi">0</span>          <span class="o">|</span> <span class="mi">1446</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">1</span>          <span class="o">|</span> <span class="mi">1422</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">2</span>          <span class="o">|</span> <span class="mi">1209</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">3</span>          <span class="o">|</span> <span class="mi">1376</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">4</span>          <span class="o">|</span> <span class="mi">452</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">5</span>          <span class="o">|</span> <span class="mi">1664</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">6</span>          <span class="o">|</span> <span class="mi">1528</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">7</span>          <span class="o">|</span> <span class="mi">1448</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">8</span>          <span class="o">|</span> <span class="mi">1275</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">9</span>          <span class="o">|</span> <span class="mi">239</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">10</span>         <span class="o">|</span> <span class="mi">1614</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">11</span>         <span class="o">|</span> <span class="mi">1052</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">12</span>         <span class="o">|</span> <span class="mi">1845</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">13</span>         <span class="o">|</span> <span class="mi">1495</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">14</span>         <span class="o">|</span> <span class="mi">2041</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">15</span>         <span class="o">|</span> <span class="mi">1308</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">16</span>         <span class="o">|</span> <span class="mi">1839</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">17</span>         <span class="o">|</span> <span class="mi">1828</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">18</span>         <span class="o">|</span> <span class="mi">1644</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">19</span>         <span class="o">|</span> <span class="mi">243</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">20</span>         <span class="o">|</span> <span class="mi">1061</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">21</span>         <span class="o">|</span> <span class="mi">2416</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">22</span>         <span class="o">|</span> <span class="mi">1885</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">23</span>         <span class="o">|</span> <span class="mi">949</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">24</span>         <span class="o">|</span> <span class="mi">3569</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">25</span>         <span class="o">|</span> <span class="mi">2967</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">26</span>         <span class="o">|</span> <span class="mi">935</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">27</span>         <span class="o">|</span> <span class="mi">1329</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">28</span>         <span class="o">|</span> <span class="mi">650</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">29</span>         <span class="o">|</span> <span class="mi">1325</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">30</span>         <span class="o">|</span> <span class="mi">633</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">31</span>         <span class="o">|</span> <span class="mi">1233</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">32</span>         <span class="o">|</span> <span class="mi">2131</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">33</span>         <span class="o">|</span> <span class="mi">2094</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">34</span>         <span class="o">|</span> <span class="mi">2141</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">35</span>         <span class="o">|</span> <span class="mi">1661</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">36</span>         <span class="o">|</span> <span class="mi">2544</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">37</span>         <span class="o">|</span> <span class="mi">2227</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">38</span>         <span class="o">|</span> <span class="mi">982</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">39</span>         <span class="o">|</span> <span class="mi">1138</span> <span class="o">|</span>
+<span class="o">---------------------</span>
+<span class="n">Saving</span> <span class="n">combined</span> <span class="n">experiments</span> <span class="n">to</span> <span class="n">combined_experiments</span><span class="o">.</span><span class="n">json</span>
+<span class="n">Saving</span> <span class="n">combined</span> <span class="n">reflections</span> <span class="n">to</span> <span class="n">combined_reflections</span><span class="o">.</span><span class="n">pickle</span>
+</pre></div>
+</div>
+<p>We may also inspect the contents of <code class="file docutils literal notranslate"><span class="pre">combined_experiments.json</span></code>, by using
+<strong class="program">dials.show</strong>, for example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">show</span> <span class="n">combined_experiments</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>Useful though this is, it is clear how this could become unwieldy as the number
+of experiments increases. Work on better interfaces to multi-crystal (or
+generally, multi-experiment) data is ongoing within the DIALS project.
+Suggestions are always welcome!</p>
+<p>Now we have the joint experiments and reflections files we can run our multi-
+crystal refinement job. First we try outlier rejection, so that the refinement
+run is similar to the jobs we ran on individual datasets:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">refine</span> <span class="n">combined_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">combined_reflections</span><span class="o">.</span><span class="n">pickle</span> \
+  <span class="n">use_all_reflections</span><span class="o">=</span><span class="n">true</span> <span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span><span class="o">=</span><span class="n">tukey</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">The</span> <span class="n">following</span> <span class="n">parameters</span> <span class="n">have</span> <span class="n">been</span> <span class="n">modified</span><span class="p">:</span>
+
+<span class="n">refinement</span> <span class="p">{</span>
+  <span class="n">reflections</span> <span class="p">{</span>
+    <span class="n">outlier</span> <span class="p">{</span>
+      <span class="n">algorithm</span> <span class="o">=</span> <span class="n">null</span> <span class="o">*</span><span class="n">tukey</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="nb">input</span> <span class="p">{</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="n">combined_experiments</span><span class="o">.</span><span class="n">json</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="n">combined_reflections</span><span class="o">.</span><span class="n">pickle</span>
+<span class="p">}</span>
+
+<span class="n">Configuring</span> <span class="n">refiner</span>
+
+<span class="n">Summary</span> <span class="n">statistics</span> <span class="k">for</span> <span class="n">observations</span> <span class="n">matched</span> <span class="n">to</span> <span class="n">predictions</span><span class="p">:</span>
+<span class="o">---------------------------------------------------------------------</span>
+<span class="o">|</span>                   <span class="o">|</span> <span class="n">Min</span>    <span class="o">|</span> <span class="n">Q1</span>      <span class="o">|</span> <span class="n">Med</span>       <span class="o">|</span> <span class="n">Q3</span>     <span class="o">|</span> <span class="n">Max</span>   <span class="o">|</span>
+<span class="o">---------------------------------------------------------------------</span>
+<span class="o">|</span> <span class="n">Xc</span> <span class="o">-</span> <span class="n">Xo</span> <span class="p">(</span><span class="n">mm</span><span class="p">)</span>      <span class="o">|</span> <span class="o">-</span><span class="mf">14.68</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.8191</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.0739</span>   <span class="o">|</span> <span class="mf">0.7823</span> <span class="o">|</span> <span class="mf">15.85</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">Yc</span> <span class="o">-</span> <span class="n">Yo</span> <span class="p">(</span><span class="n">mm</span><span class="p">)</span>      <span class="o">|</span> <span class="o">-</span><span class="mf">21.75</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.5103</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.01936</span>  <span class="o">|</span> <span class="mf">0.4596</span> <span class="o">|</span> <span class="mf">17.19</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">Phic</span> <span class="o">-</span> <span class="n">Phio</span> <span class="p">(</span><span class="n">deg</span><span class="p">)</span> <span class="o">|</span> <span class="o">-</span><span class="mf">17.36</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.2058</span> <span class="o">|</span> <span class="mf">0.0004136</span> <span class="o">|</span> <span class="mf">0.2091</span> <span class="o">|</span> <span class="mf">28.12</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">X</span> <span class="n">weights</span>         <span class="o">|</span> <span class="mi">233</span>    <span class="o">|</span> <span class="mf">359.2</span>   <span class="o">|</span> <span class="mf">379.4</span>     <span class="o">|</span> <span class="mf">392.9</span>  <span class="o">|</span> <span class="mf">405.6</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">Y</span> <span class="n">weights</span>         <span class="o">|</span> <span class="mf">264.7</span>  <span class="o">|</span> <span class="mf">392.9</span>   <span class="o">|</span> <span class="mf">401.3</span>     <span class="o">|</span> <span class="mf">404.4</span>  <span class="o">|</span> <span class="mf">405.6</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">Phi</span> <span class="n">weights</span>       <span class="o">|</span> <span class="mi">177</span>    <span class="o">|</span> <span class="mf">299.9</span>   <span class="o">|</span> <span class="mi">300</span>       <span class="o">|</span> <span class="mi">300</span>    <span class="o">|</span> <span class="mi">300</span>   <span class="o">|</span>
+<span class="o">---------------------------------------------------------------------</span>
+
+<span class="mi">16559</span> <span class="n">reflections</span> <span class="n">have</span> <span class="n">been</span> <span class="n">rejected</span> <span class="k">as</span> <span class="n">outliers</span>
+<span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/build/../sources/dials/command_line/refine.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">370</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+    <span class="n">halraiser</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/build/../sources/dials/command_line/refine.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">368</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+    <span class="n">script</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/build/../sources/dials/command_line/refine.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">274</span><span class="p">,</span> <span class="ow">in</span> <span class="n">run</span>
+    <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/sources/dials/algorithms/refinement/refiner.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">340</span><span class="p">,</span> <span class="ow">in</span> <span class="n">from_parameters_data_experiments</span>
+    <span class="n">verbosity</span><span class="o">=</span><span class="n">verbosity</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/sources/dials/algorithms/refinement/refiner.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">585</span><span class="p">,</span> <span class="ow">in</span> <span class="n">_build_components</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">config_target</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/sources/dials/algorithms/refinement/refiner.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">1008</span><span class="p">,</span> <span class="ow">in</span> <span class="n">config_target</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">jacobian_max_nref</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/sources/dials/algorithms/refinement/target.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">404</span><span class="p">,</span> <span class="ow">in</span> <span class="fm">__init__</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_manager</span><span class="o">.</span><span class="n">finalise</span><span class="p">()</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/sources/dials/algorithms/refinement/reflection_manager.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">237</span><span class="p">,</span> <span class="ow">in</span> <span class="n">finalise</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_check_too_few</span><span class="p">()</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/david/bsx/cctbx-svn/sources/dials/algorithms/refinement/reflection_manager.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">262</span><span class="p">,</span> <span class="ow">in</span> <span class="n">_check_too_few</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+<span class="ne">RuntimeError</span><span class="p">:</span> <span class="n">Please</span> <span class="n">report</span> <span class="n">this</span> <span class="n">error</span> <span class="n">to</span> <span class="n">dials</span><span class="o">-</span><span class="n">support</span><span class="nd">@lists.sourceforge.net</span><span class="p">:</span> <span class="n">Remaining</span> <span class="n">number</span> <span class="n">of</span> <span class="n">reflections</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span> <span class="k">for</span> <span class="n">experiment</span> <span class="mi">19</span><span class="p">,</span> <span class="n">which</span> <span class="ow">is</span> <span class="n">below</span> <span class="n">the</span> <span class="n">configured</span> <span class="n">limit</span> <span class="k">for</span> <span class="n">this</span> <span class="n">reflection</span> <span class="n">manager</span>
+</pre></div>
+</div>
+<p>Oops! That wasn’t good. Looking at the error we see that experiment 19 provides
+only 8 reflections to refinement, which is disallowed by a default
+parameters of <strong class="program">dials.refine</strong>, namely <code class="docutils literal notranslate"><span class="pre">minimum_number_of_reflections=20</span></code>.
+But from the output of <strong class="program">dials.combine_experiments</strong> we see that experiment
+19 has 243 indexed reflections. What happened? Well, forcing the individual
+experiments to share the beam and detector models of experiment 0 has led to some
+very poor predictions for some of these experiments. See the <code class="docutils literal notranslate"><span class="pre">Summary</span> <span class="pre">statistics</span></code>
+table, where the worst positional residuals are greater than 20 mm! We may put this
+down to the very narrow wedges of data we have. Experiment 19 is one of the
+narrowest, with only 4 degrees of data. Outlier rejection is not a good idea here
+because it selectively removes reflections from the worst fitting experiments.</p>
+<p>Instead we try without outlier rejection:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">refine</span> <span class="n">combined_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">combined_reflections</span><span class="o">.</span><span class="n">pickle</span> \
+  <span class="n">use_all_reflections</span><span class="o">=</span><span class="n">true</span> \
+  <span class="n">output</span><span class="o">.</span><span class="n">experiments</span><span class="o">=</span><span class="n">refined_combined_experiments</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>This worked much better:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">The</span> <span class="n">following</span> <span class="n">parameters</span> <span class="n">have</span> <span class="n">been</span> <span class="n">modified</span><span class="p">:</span>
+
+<span class="n">output</span> <span class="p">{</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="n">refined_combined_experiments</span><span class="o">.</span><span class="n">json</span>
+<span class="p">}</span>
+<span class="n">refinement</span> <span class="p">{</span>
+  <span class="n">reflections</span> <span class="p">{</span>
+    <span class="n">use_all_reflections</span> <span class="o">=</span> <span class="n">true</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="nb">input</span> <span class="p">{</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="n">combined_experiments</span><span class="o">.</span><span class="n">json</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="n">combined_reflections</span><span class="o">.</span><span class="n">pickle</span>
+<span class="p">}</span>
+
+<span class="n">Configuring</span> <span class="n">refiner</span>
+
+<span class="n">Summary</span> <span class="n">statistics</span> <span class="k">for</span> <span class="n">observations</span> <span class="n">matched</span> <span class="n">to</span> <span class="n">predictions</span><span class="p">:</span>
+<span class="o">---------------------------------------------------------------------</span>
+<span class="o">|</span>                   <span class="o">|</span> <span class="n">Min</span>    <span class="o">|</span> <span class="n">Q1</span>      <span class="o">|</span> <span class="n">Med</span>       <span class="o">|</span> <span class="n">Q3</span>     <span class="o">|</span> <span class="n">Max</span>   <span class="o">|</span>
+<span class="o">---------------------------------------------------------------------</span>
+<span class="o">|</span> <span class="n">Xc</span> <span class="o">-</span> <span class="n">Xo</span> <span class="p">(</span><span class="n">mm</span><span class="p">)</span>      <span class="o">|</span> <span class="o">-</span><span class="mf">14.68</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.8191</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.0739</span>   <span class="o">|</span> <span class="mf">0.7823</span> <span class="o">|</span> <span class="mf">15.85</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">Yc</span> <span class="o">-</span> <span class="n">Yo</span> <span class="p">(</span><span class="n">mm</span><span class="p">)</span>      <span class="o">|</span> <span class="o">-</span><span class="mf">21.75</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.5103</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.01936</span>  <span class="o">|</span> <span class="mf">0.4596</span> <span class="o">|</span> <span class="mf">17.19</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">Phic</span> <span class="o">-</span> <span class="n">Phio</span> <span class="p">(</span><span class="n">deg</span><span class="p">)</span> <span class="o">|</span> <span class="o">-</span><span class="mf">17.36</span> <span class="o">|</span> <span class="o">-</span><span class="mf">0.2058</span> <span class="o">|</span> <span class="mf">0.0004136</span> <span class="o">|</span> <span class="mf">0.2091</span> <span class="o">|</span> <span class="mf">28.12</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">X</span> <span class="n">weights</span>         <span class="o">|</span> <span class="mi">233</span>    <span class="o">|</span> <span class="mf">359.2</span>   <span class="o">|</span> <span class="mf">379.4</span>     <span class="o">|</span> <span class="mf">392.9</span>  <span class="o">|</span> <span class="mf">405.6</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">Y</span> <span class="n">weights</span>         <span class="o">|</span> <span class="mf">264.7</span>  <span class="o">|</span> <span class="mf">392.9</span>   <span class="o">|</span> <span class="mf">401.3</span>     <span class="o">|</span> <span class="mf">404.4</span>  <span class="o">|</span> <span class="mf">405.6</span> <span class="o">|</span>
+<span class="o">|</span> <span class="n">Phi</span> <span class="n">weights</span>       <span class="o">|</span> <span class="mi">177</span>    <span class="o">|</span> <span class="mf">299.9</span>   <span class="o">|</span> <span class="mi">300</span>       <span class="o">|</span> <span class="mi">300</span>    <span class="o">|</span> <span class="mi">300</span>   <span class="o">|</span>
+<span class="o">---------------------------------------------------------------------</span>
+
+<span class="n">Performing</span> <span class="n">refinement</span><span class="o">...</span>
+
+<span class="n">Refinement</span> <span class="n">steps</span><span class="p">:</span>
+<span class="o">-----------------------------------------------</span>
+<span class="o">|</span> <span class="n">Step</span> <span class="o">|</span> <span class="n">Nref</span>  <span class="o">|</span> <span class="n">RMSD_X</span>  <span class="o">|</span> <span class="n">RMSD_Y</span>  <span class="o">|</span> <span class="n">RMSD_Phi</span> <span class="o">|</span>
+<span class="o">|</span>      <span class="o">|</span>       <span class="o">|</span> <span class="p">(</span><span class="n">mm</span><span class="p">)</span>    <span class="o">|</span> <span class="p">(</span><span class="n">mm</span><span class="p">)</span>    <span class="o">|</span> <span class="p">(</span><span class="n">deg</span><span class="p">)</span>    <span class="o">|</span>
+<span class="o">-----------------------------------------------</span>
+<span class="o">|</span> <span class="mi">0</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">1.6886</span>  <span class="o">|</span> <span class="mf">1.3984</span>  <span class="o">|</span> <span class="mf">1.2926</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">1</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">1.3726</span>  <span class="o">|</span> <span class="mf">1.0295</span>  <span class="o">|</span> <span class="mf">0.69528</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">2</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">1.1462</span>  <span class="o">|</span> <span class="mf">0.86286</span> <span class="o">|</span> <span class="mf">0.64657</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">3</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.88257</span> <span class="o">|</span> <span class="mf">0.6659</span>  <span class="o">|</span> <span class="mf">0.5764</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">4</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.61437</span> <span class="o">|</span> <span class="mf">0.47405</span> <span class="o">|</span> <span class="mf">0.44825</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">5</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.38414</span> <span class="o">|</span> <span class="mf">0.31317</span> <span class="o">|</span> <span class="mf">0.28436</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">6</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.22337</span> <span class="o">|</span> <span class="mf">0.19783</span> <span class="o">|</span> <span class="mf">0.16576</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">7</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.1759</span>  <span class="o">|</span> <span class="mf">0.16573</span> <span class="o">|</span> <span class="mf">0.12827</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">8</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.17255</span> <span class="o">|</span> <span class="mf">0.16354</span> <span class="o">|</span> <span class="mf">0.12475</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">9</span>    <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.17228</span> <span class="o">|</span> <span class="mf">0.16336</span> <span class="o">|</span> <span class="mf">0.12463</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">10</span>   <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.17217</span> <span class="o">|</span> <span class="mf">0.16325</span> <span class="o">|</span> <span class="mf">0.12457</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">11</span>   <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.17218</span> <span class="o">|</span> <span class="mf">0.16322</span> <span class="o">|</span> <span class="mf">0.12452</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">12</span>   <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.17219</span> <span class="o">|</span> <span class="mf">0.16322</span> <span class="o">|</span> <span class="mf">0.1245</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">13</span>   <span class="o">|</span> <span class="mi">57629</span> <span class="o">|</span> <span class="mf">0.17219</span> <span class="o">|</span> <span class="mf">0.16321</span> <span class="o">|</span> <span class="mf">0.1245</span>   <span class="o">|</span>
+<span class="o">-----------------------------------------------</span>
+<span class="n">RMSD</span> <span class="n">no</span> <span class="n">longer</span> <span class="n">decreasing</span>
+
+<span class="n">RMSDs</span> <span class="n">by</span> <span class="n">experiment</span><span class="p">:</span>
+<span class="o">---------------------------------------------</span>
+<span class="o">|</span> <span class="n">Exp</span> <span class="o">|</span> <span class="n">Nref</span> <span class="o">|</span> <span class="n">RMSD_X</span>  <span class="o">|</span> <span class="n">RMSD_Y</span>  <span class="o">|</span> <span class="n">RMSD_Z</span>   <span class="o">|</span>
+<span class="o">|</span>     <span class="o">|</span>      <span class="o">|</span> <span class="p">(</span><span class="n">px</span><span class="p">)</span>    <span class="o">|</span> <span class="p">(</span><span class="n">px</span><span class="p">)</span>    <span class="o">|</span> <span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">|</span>
+<span class="o">---------------------------------------------</span>
+<span class="o">|</span> <span class="mi">0</span>   <span class="o">|</span> <span class="mi">1374</span> <span class="o">|</span> <span class="mf">0.63002</span> <span class="o">|</span> <span class="mf">0.40512</span> <span class="o">|</span> <span class="mf">0.35154</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">1</span>   <span class="o">|</span> <span class="mi">1325</span> <span class="o">|</span> <span class="mf">0.65204</span> <span class="o">|</span> <span class="mf">0.38951</span> <span class="o">|</span> <span class="mf">0.34116</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">2</span>   <span class="o">|</span> <span class="mi">1138</span> <span class="o">|</span> <span class="mf">0.90682</span> <span class="o">|</span> <span class="mf">0.85212</span> <span class="o">|</span> <span class="mf">0.75447</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">3</span>   <span class="o">|</span> <span class="mi">1294</span> <span class="o">|</span> <span class="mf">0.67566</span> <span class="o">|</span> <span class="mf">0.51293</span> <span class="o">|</span> <span class="mf">0.27902</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">4</span>   <span class="o">|</span> <span class="mi">406</span>  <span class="o">|</span> <span class="mf">0.76138</span> <span class="o">|</span> <span class="mf">0.50378</span> <span class="o">|</span> <span class="mf">0.36697</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">5</span>   <span class="o">|</span> <span class="mi">1579</span> <span class="o">|</span> <span class="mf">1.059</span>   <span class="o">|</span> <span class="mf">1.5602</span>  <span class="o">|</span> <span class="mf">0.93859</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">6</span>   <span class="o">|</span> <span class="mi">1452</span> <span class="o">|</span> <span class="mf">0.63949</span> <span class="o">|</span> <span class="mf">0.32975</span> <span class="o">|</span> <span class="mf">0.3447</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">7</span>   <span class="o">|</span> <span class="mi">1376</span> <span class="o">|</span> <span class="mf">1.0682</span>  <span class="o">|</span> <span class="mf">1.1586</span>  <span class="o">|</span> <span class="mf">0.90346</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">8</span>   <span class="o">|</span> <span class="mi">1203</span> <span class="o">|</span> <span class="mf">1.0566</span>  <span class="o">|</span> <span class="mf">1.4784</span>  <span class="o">|</span> <span class="mf">0.69921</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">9</span>   <span class="o">|</span> <span class="mi">213</span>  <span class="o">|</span> <span class="mf">2.0411</span>  <span class="o">|</span> <span class="mf">2.0389</span>  <span class="o">|</span> <span class="mf">1.3643</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">10</span>  <span class="o">|</span> <span class="mi">1543</span> <span class="o">|</span> <span class="mf">0.78169</span> <span class="o">|</span> <span class="mf">0.47908</span> <span class="o">|</span> <span class="mf">0.51499</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">11</span>  <span class="o">|</span> <span class="mi">980</span>  <span class="o">|</span> <span class="mf">0.96025</span> <span class="o">|</span> <span class="mf">1.16</span>    <span class="o">|</span> <span class="mf">0.72548</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">12</span>  <span class="o">|</span> <span class="mi">1783</span> <span class="o">|</span> <span class="mf">0.74162</span> <span class="o">|</span> <span class="mf">0.84784</span> <span class="o">|</span> <span class="mf">0.6762</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">13</span>  <span class="o">|</span> <span class="mi">1424</span> <span class="o">|</span> <span class="mf">0.73974</span> <span class="o">|</span> <span class="mf">0.51861</span> <span class="o">|</span> <span class="mf">0.37127</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">14</span>  <span class="o">|</span> <span class="mi">1937</span> <span class="o">|</span> <span class="mf">1.1603</span>  <span class="o">|</span> <span class="mf">1.4405</span>  <span class="o">|</span> <span class="mf">0.84322</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">15</span>  <span class="o">|</span> <span class="mi">1237</span> <span class="o">|</span> <span class="mf">0.92314</span> <span class="o">|</span> <span class="mf">0.50443</span> <span class="o">|</span> <span class="mf">0.42126</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">16</span>  <span class="o">|</span> <span class="mi">1751</span> <span class="o">|</span> <span class="mf">0.71062</span> <span class="o">|</span> <span class="mf">0.37032</span> <span class="o">|</span> <span class="mf">0.34264</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">17</span>  <span class="o">|</span> <span class="mi">1742</span> <span class="o">|</span> <span class="mf">0.6608</span>  <span class="o">|</span> <span class="mf">0.40137</span> <span class="o">|</span> <span class="mf">0.2978</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">18</span>  <span class="o">|</span> <span class="mi">1550</span> <span class="o">|</span> <span class="mf">0.84246</span> <span class="o">|</span> <span class="mf">1.2565</span>  <span class="o">|</span> <span class="mf">0.71967</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">19</span>  <span class="o">|</span> <span class="mi">222</span>  <span class="o">|</span> <span class="mf">1.1222</span>  <span class="o">|</span> <span class="mf">0.77297</span> <span class="o">|</span> <span class="mf">0.95399</span>  <span class="o">|</span>
+<span class="o">---------------------------------------------</span>
+<span class="n">Table</span> <span class="n">truncated</span> <span class="n">to</span> <span class="n">show</span> <span class="n">the</span> <span class="n">first</span> <span class="mi">20</span> <span class="n">experiments</span> <span class="n">only</span>
+<span class="n">Re</span><span class="o">-</span><span class="n">run</span> <span class="k">with</span> <span class="n">verbosity</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="n">to</span> <span class="n">show</span> <span class="nb">all</span> <span class="n">experiments</span>
+<span class="n">Saving</span> <span class="n">refined</span> <span class="n">experiments</span> <span class="n">to</span> <span class="n">refined_combined_experiments</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>The overall final RMSDs are 0.17 mm in X, 0.16 mm in Y and 0.12 degrees in
+<span class="math notranslate nohighlight">\(\phi\)</span>. The RMSDs per experiment are also shown, but only for the first
+20 experiments. Rerunning with <code class="samp docutils literal notranslate"><span class="pre">verbosity=2</span></code> does give the full table,
+but also produces a great deal more log output, so it would be easier to find
+in the file <code class="file docutils literal notranslate"><span class="pre">dials.refine.log</span></code> rather than scrolling up pages in your
+terminal.</p>
+<p>We can compare the RMSDs from individually refined experiments to those from
+the joint experiments. For example, look at the RSMDs for experiment 0, in the
+logfile <code class="file docutils literal notranslate"><span class="pre">sweep_00/dials.refine.log</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">RMSDs</span> <span class="n">by</span> <span class="n">experiment</span><span class="p">:</span>
+<span class="o">--------------------------------------------</span>
+<span class="o">|</span> <span class="n">Exp</span> <span class="o">|</span> <span class="n">Nref</span> <span class="o">|</span> <span class="n">RMSD_X</span>  <span class="o">|</span> <span class="n">RMSD_Y</span> <span class="o">|</span> <span class="n">RMSD_Z</span>   <span class="o">|</span>
+<span class="o">|</span>     <span class="o">|</span>      <span class="o">|</span> <span class="p">(</span><span class="n">px</span><span class="p">)</span>    <span class="o">|</span> <span class="p">(</span><span class="n">px</span><span class="p">)</span>   <span class="o">|</span> <span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">|</span>
+<span class="o">--------------------------------------------</span>
+<span class="o">|</span> <span class="mi">0</span>   <span class="o">|</span> <span class="mi">1000</span> <span class="o">|</span> <span class="mf">0.57553</span> <span class="o">|</span> <span class="mf">0.3374</span> <span class="o">|</span> <span class="mf">0.26322</span>  <span class="o">|</span>
+<span class="o">--------------------------------------------</span>
+</pre></div>
+</div>
+<p>Clearly allowing the detector and beam to refine only against this data lets
+the model better fit the observations, but is it a more accurate description of
+reality? Given that we <em>know</em> or can comfortably assume that the detector and
+beam did not move between data collections, then the constraints applied by
+joint refinement seem appropriate. For better parity with the original results
+perhaps we should use outlier rejection though. Now the models are close enough
+it is safe to do so:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">refine</span> <span class="n">refined_combined_experiments</span><span class="o">.</span><span class="n">json</span> <span class="n">combined_reflections</span><span class="o">.</span><span class="n">pickle</span> \
+  <span class="n">use_all_reflections</span><span class="o">=</span><span class="n">true</span> \
+  <span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span><span class="o">=</span><span class="n">tukey</span> \
+  <span class="n">output</span><span class="o">.</span><span class="n">experiments</span><span class="o">=</span><span class="n">refined_combined_experiments_outrej</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>The RMSD tables resulting from this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Refinement</span> <span class="n">steps</span><span class="p">:</span>
+<span class="o">------------------------------------------------</span>
+<span class="o">|</span> <span class="n">Step</span> <span class="o">|</span> <span class="n">Nref</span>  <span class="o">|</span> <span class="n">RMSD_X</span>  <span class="o">|</span> <span class="n">RMSD_Y</span>   <span class="o">|</span> <span class="n">RMSD_Phi</span> <span class="o">|</span>
+<span class="o">|</span>      <span class="o">|</span>       <span class="o">|</span> <span class="p">(</span><span class="n">mm</span><span class="p">)</span>    <span class="o">|</span> <span class="p">(</span><span class="n">mm</span><span class="p">)</span>     <span class="o">|</span> <span class="p">(</span><span class="n">deg</span><span class="p">)</span>    <span class="o">|</span>
+<span class="o">------------------------------------------------</span>
+<span class="o">|</span> <span class="mi">0</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10361</span> <span class="o">|</span> <span class="mf">0.06205</span>  <span class="o">|</span> <span class="mf">0.05831</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">1</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10333</span> <span class="o">|</span> <span class="mf">0.061719</span> <span class="o">|</span> <span class="mf">0.057777</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">2</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10311</span> <span class="o">|</span> <span class="mf">0.061549</span> <span class="o">|</span> <span class="mf">0.057746</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">3</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10277</span> <span class="o">|</span> <span class="mf">0.061306</span> <span class="o">|</span> <span class="mf">0.057601</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">4</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10246</span> <span class="o">|</span> <span class="mf">0.061116</span> <span class="o">|</span> <span class="mf">0.057267</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">5</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10228</span> <span class="o">|</span> <span class="mf">0.061063</span> <span class="o">|</span> <span class="mf">0.056877</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">6</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10215</span> <span class="o">|</span> <span class="mf">0.061081</span> <span class="o">|</span> <span class="mf">0.05668</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">7</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10208</span> <span class="o">|</span> <span class="mf">0.061099</span> <span class="o">|</span> <span class="mf">0.05666</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">8</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10204</span> <span class="o">|</span> <span class="mf">0.061066</span> <span class="o">|</span> <span class="mf">0.056661</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">9</span>    <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10201</span> <span class="o">|</span> <span class="mf">0.060985</span> <span class="o">|</span> <span class="mf">0.056634</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">10</span>   <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.102</span>   <span class="o">|</span> <span class="mf">0.0609</span>   <span class="o">|</span> <span class="mf">0.056573</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">11</span>   <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10203</span> <span class="o">|</span> <span class="mf">0.060857</span> <span class="o">|</span> <span class="mf">0.056504</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">12</span>   <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10205</span> <span class="o">|</span> <span class="mf">0.060845</span> <span class="o">|</span> <span class="mf">0.056468</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">13</span>   <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10206</span> <span class="o">|</span> <span class="mf">0.060843</span> <span class="o">|</span> <span class="mf">0.05646</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">14</span>   <span class="o">|</span> <span class="mi">50918</span> <span class="o">|</span> <span class="mf">0.10206</span> <span class="o">|</span> <span class="mf">0.060843</span> <span class="o">|</span> <span class="mf">0.05646</span>  <span class="o">|</span>
+<span class="o">------------------------------------------------</span>
+<span class="n">RMSD</span> <span class="n">no</span> <span class="n">longer</span> <span class="n">decreasing</span>
+
+<span class="n">RMSDs</span> <span class="n">by</span> <span class="n">experiment</span><span class="p">:</span>
+<span class="o">---------------------------------------------</span>
+<span class="o">|</span> <span class="n">Exp</span> <span class="o">|</span> <span class="n">Nref</span> <span class="o">|</span> <span class="n">RMSD_X</span>  <span class="o">|</span> <span class="n">RMSD_Y</span>  <span class="o">|</span> <span class="n">RMSD_Z</span>   <span class="o">|</span>
+<span class="o">|</span>     <span class="o">|</span>      <span class="o">|</span> <span class="p">(</span><span class="n">px</span><span class="p">)</span>    <span class="o">|</span> <span class="p">(</span><span class="n">px</span><span class="p">)</span>    <span class="o">|</span> <span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">|</span>
+<span class="o">---------------------------------------------</span>
+<span class="o">|</span> <span class="mi">0</span>   <span class="o">|</span> <span class="mi">1304</span> <span class="o">|</span> <span class="mf">0.57371</span> <span class="o">|</span> <span class="mf">0.34681</span> <span class="o">|</span> <span class="mf">0.30517</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">1</span>   <span class="o">|</span> <span class="mi">1275</span> <span class="o">|</span> <span class="mf">0.60022</span> <span class="o">|</span> <span class="mf">0.34285</span> <span class="o">|</span> <span class="mf">0.30982</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">2</span>   <span class="o">|</span> <span class="mi">1004</span> <span class="o">|</span> <span class="mf">0.67823</span> <span class="o">|</span> <span class="mf">0.41947</span> <span class="o">|</span> <span class="mf">0.29667</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">3</span>   <span class="o">|</span> <span class="mi">1211</span> <span class="o">|</span> <span class="mf">0.61019</span> <span class="o">|</span> <span class="mf">0.42341</span> <span class="o">|</span> <span class="mf">0.26994</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">4</span>   <span class="o">|</span> <span class="mi">374</span>  <span class="o">|</span> <span class="mf">0.66814</span> <span class="o">|</span> <span class="mf">0.41793</span> <span class="o">|</span> <span class="mf">0.28288</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">5</span>   <span class="o">|</span> <span class="mi">1429</span> <span class="o">|</span> <span class="mf">0.53542</span> <span class="o">|</span> <span class="mf">0.30974</span> <span class="o">|</span> <span class="mf">0.25422</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">6</span>   <span class="o">|</span> <span class="mi">1426</span> <span class="o">|</span> <span class="mf">0.51288</span> <span class="o">|</span> <span class="mf">0.282</span>   <span class="o">|</span> <span class="mf">0.23681</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">7</span>   <span class="o">|</span> <span class="mi">1237</span> <span class="o">|</span> <span class="mf">0.65645</span> <span class="o">|</span> <span class="mf">0.32797</span> <span class="o">|</span> <span class="mf">0.27486</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">8</span>   <span class="o">|</span> <span class="mi">1090</span> <span class="o">|</span> <span class="mf">0.54471</span> <span class="o">|</span> <span class="mf">0.34442</span> <span class="o">|</span> <span class="mf">0.2591</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">9</span>   <span class="o">|</span> <span class="mi">137</span>  <span class="o">|</span> <span class="mf">1.2492</span>  <span class="o">|</span> <span class="mf">0.48144</span> <span class="o">|</span> <span class="mf">0.31548</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">10</span>  <span class="o">|</span> <span class="mi">1483</span> <span class="o">|</span> <span class="mf">0.54167</span> <span class="o">|</span> <span class="mf">0.33374</span> <span class="o">|</span> <span class="mf">0.25129</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">11</span>  <span class="o">|</span> <span class="mi">907</span>  <span class="o">|</span> <span class="mf">0.56563</span> <span class="o">|</span> <span class="mf">0.39174</span> <span class="o">|</span> <span class="mf">0.26267</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">12</span>  <span class="o">|</span> <span class="mi">1697</span> <span class="o">|</span> <span class="mf">0.53376</span> <span class="o">|</span> <span class="mf">0.33867</span> <span class="o">|</span> <span class="mf">0.25553</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">13</span>  <span class="o">|</span> <span class="mi">1354</span> <span class="o">|</span> <span class="mf">0.59745</span> <span class="o">|</span> <span class="mf">0.32363</span> <span class="o">|</span> <span class="mf">0.27096</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">14</span>  <span class="o">|</span> <span class="mi">1766</span> <span class="o">|</span> <span class="mf">0.55775</span> <span class="o">|</span> <span class="mf">0.30882</span> <span class="o">|</span> <span class="mf">0.25687</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">15</span>  <span class="o">|</span> <span class="mi">1109</span> <span class="o">|</span> <span class="mf">0.68372</span> <span class="o">|</span> <span class="mf">0.35892</span> <span class="o">|</span> <span class="mf">0.31</span>     <span class="o">|</span>
+<span class="o">|</span> <span class="mi">16</span>  <span class="o">|</span> <span class="mi">1636</span> <span class="o">|</span> <span class="mf">0.5659</span>  <span class="o">|</span> <span class="mf">0.3262</span>  <span class="o">|</span> <span class="mf">0.30059</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">17</span>  <span class="o">|</span> <span class="mi">1656</span> <span class="o">|</span> <span class="mf">0.53262</span> <span class="o">|</span> <span class="mf">0.32716</span> <span class="o">|</span> <span class="mf">0.26653</span>  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">18</span>  <span class="o">|</span> <span class="mi">1401</span> <span class="o">|</span> <span class="mf">0.51543</span> <span class="o">|</span> <span class="mf">0.37366</span> <span class="o">|</span> <span class="mf">0.2767</span>   <span class="o">|</span>
+<span class="o">|</span> <span class="mi">19</span>  <span class="o">|</span> <span class="mi">172</span>  <span class="o">|</span> <span class="mf">0.90236</span> <span class="o">|</span> <span class="mf">0.38946</span> <span class="o">|</span> <span class="mf">0.39827</span>  <span class="o">|</span>
+<span class="o">---------------------------------------------</span>
+<span class="n">Table</span> <span class="n">truncated</span> <span class="n">to</span> <span class="n">show</span> <span class="n">the</span> <span class="n">first</span> <span class="mi">20</span> <span class="n">experiments</span> <span class="n">only</span>
+</pre></div>
+</div>
+<p>Now we have RMSDs in X down to 0.1 mm, in Y to 0.06 mm and 0.06 degrees in
+<span class="math notranslate nohighlight">\(\phi\)</span>. The RMSDs for experiment 0 are not so much worse than from the
+individual refinement job. We are happy with this result and move on to
+re-integrating the data to create MTZs for BLEND.</p>
+</div>
+<div class="section" id="analysis-of-jointly-refined-datasets">
+<h2>Analysis of jointly refined datasets<a class="headerlink" href="#analysis-of-jointly-refined-datasets" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">dials.integrate</strong> will not work with our <code class="file docutils literal notranslate"><span class="pre">refined_combined_experiments_outrej.json</span></code>
+and <code class="file docutils literal notranslate"><span class="pre">combined_reflections.pickle</span></code> directly, so we have to separate these
+into individual files for each experiment. It is best to do this inside a new
+directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir joint
+<span class="nb">cd</span> !$
+dials.split_experiments ../refined_combined_experiments_outrej.json ../combined_reflections.pickle
+</pre></div>
+</div>
+<p>This fills the directory with 39 individual <code class="file docutils literal notranslate"><span class="pre">experiments_##.json</span></code> and
+<code class="file docutils literal notranslate"><span class="pre">reflections_##.pickle</span></code> files. To integrate these quickly we want a script
+to run in parallel, similar to the one used previously:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/env dials.python</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_run</span><span class="p">,</span> <span class="n">easy_mp</span>
+<span class="kn">from</span> <span class="nn">dials.test</span> <span class="kn">import</span> <span class="n">cd</span>
+
+<span class="k">def</span> <span class="nf">process_sweep</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Process a single sweep of data. The parameter &#39;task&#39; will be a</span>
+<span class="sd">  tuple, the first element of which is an integer job number and the</span>
+<span class="sd">  second is the path to the directory containing the data&quot;&quot;&quot;</span>
+
+  <span class="n">num</span> <span class="o">=</span> <span class="n">task</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+  <span class="n">datadir</span> <span class="o">=</span> <span class="n">task</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+  <span class="n">experiments_file</span> <span class="o">=</span> <span class="s2">&quot;experiments_</span><span class="si">%02d</span><span class="s2">.json&quot;</span> <span class="o">%</span> <span class="n">num</span>
+  <span class="n">reflections_file</span> <span class="o">=</span> <span class="s2">&quot;reflections_</span><span class="si">%02d</span><span class="s2">.pickle&quot;</span> <span class="o">%</span> <span class="n">num</span>
+  <span class="n">experiments_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">datadir</span><span class="p">,</span> <span class="n">experiments_file</span><span class="p">)</span>
+  <span class="n">reflections_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">datadir</span><span class="p">,</span> <span class="n">reflections_file</span><span class="p">)</span>
+
+  <span class="c1"># create directory</span>
+  <span class="k">with</span> <span class="n">cd</span><span class="p">(</span><span class="s2">&quot;sweep_</span><span class="si">%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">num</span><span class="p">):</span>
+    <span class="c1"># WARNING! Fast and dirty integration.</span>
+    <span class="c1"># Do not use the result for scaling/merging!</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.integrate </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> &quot;</span> <span class="o">+</span> \
+          <span class="s2">&quot;profile.fitting=False prediction.dmin=8.0 prediction.dmax=8.1&quot;</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">%</span> <span class="p">(</span><span class="n">experiments_path</span><span class="p">,</span> <span class="n">reflections_path</span><span class="p">)</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;integrated.pickle&quot;</span><span class="p">):</span>
+      <span class="k">print</span> <span class="s2">&quot;Job </span><span class="si">%02d</span><span class="s2"> failed during integration&quot;</span> <span class="o">%</span> <span class="n">num</span>
+      <span class="k">return</span>
+
+    <span class="c1"># create MTZ</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.export </span><span class="si">%s</span><span class="s2"> integrated.pickle mtz.hklout=integrated.mtz&quot;</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">%</span> <span class="n">experiments_path</span>
+    <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;integrated.mtz&quot;</span><span class="p">):</span>
+      <span class="k">print</span> <span class="s2">&quot;Job </span><span class="si">%02d</span><span class="s2"> failed during MTZ export&quot;</span> <span class="o">%</span> <span class="n">num</span>
+      <span class="k">return</span>
+
+  <span class="c1"># if we got this far, return the path to the MTZ</span>
+  <span class="k">return</span> <span class="s2">&quot;sweep_</span><span class="si">%02d</span><span class="s2">/integrated.mtz&quot;</span> <span class="o">%</span> <span class="n">num</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s2">&quot;Usage: dials.python integrate_joint_TehA.py ..&quot;</span><span class="p">)</span>
+  <span class="n">data_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+  <span class="n">pathname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s2">&quot;experiments_*.json&quot;</span><span class="p">)</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
+
+  <span class="n">templates</span> <span class="o">=</span> <span class="p">[</span><span class="n">data_dir</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">]</span>
+  <span class="n">tasklist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">templates</span><span class="p">)))</span>
+
+  <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">Auto</span>
+  <span class="n">nproc</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">get_processes</span><span class="p">(</span><span class="n">Auto</span><span class="p">)</span>
+
+  <span class="k">print</span> <span class="s2">&quot;Attempting to process the following datasets, with {} processes&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nproc</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasklist</span><span class="p">:</span>
+    <span class="k">print</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">: </span><span class="si">%s</span><span class="s2">/experiments</span><span class="si">%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">task</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">task</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">task</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+  <span class="n">results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
+    <span class="n">func</span><span class="o">=</span><span class="n">process_sweep</span><span class="p">,</span>
+    <span class="n">iterable</span><span class="o">=</span><span class="n">tasklist</span><span class="p">,</span>
+    <span class="n">processes</span><span class="o">=</span><span class="n">nproc</span><span class="p">,</span>
+    <span class="n">preserve_order</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+  <span class="n">good_results</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">]</span>
+  <span class="k">print</span> <span class="s2">&quot;Successfully created the following MTZs:&quot;</span>
+  <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">good_results</span><span class="p">:</span>
+    <span class="k">print</span> <span class="n">result</span>
+</pre></div>
+</div>
+<p>This, if saved as <code class="file docutils literal notranslate"><span class="pre">integrate_joint_TehA.py</span></code> in the new <code class="file docutils literal notranslate"><span class="pre">joint</span></code>
+directory can be run as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">python</span> <span class="n">integrate_joint_TehA</span><span class="o">.</span><span class="n">py</span> <span class="o">.</span>
+</pre></div>
+</div>
+<p>As expected this creates all 40 MTZs for the jointly refined sweeps without any
+problem. We can copy the paths to these into a new file, say
+<code class="file docutils literal notranslate"><span class="pre">joint_mtzs.dat</span></code>, and run blend:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s2">&quot;END&quot;</span> <span class="o">|</span> <span class="n">blend</span> <span class="o">-</span><span class="n">a</span> <span class="n">joint_mtzs</span><span class="o">.</span><span class="n">dat</span>
+</pre></div>
+</div>
+<p>The <code class="file docutils literal notranslate"><span class="pre">tree.png</span></code> resulting from this is very interesting.</p>
+<blockquote>
+<div><img alt="../../_images/tree_03.png" src="../../_images/tree_03.png" />
+</div></blockquote>
+<p>The LCV is now as low as 0.36% (aLCV 0.6 Angstroms). This indicates an even
+higher degree of isomorphism than detected during after individual processing.
+So although joint refinement leads to slightly higher RMSDs for each experiment
+(as we expected) the resulting unit cells are more similar. It is worth
+remembering that no restraints were applied between unit cells in refinement.
+Given that we know that the detector and beam did not move between the data
+collections we might like to think that the joint refinement analysis is a more
+accurate depiction of reality, and thus the unit cells are closer to the truth.</p>
+</div>
+<div class="section" id="what-to-do-next">
+<h2>What to do next?<a class="headerlink" href="#what-to-do-next" title="Permalink to this headline">¶</a></h2>
+<p>This has given us a good starting point for analysis with BLEND. However, because
+of the shortcuts we took with integration we are not yet ready to continue with
+BLEND’s synthesis mode. At this point we might assess where we are and try a few
+things:</p>
+<ul class="simple">
+<li>Go back and fix datasets that didn’t index properly. We could edit our processing
+script to attempt <code class="samp docutils literal notranslate"><span class="pre">method=fft1d</span></code> for example if the 3D FFT indexing was
+unsuccessful.</li>
+<li>Integrate data properly for BLEND’s synthesis mode. We should remove the resolution
+limits and allow <strong class="program">dials.integrate</strong> to do profile fitting as well as
+summation integration.</li>
+</ul>
+</div>
+<div class="section" id="acknowledgements">
+<h2>Acknowledgements<a class="headerlink" href="#acknowledgements" title="Permalink to this headline">¶</a></h2>
+<p>The TehA project and original BLEND analysis was performed by scientists at Diamond
+Light Source and the Membrane Protein Laboratory. We thank the following for
+access to the data: Danny Axford, Nien-Jen Hu, James Foadi, Hassanul Ghani Choudhury, So Iwata,
+Konstantinos Beis, Pierre Aller, Gwyndaf Evans &amp; Yilmaz Alguel</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2019, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

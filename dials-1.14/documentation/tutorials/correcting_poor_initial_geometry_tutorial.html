@@ -1,0 +1,477 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>DPF3 Part 1: Correcting poor initial geometry &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/dials-styles.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="DPF3 Part 2: A question of centring" href="centring_vs_pseudocentring.html" />
+    <link rel="prev" title="Small Molecule Tutorial" href="small_molecule_tutorial.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <div class="seealso">
+    This documentation page refers to a previous release of DIALS (1.14).<br/>
+    <a href="../../index.html/../../documentation/tutorials/correcting_poor_initial_geometry_tutorial.html">Click here to go to the corresponding page for the latest version of DIALS</a><br/>
+  </div>
+  <div class="section" id="dpf3-part-1-correcting-poor-initial-geometry">
+<h1>DPF3 Part 1: Correcting poor initial geometry<a class="headerlink" href="#dpf3-part-1-correcting-poor-initial-geometry" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The following example uses a dataset kindly provided by Wolfram Tempel, which
+was collected at beamline 19-ID at the APS. This dataset is available for
+download from <a class="reference external" href="https://doi.org/10.5281/zenodo.45756"><img alt="DPF3" src="https://zenodo.org/badge/doi/10.5281/zenodo.45756.svg" /></a>.</p>
+<p>This is a challenging dataset to process. There are a combination of problems,
+including:</p>
+<ul class="simple">
+<li>A ‘reversed’ rotation axis</li>
+<li>Incorrect beam centre recorded in the image headers</li>
+<li>Split spots</li>
+<li>Multiple lattices</li>
+<li>Systematically weak spots that may correspond to pseudocentring</li>
+</ul>
+<p>Despite these issues, the diffraction data is of reasonable quality and was
+used to <a class="reference external" href="http://www.rcsb.org/pdb/explore/explore.do?structureId=5I3L">solve the structure</a> after processing by XDS.</p>
+<p>In the first part of this tutorial we will look at how to use the DIALS toolkit
+to address the poor initial model for the experimental geometry, which leads to
+problems with indexing. The first listed problem, namely the inverted rotation
+axis, is trivially dealt with. However the incorrect beam centre is
+particularly pernicious in this case. Rather than resulting in an outright
+failure to process, we instead obtain an incorrect indexing solution. If we
+were being careless, this could have lead to the integration of a useless
+data set.</p>
+<p>This tutorial is a cautionary tale, the moral of which is that the user should
+employ the diagnostic tools at their disposal and to think about the output of
+the programs they run.</p>
+</div>
+<div class="section" id="import">
+<h2>Import<a class="headerlink" href="#import" title="Permalink to this headline">¶</a></h2>
+<p>The dataset consists of a tar archive of bz2-compressed images. DIALS can read
+the compressed images directly, however we need to extract the archive first:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>tar xvf DPF3_247398.tar
+</pre></div>
+</div>
+<p>At this point we have no reason not to trust the image headers. We shall just
+go ahead and import the whole sweep as normal:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.import x247398/t1.0*.img.bz2
+</pre></div>
+</div>
+<p>This produces the file <code class="file docutils literal notranslate"><span class="pre">datablock.json</span></code>, containing an initial model for
+the beamline geometry. You can inspect this model using <strong class="program">dials.show</strong>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.show datablock.json
+</pre></div>
+</div>
+<p>Note how the goniometer rotation axis is given by <code class="docutils literal notranslate"><span class="pre">{-1,0,0}</span></code> rather than
+<code class="docutils literal notranslate"><span class="pre">{1,0,0}</span></code>. This is because DIALS recognises that these images as being
+from beamline 19-ID at the APS, which is known to have an inverted axis of
+rotation compared with the more common direction. Settings such as inverse
+<span class="math notranslate nohighlight">\(\phi\)</span>, or vertical goniometers, can be the cause of problems with
+processing data from currently unrecognised beamlines. As an aside, in such
+a case we could force the rotation axis to be whatever we want like this:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.import x247398/t1.0*.img.bz2 geometry.goniometer.axes=-1,0,0
+</pre></div>
+</div>
+<p>Now that we have imported the data we should look at the images:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.image_viewer datablock.json
+</pre></div>
+</div>
+<p>Keen-eyed observers may already suspect that the beam centre is not correct,
+however we shall continue through spot-finding as this is not affected by
+the experimental geometry.</p>
+</div>
+<div class="section" id="find-spots">
+<h2>Find Spots<a class="headerlink" href="#find-spots" title="Permalink to this headline">¶</a></h2>
+<p>Spot-finding in DIALS usually works well for Pilatus detectors, where
+default assumptions about Poisson statistics of pixel counts, unity gain and
+no point spread are accurate. These assumptions are not correct for CCD
+detectors and this can be another source of problems with data processing.</p>
+<p>To see the positions of strong pixels identified by the spot finding
+algorithm, select the <code class="docutils literal notranslate"><span class="pre">threshold</span></code> button at the bottom of the image
+viewer’s <code class="docutils literal notranslate"><span class="pre">Settings</span></code> window. In this case, the default settings are not too
+bad: the strong pixels clearly follow the diffraction pattern. However there
+is a little bit of noise between the diffraction spots and along some of the
+detector module edges. We can try altering the spot finding settings to
+improve the threshold map. In this case, setting the <code class="docutils literal notranslate"><span class="pre">Gain</span></code> to <code class="docutils literal notranslate"><span class="pre">2.0</span></code>
+seems sufficient to clean up some of the spurious peak positions. The gain
+setting we select here will only affect spot finding and not other stages of
+processing. Our focus here is empirical. We want to produce a good spot list
+for indexing, we are not worried about setting the detector gain to its true
+value (for an ADSC Q315r detector this is reported to be about 2.4 ADU per
+12 keV X-ray).</p>
+<p>Once we are satisfied with the spot-finding settings we can write them out
+to <code class="file docutils literal notranslate"><span class="pre">find_spots.phil</span></code> by clicking the <code class="docutils literal notranslate"><span class="pre">Save</span></code> button on the
+<code class="docutils literal notranslate"><span class="pre">Settings</span></code> window. Then we can pass this directly to
+<strong class="program">dials.find_spots</strong>, where we also request more than one process
+to speed the job up (feel free to set this greater than 4, if appropriate):</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.find_spots datablock.json find_spots.phil nproc=4
+</pre></div>
+</div>
+<p>After finding strong spots it is <em>always</em> worth viewing them using
+<strong class="program">dials.reciprocal_lattice_viewer</strong>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.reciprocal_lattice_viewer datablock.json strong.pickle
+</pre></div>
+</div>
+<img alt="../../_images/dpf3_bad_found_spot.png" src="../../_images/dpf3_bad_found_spot.png" />
+<p>Presented with this view, we might already start to worry that something is
+not quite right. Instead of neat columns of points corresponding to a
+regular reciprocal lattice grid, the points are aligned in curved or even
+spiral tracks. Extreme cases of this may indicate something grossly wrong,
+like an inverted <span class="math notranslate nohighlight">\(\phi\)</span> direction. In this instance the lattice is
+still detectable, but distorted. We understand this as inaccurate mapping
+from detector to reciprocal space. If the diffraction geometry model is
+wrong, then <strong class="program">dials.reciprocal_lattice_viewer</strong> cannot calculate the
+reciprocal lattice position for each centroid properly. This can cause
+problems with indexing because that requires exactly the same step of
+mapping centroid positions from detector to reciprocal space.</p>
+<p>Notwithstanding these concerns, we press on into indexing.</p>
+</div>
+<div class="section" id="indexing">
+<h2>Indexing<a class="headerlink" href="#indexing" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.index datablock.json strong.pickle
+</pre></div>
+</div>
+<p>It turns out that the reciprocal lattice positions were regular enough for
+indexing to complete (‘succeed’ is the wrong word, as will become clear).
+Remember that initial indexing uses fairly low resolution data only. At low
+resolution the curved tracks of spots are straight enough to fit a lattice.
+Macrocycles of refinement then extend the solution out to increasingly
+high resolution. One might imagine this process as steps of unwarping the
+distorted lattice from the centre outwards until a regular grid is formed.
+Here’s some output from the end of the indexing log:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>RMSDs by experiment:
+--------------------------------------------
+| Exp | Nref  | RMSD_X | RMSD_Y | RMSD_Z   |
+| id  |       | (px)   | (px)   | (images) |
+--------------------------------------------
+| 0   | 13301 | 0.7553 | 1.0663 | 0.50806  |
+--------------------------------------------
+
+Refined crystal models:
+model 1 (16384 reflections):
+Crystal:
+    Unit cell: (113.857, 115.036, 122.851, 89.645, 89.771, 60.615)
+    Space group: P 1
+</pre></div>
+</div>
+<p>This is another point at which the experienced user may pause for thought.
+Positional RMSDs of 0.76 and 1.1 pixels are rather bad. Good models
+typically have values around 0.3 pixels or less. Split spots or other issues
+with spot profiles may result in higher RMSDs for a solution that is still
+correct, however we should always remain sceptical. Looking at the results
+in <strong class="program">dials.reciprocal_lattice_viewer</strong> is instructive as ever:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.reciprocal_lattice_viewer experiments.json indexed.pickle
+</pre></div>
+</div>
+<img alt="../../_images/dpf3_bad_indexed.png" src="../../_images/dpf3_bad_indexed.png" />
+<p>Refinement has done what it could to produce a regular lattice, but it is still
+messy. We also see that the majority of the centroids remain unindexed, and
+these are messier still.</p>
+<img alt="../../_images/dpf3_bad_unindexed.png" src="../../_images/dpf3_bad_unindexed.png" />
+<p>At this point we should definitely heed the warnings and try to figure out
+what happened and how to fix it. However, unfortunately a careless user could
+go ahead and integrate with this model. Let’s see what happens if we try
+to refine compatible Bravais lattices:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.refine_bravais_settings experiments.json indexed.pickle
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>-------------------------------------------------------------------------------------------------------------------
+Solution Metric fit  rmsd    min/max cc #spots lattice                                 unit_cell  volume      cb_op
+-------------------------------------------------------------------------------------------------------------------
+      12     1.0172 0.337   0.031/0.038  14877      hP 116.62 116.62 125.44  90.00  90.00 120.00 1477363    -a,b,-c
+      11     1.0172 0.336  -0.031/0.065  14887      oC 116.48 201.29 125.13  90.00  90.00  90.00 2933803 b,-2*a+b,c
+      10     1.0172 0.322   0.034/0.034  14679      mC 200.78 116.29 124.73  90.00  90.33  90.00 2912345  2*a-b,b,c
+       9     0.9551 0.309   0.065/0.065  14825      mC 115.76 200.29 124.16  90.00  89.53  90.00 2878506 b,-2*a+b,c
+*      8     0.7564 0.271  -0.031/0.036  14684      oC 117.61 201.64 125.75  90.00  90.00  90.00 2982056  a-b,a+b,c
+*      7     0.7564 0.265   0.030/0.030  14684      mC 117.37 201.62 125.40  90.00  90.31  90.00 2967360  a-b,a+b,c
+*      6     0.6886 0.236   0.036/0.036  14241      mC 200.29 117.01 124.89  90.00  89.60  90.00 2926811 a+b,-a+b,c
+*      5     0.3916 0.159  -0.034/0.081  13499      oC 113.77 200.60 122.99  90.00  90.00  90.00 2807091 a,-a+2*b,c
+*      4     0.3916 0.157   0.081/0.081  13435      mC 113.59 200.37 122.80  90.00  89.89  90.00 2794850 a,-a+2*b,c
+*      3     0.3591 0.161 -0.034/-0.034  13869      mC 200.23 113.73 122.70  90.00  90.26  90.00 2794208  a-2*b,a,c
+*      2     0.3600 0.155 -0.031/-0.031  13903      mP 114.25 123.57 115.62  90.00 119.43  90.00 1421681     -a,c,b
+*      1     0.0000 0.137           -/-  13723      aP 114.04 115.23 123.07  89.68  89.79  60.61 1409032      a,b,c
+-------------------------------------------------------------------------------------------------------------------
+</pre></div>
+</div>
+<p>It turns out that quite a few lattices can be forced to fit the putative
+indexing solution, but again there are warnings everywhere that imply none
+of these are right. First look at the <code class="docutils literal notranslate"><span class="pre">Metric</span> <span class="pre">fit</span></code> column. This value is
+the <a class="reference external" href="https://doi.org/10.1107/S0021889882011959">Le Page</a> <span class="math notranslate nohighlight">\(\delta\)</span>
+value. For a correct indexing solution with a good dataset this should be a
+small number, less than 0.1 say, such as in the
+<a class="reference internal" href="processing_in_detail_tutorial.html"><span class="doc">Processing in Detail (Thaumatin)</span></a> tutorial. The <code class="docutils literal notranslate"><span class="pre">rmsd</span></code> column reports an
+overall positional RMSD. Again, small numbers are better. Typically we would
+look for a solution below a jump to higher values of RMSD. Here they are all
+pretty bad, at around an order of magnitude larger than what we’d expect
+from good data. Another clear indication that none of the symmetry operations
+implied by the higher symmetry lattices is correct is given by the <code class="docutils literal notranslate"><span class="pre">min/max</span>
+<span class="pre">cc</span></code> column. This reports the lowest and highest correlation coefficients
+between the rough spot-finding intensities of subsets of reflections related
+by symmetry elements of the <code class="docutils literal notranslate"><span class="pre">lattice</span></code>. For a real solution without rather
+extreme radiation damage or other scaling issues we would expect much larger
+numbers than these, say &gt;0.5 or so for both the <code class="docutils literal notranslate"><span class="pre">min</span></code> and <code class="docutils literal notranslate"><span class="pre">max</span></code> values.</p>
+</div>
+<div class="section" id="check-indexing-symmetry">
+<h2>Check indexing symmetry<a class="headerlink" href="#check-indexing-symmetry" title="Permalink to this headline">¶</a></h2>
+<p>The fact that none of the correlation coefficients is high is a hint that
+although the spots we indexed may indeed be real, perhaps the indices are
+shifted by some value. This would be equivalent to the beam centre latching
+onto some very low resolution Bragg reflection rather than the direct beam
+<span class="math notranslate nohighlight">\(hkl = (0,0,0)\)</span>. DIALS offers a tool to check this. If we run:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.check_indexing_symmetry experiments.json indexed.pickle grid=1
+</pre></div>
+</div>
+<p>then all combinations of off-by-one offsets in <span class="math notranslate nohighlight">\(h\)</span>, <span class="math notranslate nohighlight">\(k\)</span> and <span class="math notranslate nohighlight">\(l\)</span>
+will be checked by testing correlation coefficients between sets of reflections
+related by symmetry. Here the model crystal symmetry is <span class="math notranslate nohighlight">\(P 1\)</span>, so we are
+testing only the Friedel pairs. The results are printed as a table in the
+output:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Checking HKL origin:
+
+dH dK dL   Nref    CC
+-1 -1 -1   3834 0.255
+-1 -1  0   3808 0.288
+-1 -1  1   3624 0.306
+-1  0 -1   3932 0.261
+-1  0  0   3952 0.291
+-1  0  1   3829 0.310
+-1  1 -1   3800 0.171
+-1  1  0   3925 0.230
+-1  1  1   4011 0.316
+ 0  0  0   1538 -0.127
+ 1 -1 -1   4028 0.357
+ 1 -1  0   3966 0.323
+ 1 -1  1   3916 0.247
+ 1  0 -1   4086 0.292
+ 1  0  0   4246 0.387
+ 1  0  1   4210 0.356
+ 1  1 -1   4090 0.339
+ 1  1  0   4474 0.389
+ 1  1  1   5616 0.948
+
+Check symmetry operations on 16384 reflections:
+
+               Symop   Nref    CC
+               x,y,z  16384 0.999
+</pre></div>
+</div>
+<p>In this case there is a much greater correlation coefficient for the shift
+<span class="math notranslate nohighlight">\(\delta h=1\)</span>, <span class="math notranslate nohighlight">\(\delta k=1\)</span> and <span class="math notranslate nohighlight">\(\delta l=1\)</span> than for all
+others. In fact with 95% correlation even in the unscaled, rough intensities
+of the found spots, with no background subtraction, we can be very sure we
+have found the right solution.</p>
+<p>Although it is possible to apply the correction using <strong class="program">dials.reindex</strong>
+like this:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.reindex indexed.pickle hkl_offset=1,1,1
+</pre></div>
+</div>
+<p>it will be very difficult to take the result and continue to process the data.
+There is a much better way to proceed.</p>
+</div>
+<div class="section" id="discover-better-experimental-model">
+<h2>Discover better experimental model<a class="headerlink" href="#discover-better-experimental-model" title="Permalink to this headline">¶</a></h2>
+<p>We have determined that there is a problem with indexing, which gives us a
+mis-indexed solution. The typical culprit in such cases is a badly wrong
+beam centre. DIALS provides the
+<strong class="program">dials.search_beam_position</strong>, which can help out
+here. This performs a grid search to improve the direct beam position using
+the <a class="reference external" href="https://doi.org/10.1107%2FS0021889804005874">methods</a> originally
+implemented in <strong class="program">LABELIT</strong>.</p>
+<p>This sits in between the spot finding and the indexing operations, so that
+we could have done:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.search_beam_position strong.pickle datablock.json n_macro_cycles=2
+</pre></div>
+</div>
+<p>In particularly bad cases it may useful to perform this search iteratively.
+Here we requested two macrocyles, though we see from the concise, yet
+informative output that most of the shift occurred in the the first of
+these (and in fact only the first was necessary):</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Starting macro cycle 1
+Selecting subset of 10000 reflections for analysis
+Running DPS using 10000 reflections
+Found 9 solutions with max unit cell 164.81 Angstroms.
+Old beam centre: 159.98, 154.50 mm (1562.3, 1508.8 px)
+New beam centre: 162.31, 153.39 mm (1585.0, 1498.0 px)
+Shift: -2.33, 1.11 mm (-22.7, 10.8 px)
+
+Starting macro cycle 2
+Selecting subset of 10000 reflections for analysis
+Running DPS using 10000 reflections
+Found 5 solutions with max unit cell 104.76 Angstroms.
+Old beam centre: 162.31, 153.39 mm (1585.0, 1498.0 px)
+New beam centre: 162.31, 153.32 mm (1585.0, 1497.3 px)
+Shift: 0.00, 0.07 mm (0.0, 0.7 px)
+</pre></div>
+</div>
+</div>
+<div class="section" id="indexing-with-the-corrected-beam-centre">
+<h2>Indexing with the corrected beam centre<a class="headerlink" href="#indexing-with-the-corrected-beam-centre" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.index optimized_datablock.json strong.pickle
+</pre></div>
+</div>
+<p>We now have a more convincing solution, which also indexes many more
+reflections:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>RMSDs by experiment:
+---------------------------------------------
+| Exp | Nref  | RMSD_X | RMSD_Y  | RMSD_Z   |
+| id  |       | (px)   | (px)    | (images) |
+---------------------------------------------
+| 0   | 20000 | 0.6645 | 0.68846 | 0.21845  |
+---------------------------------------------
+
+Refined crystal models:
+model 1 (59317 reflections):
+Crystal:
+    Unit cell: (56.245, 99.563, 121.221, 89.968, 89.987, 90.013)
+    Space group: P 1
+</pre></div>
+</div>
+<p>The lattice looks orthorhombic, and indeed the top solution in the table
+from <strong class="program">dials.refine_bravais_settings</strong> looks reasonable:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.refine_bravais_settings experiments.json indexed.pickle
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>--------------------------------------------------------------------------------------------------------------
+Solution Metric fit  rmsd  min/max cc #spots lattice                                 unit_cell volume    cb_op
+--------------------------------------------------------------------------------------------------------------
+*      5     0.0346 0.097 0.765/0.861  20000      oP  56.31  99.66 121.36  90.00  90.00  90.00 681094    a,b,c
+*      4     0.0344 0.097 0.765/0.765  20000      mP  56.32  99.67 121.38  90.00  90.00  90.00 681353    a,b,c
+*      3     0.0346 0.096 0.773/0.773  20000      mP  56.29 121.32  99.63  90.00  90.01  90.00 680434 -a,-c,-b
+*      2     0.0184 0.097 0.861/0.861  20000      mP  99.60  56.27 121.28  90.00  89.97  90.00 679739 -b,-a,-c
+*      1     0.0000 0.098         -/-  20000      aP  56.28  99.60 121.29  89.97  89.99  90.01 679943    a,b,c
+--------------------------------------------------------------------------------------------------------------
+</pre></div>
+</div>
+<p>We may now go on to refine the solution and integrate, following the steps
+outlined in the <a class="reference internal" href="processing_in_detail_tutorial.html"><span class="doc">Processing in Detail (Thaumatin)</span></a> tutorial. This is left
+as an exercise for the reader. If you do so, you will notice warnings from
+both <strong class="program">Pointless</strong> and <strong class="program">cTruncate</strong>. You can continue to solve
+the structure in the primitive orthorhombic lattice, however model refinement
+will present difficulties.</p>
+<p>Could we have foreseen this difficulties as early as the indexing step in DIALS?
+Can we circumvent them? These are the topics explored in the second part of this
+tutorial at <a class="reference internal" href="centring_vs_pseudocentring.html"><span class="doc">DPF3 Part 2: A question of centring</span></a>.</p>
+</div>
+<div class="section" id="conclusions">
+<h2>Conclusions<a class="headerlink" href="#conclusions" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Incorrect or wrongly-interpreted image headers are a fact of life. You will
+encounter these.</li>
+<li>When beam centre problems are suspected, try
+<strong class="program">dials.search_beam_position</strong>.</li>
+<li><strong class="program">dials.reciprocal_lattice_viewer</strong> and
+<strong class="program">dials.image_viewer</strong> are excellent troubleshooting tools for all
+sorts of spot finding and indexing problems.</li>
+<li>Some issues manifest as outright failures in indexing, others are more
+insidious and may result in a misindexed solution.</li>
+<li>Look out for CCs to detect misindexed data, and remember
+<strong class="program">dials.check_indexing_symmetry</strong>.</li>
+<li>Always use the diagnostic tools!</li>
+</ul>
+<div class="section" id="acknowledgements">
+<h3>Acknowledgements<a class="headerlink" href="#acknowledgements" title="Permalink to this headline">¶</a></h3>
+<p>Thanks to Wolfram Tempel for making this dataset available and inspiring
+the writing of this tutorial.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2019, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

@@ -1,0 +1,288 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.real_space_grid_search &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/button.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <div class="seealso">
+    This documentation page refers to a previous release of DIALS (1.14).<br/>
+    <a href="../../../../index.html/../../_modules/dials/algorithms/indexing/real_space_grid_search.html">Click here to go to the corresponding page for the latest version of DIALS</a><br/>
+  </div>
+  <h1>Source code for dials.algorithms.indexing.real_space_grid_search</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="c1"># -*- mode: python; coding: utf-8; indent-tabs-mode: nil; python-indent: 2 -*-</span>
+<span class="c1">#</span>
+<span class="c1"># dials.algorithms.indexing.real_space_grid_search.py</span>
+<span class="c1">#</span>
+<span class="c1">#  Copyright (C) 2014 Diamond Light Source</span>
+<span class="c1">#</span>
+<span class="c1">#  Author: Richard Gildea</span>
+<span class="c1">#</span>
+<span class="c1">#  This code is distributed under the BSD license, a copy of which is</span>
+<span class="c1">#  included in the root directory of this package.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="k">import</span> <span class="n">matrix</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.indexer</span> <span class="k">import</span> <span class="n">indexer_base</span><span class="p">,</span> <span class="n">optimise_basis_vectors</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.indexer</span> <span class="k">import</span> <span class="n">is_approximate_integer_multiple</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="k">import</span> <span class="n">Experiment</span><span class="p">,</span> <span class="n">ExperimentList</span>
+
+
+<div class="viewcode-block" id="indexer_real_space_grid_search"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.real_space_grid_search.indexer_real_space_grid_search">[docs]</a><span class="k">class</span> <span class="nc">indexer_real_space_grid_search</span><span class="p">(</span><span class="n">indexer_base</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">imagesets</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">indexer_real_space_grid_search</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">reflections</span><span class="p">,</span> <span class="n">imagesets</span><span class="p">,</span> <span class="n">params</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="indexer_real_space_grid_search.find_lattices"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.real_space_grid_search.indexer_real_space_grid_search.find_lattices">[docs]</a>    <span class="k">def</span> <span class="nf">find_lattices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">real_space_grid_search</span><span class="p">()</span>
+        <span class="n">crystal_models</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">cm</span> <span class="ow">in</span> <span class="n">crystal_models</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">imagesets</span><span class="p">:</span>
+                <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">Experiment</span><span class="p">(</span>
+                        <span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">,</span>
+                        <span class="n">beam</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(),</span>
+                        <span class="n">detector</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">(),</span>
+                        <span class="n">goniometer</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">(),</span>
+                        <span class="n">scan</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">(),</span>
+                        <span class="n">crystal</span><span class="o">=</span><span class="n">cm</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">experiments</span></div>
+
+<div class="viewcode-block" id="indexer_real_space_grid_search.real_space_grid_search"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.real_space_grid_search.indexer_real_space_grid_search.real_space_grid_search">[docs]</a>    <span class="k">def</span> <span class="nf">real_space_grid_search</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">refinement_protocol</span><span class="o">.</span><span class="n">d_min_start</span>
+
+        <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">d_min</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sel</span> <span class="o">&amp;=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">d_min</span>
+        <span class="n">reciprocal_lattice_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Indexing from </span><span class="si">%i</span><span class="s2"> reflections&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">reciprocal_lattice_points</span><span class="p">))</span>
+
+        <span class="k">def</span> <span class="nf">compute_functional</span><span class="p">(</span><span class="n">vector</span><span class="p">):</span>
+            <span class="n">two_pi_S_dot_v</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">reciprocal_lattice_points</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">vector</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">two_pi_S_dot_v</span><span class="p">))</span>
+
+        <span class="kn">from</span> <span class="nn">rstbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
+        <span class="kn">from</span> <span class="nn">rstbx.dps_core</span> <span class="k">import</span> <span class="n">SimpleSamplerTool</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">SST</span> <span class="o">=</span> <span class="n">SimpleSamplerTool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">real_space_grid_search</span><span class="o">.</span><span class="n">characteristic_grid</span><span class="p">)</span>
+        <span class="n">SST</span><span class="o">.</span><span class="n">construct_hemisphere_grid</span><span class="p">(</span><span class="n">SST</span><span class="o">.</span><span class="n">incr</span><span class="p">)</span>
+        <span class="n">cell_dimensions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">parameters</span><span class="p">()[:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">unique_cell_dimensions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">cell_dimensions</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Number of search vectors: </span><span class="si">%i</span><span class="s2">&quot;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">SST</span><span class="o">.</span><span class="n">angles</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_cell_dimensions</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="n">vectors</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">()</span>
+        <span class="n">function_values</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">direction</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">SST</span><span class="o">.</span><span class="n">angles</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">unique_cell_dimensions</span><span class="p">:</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">direction</span><span class="o">.</span><span class="n">dvec</span><span class="p">)</span> <span class="o">*</span> <span class="n">l</span>
+                <span class="n">f</span> <span class="o">=</span> <span class="n">compute_functional</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+                <span class="n">vectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+                <span class="n">function_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">function_values</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">vectors</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">function_values</span> <span class="o">=</span> <span class="n">function_values</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+
+        <span class="n">unique_vectors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_vectors</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">vectors</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">is_unique</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">v_u</span> <span class="ow">in</span> <span class="n">unique_vectors</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">v_u</span><span class="o">.</span><span class="n">length</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="n">is_approximate_integer_multiple</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">v_u</span><span class="p">):</span>
+                            <span class="n">is_unique</span> <span class="o">=</span> <span class="kc">False</span>
+                            <span class="k">break</span>
+                    <span class="k">elif</span> <span class="n">is_approximate_integer_multiple</span><span class="p">(</span><span class="n">v_u</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+                        <span class="n">is_unique</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="k">break</span>
+            <span class="k">if</span> <span class="n">is_unique</span><span class="p">:</span>
+                <span class="n">unique_vectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">):</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">vectors</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">elems</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">()),</span> <span class="nb">str</span><span class="p">(</span><span class="n">function_values</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+            <span class="p">)</span>
+
+        <span class="n">basis_vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">elems</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">unique_vectors</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span> <span class="o">=</span> <span class="n">basis_vectors</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">optimise_initial_basis_vectors</span><span class="p">:</span>
+            <span class="n">optimised_basis_vectors</span> <span class="o">=</span> <span class="n">optimise_basis_vectors</span><span class="p">(</span>
+                <span class="n">reciprocal_lattice_points</span><span class="p">,</span> <span class="n">basis_vectors</span>
+            <span class="p">)</span>
+            <span class="n">optimised_function_values</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">compute_functional</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">optimised_basis_vectors</span><span class="p">]</span>
+            <span class="p">)</span>
+
+            <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">optimised_function_values</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">optimised_basis_vectors</span> <span class="o">=</span> <span class="n">optimised_basis_vectors</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+            <span class="n">optimised_function_values</span> <span class="o">=</span> <span class="n">optimised_function_values</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+
+            <span class="n">unique_vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">optimised_basis_vectors</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Number of unique vectors: </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_vectors</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_vectors</span><span class="p">)):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span>
+                <span class="o">%</span> <span class="p">(</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">compute_functional</span><span class="p">(</span><span class="n">unique_vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">elems</span><span class="p">)),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">unique_vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">length</span><span class="p">()),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">unique_vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">elems</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">crystal_models</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span> <span class="o">=</span> <span class="n">unique_vectors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug_show_candidate_basis_vectors</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug_plots</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">debug_plot_candidate_basis_vectors</span><span class="p">()</span>
+        <span class="n">candidate_orientation_matrices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_candidate_orientation_matrices</span><span class="p">(</span>
+            <span class="n">unique_vectors</span>
+        <span class="p">)</span>
+        <span class="n">crystal_model</span><span class="p">,</span> <span class="n">n_indexed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">choose_best_orientation_matrix</span><span class="p">(</span>
+            <span class="n">candidate_orientation_matrices</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">crystal_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">crystal_models</span> <span class="o">=</span> <span class="p">[</span><span class="n">crystal_model</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">crystal_models</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># assert len(crystal_models) &gt; 0</span>
+
+        <span class="n">candidate_orientation_matrices</span> <span class="o">=</span> <span class="n">crystal_models</span>
+
+        <span class="c1"># for i in range(len(candidate_orientation_matrices)):</span>
+        <span class="c1"># if self.target_symmetry_primitive is not None:</span>
+        <span class="c1">##print &quot;symmetrizing model&quot;</span>
+        <span class="c1">##self.target_symmetry_primitive.show_summary()</span>
+        <span class="c1"># symmetrized_model = self.apply_symmetry(</span>
+        <span class="c1"># candidate_orientation_matrices[i], self.target_symmetry_primitive)</span>
+        <span class="c1"># candidate_orientation_matrices[i] = symmetrized_model</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span> <span class="o">=</span> <span class="n">candidate_orientation_matrices</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2019, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
