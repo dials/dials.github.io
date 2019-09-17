@@ -49,36 +49,12 @@
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">time</span>
+
+<span class="kn">import</span> <span class="nn">dials.algorithms.integration</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-
-<span class="k">class</span> <span class="nc">TimingInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to contain timing info.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">read</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">initialize</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">process</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">finalize</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="mi">0</span>
-
-    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Convert to string. &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">libtbx.table_utils</span> <span class="k">import</span> <span class="nb">format</span> <span class="k">as</span> <span class="n">table</span>
-
-        <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="p">[</span><span class="s2">&quot;Read time&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%.2f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">)],</span>
-            <span class="p">[</span><span class="s2">&quot;Pre-process time&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%.2f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">)],</span>
-            <span class="p">[</span><span class="s2">&quot;Process time&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%.2f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">)],</span>
-            <span class="p">[</span><span class="s2">&quot;Post-process time&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%.2f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finalize</span><span class="p">)],</span>
-            <span class="p">[</span><span class="s2">&quot;Total time&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%.2f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">total</span><span class="p">)],</span>
-            <span class="p">[</span><span class="s2">&quot;User time&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%.2f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)],</span>
-        <span class="p">]</span>
-        <span class="k">return</span> <span class="n">table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">justify</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">ProcessorImageBase</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -121,9 +97,7 @@
 
 <span class="sd">        :return: The processing results</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">time</span>
         <span class="kn">from</span> <span class="nn">dials.util.mp</span> <span class="k">import</span> <span class="n">multi_node_parallel_map</span>
-        <span class="kn">import</span> <span class="nn">platform</span>
 
         <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
@@ -257,7 +231,6 @@
         <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="k">import</span> <span class="n">MultiPanelImageVolume</span>
         <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="k">import</span> <span class="n">ImageVolume</span>
         <span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="k">import</span> <span class="n">job</span>
-        <span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">time</span>
 
         <span class="c1"># Set the job index</span>
         <span class="n">job</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span>
@@ -366,7 +339,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">finalized</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># Initialise the timing information</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">TimingInfo</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">algorithms</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">TimingInfo</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -375,7 +348,6 @@
         <span class="kn">from</span> <span class="nn">dials_algorithms_integration_integrator_ext</span> <span class="k">import</span> <span class="p">(</span>
             <span class="n">ReflectionManagerPerImage</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">time</span>
 
         <span class="c1"># Get the start time</span>
         <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
@@ -435,8 +407,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Finalize the processing and finish.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">time</span>
-
         <span class="c1"># Get the start time</span>
         <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
 
@@ -667,28 +637,22 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="c1"># Heading</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">heading</span><span class="p">(</span><span class="s2">&quot;Processing reflections&quot;</span><span class="p">))</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
-
-        <span class="c1"># Create summary format</span>
-        <span class="n">fmt</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="s2">&quot; Processing the following experiments:</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Experiments: </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Beams:       </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Detectors:   </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Goniometers: </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Scans:       </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Crystals:    </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Imagesets:   </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-
         <span class="c1"># Print the summary</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="n">fmt</span>
+            <span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span>
+            <span class="o">+</span> <span class="p">(</span>
+                <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;Processing reflections</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; Processing the following experiments:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; Experiments: </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; Beams:       </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; Detectors:   </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; Goniometers: </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; Scans:       </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; Crystals:    </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; Imagesets:   </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
             <span class="o">%</span> <span class="p">(</span>
                 <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">),</span>
                 <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()),</span>
