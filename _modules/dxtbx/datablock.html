@@ -49,6 +49,7 @@
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
 <span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">errno</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
@@ -57,7 +58,7 @@
 <span class="kn">import</span> <span class="nn">os.path</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">builtins</span> <span class="k">import</span> <span class="nb">range</span>
-<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">abspath</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">isdir</span><span class="p">,</span> <span class="n">isfile</span><span class="p">,</span> <span class="n">join</span><span class="p">,</span> <span class="n">normpath</span><span class="p">,</span> <span class="n">splitext</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">abspath</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">normpath</span><span class="p">,</span> <span class="n">splitext</span>
 
 <span class="kn">import</span> <span class="nn">six</span>
 <span class="kn">import</span> <span class="nn">six.moves.cPickle</span> <span class="k">as</span> <span class="nn">pickle</span>
@@ -67,10 +68,11 @@
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="k">import</span> <span class="n">matrix</span>
 
 <span class="kn">import</span> <span class="nn">dxtbx.imageset</span>
+<span class="kn">import</span> <span class="nn">dxtbx.model</span>
+<span class="kn">from</span> <span class="nn">dxtbx.format.Format</span> <span class="k">import</span> <span class="n">Format</span>
 <span class="kn">from</span> <span class="nn">dxtbx.format.FormatMultiImage</span> <span class="k">import</span> <span class="n">FormatMultiImage</span>
 <span class="kn">from</span> <span class="nn">dxtbx.format.image</span> <span class="k">import</span> <span class="n">ImageBool</span><span class="p">,</span> <span class="n">ImageDouble</span>
 <span class="kn">from</span> <span class="nn">dxtbx.format.Registry</span> <span class="k">import</span> <span class="n">get_format_class_for_file</span>
-<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">BeamFactory</span><span class="p">,</span> <span class="n">DetectorFactory</span><span class="p">,</span> <span class="n">GoniometerFactory</span><span class="p">,</span> <span class="n">ScanFactory</span>
 <span class="kn">from</span> <span class="nn">dxtbx.serialize</span> <span class="k">import</span> <span class="n">load</span>
 <span class="kn">from</span> <span class="nn">dxtbx.serialize.filename</span> <span class="k">import</span> <span class="n">resolve_path</span>
 <span class="kn">from</span> <span class="nn">dxtbx.serialize.load</span> <span class="k">import</span> <span class="n">_decode_dict</span>
@@ -80,13 +82,26 @@
     <span class="n">template_string_number_index</span><span class="p">,</span>
 <span class="p">)</span>
 
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Type</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">pass</span>
+
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_iterate_with_previous</span><span class="p">(</span><span class="n">iterable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convenience iterator to give pairs of (previous, next) items&quot;&quot;&quot;</span>
+    <span class="n">previous</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">iterable</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="p">(</span><span class="n">previous</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+        <span class="n">previous</span> <span class="o">=</span> <span class="n">val</span>
 
 
 <div class="viewcode-block" id="DataBlock"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.DataBlock">[docs]</a><span class="k">class</span> <span class="nc">DataBlock</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; High level container for blocks of sweeps and imagesets. &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imagesets</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imagesets</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Instantiate from a list of imagesets. &quot;&quot;&quot;</span>
         <span class="c1"># Try to get a format class</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_format_class</span> <span class="o">=</span> <span class="kc">None</span>
@@ -101,8 +116,8 @@
         <span class="sd">&quot;&quot;&quot; Add an imageset to the block. &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_format_class</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_class</span> <span class="o">==</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_class</span> <span class="o">==</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Can not mix image format classes in one datablock&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_imagesets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="DataBlock.extend"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.DataBlock.extend">[docs]</a>    <span class="k">def</span> <span class="nf">extend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datablock</span><span class="p">):</span>
@@ -356,7 +371,6 @@
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
                 <span class="s2">&quot;The verbose parameter is deprecated.&quot;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span>
             <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_verbose</span> <span class="o">=</span> <span class="n">verbose</span>
 
 <div class="viewcode-block" id="FormatChecker.find_format"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.FormatChecker.find_format">[docs]</a>    <span class="k">def</span> <span class="nf">find_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Search the registry for the image format class.</span>
@@ -409,7 +423,8 @@
         <span class="k">def</span> <span class="nf">append_to_datablocks</span><span class="p">(</span><span class="n">iset</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">iset</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                <span class="c1"># This happens when we already have a datablock with a different format</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DataBlock</span><span class="p">([</span><span class="n">iset</span><span class="p">]))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Added imageset to datablock </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
 
@@ -491,6 +506,446 @@
         <span class="k">return</span> <span class="n">imageset</span></div>
 
 
+<div class="viewcode-block" id="ImageMetadataRecord"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.ImageMetadataRecord">[docs]</a><span class="k">class</span> <span class="nc">ImageMetadataRecord</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Object to store metadata information.</span>
+
+<span class="sd">    This is used whilst building the datablocks.  The metadata for each</span>
+<span class="sd">    image can be read once, and then any grouping/deduplication can happen</span>
+<span class="sd">    later, without re-opening the original file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">goniometer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">scan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># type: (dxtbx.model.Beam, dxtbx.model.Detector, dxtbx.model.Goniometer, dxtbx.model.Scan, str, str, int)</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            beam:       Stores a beam model</span>
+<span class="sd">            detector:   Stores a detector model</span>
+<span class="sd">            goniometer: Stores a goniometer model</span>
+<span class="sd">            scan:       Stores a scan model</span>
+<span class="sd">            filename:   The filename this record was parsed from</span>
+<span class="sd">            template:</span>
+<span class="sd">                The template string parsed from the filename. Usually,</span>
+<span class="sd">                the template is only present if a scan was found and</span>
+<span class="sd">                oscillation width was nonzero.</span>
+<span class="sd">            index:</span>
+<span class="sd">                The index of this file in the template. Applying the</span>
+<span class="sd">                index to the template field should recover the filename</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam</span> <span class="o">=</span> <span class="n">beam</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">detector</span> <span class="o">=</span> <span class="n">detector</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">goniometer</span> <span class="o">=</span> <span class="n">goniometer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scan</span> <span class="o">=</span> <span class="n">scan</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">template</span> <span class="o">=</span> <span class="n">template</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+
+<div class="viewcode-block" id="ImageMetadataRecord.merge_metadata_from"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.ImageMetadataRecord.merge_metadata_from">[docs]</a>    <span class="k">def</span> <span class="nf">merge_metadata_from</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">other_record</span><span class="p">,</span>
+        <span class="n">compare_beam</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
+        <span class="n">compare_detector</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
+        <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># type: (ImageMetadataRecord, Callable, Callable, Callable) -&gt; bool</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compare two record objects and merge equivalent data.</span>
+
+<span class="sd">        This method will compare (with optional functions) instance data</span>
+<span class="sd">        for beam, detector and goniometer. If any of the metadata for</span>
+<span class="sd">        this record is equivalent to (but a different instance from) the</span>
+<span class="sd">        other record, then this instance will be altered to match the</span>
+<span class="sd">        other. The function used to compare beams, detectors and</span>
+<span class="sd">        goniometers can be customised - but by default the normal</span>
+<span class="sd">        equality operator is used.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            other_record:       Another metadata instance</span>
+<span class="sd">            compare_beam:       A function to compare beams</span>
+<span class="sd">            compare_detector:   A function to compare detectors</span>
+<span class="sd">            compare_goniometer: A function to compare goniometers</span>
+
+<span class="sd">        Returns: True if any action was taken</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Allow &#39;defaults&#39; of None to work - behavior from legacy implementation</span>
+        <span class="n">compare_beam</span> <span class="o">=</span> <span class="n">compare_beam</span> <span class="ow">or</span> <span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span>
+        <span class="n">compare_detector</span> <span class="o">=</span> <span class="n">compare_detector</span> <span class="ow">or</span> <span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span>
+        <span class="n">compare_goniometer</span> <span class="o">=</span> <span class="n">compare_goniometer</span> <span class="ow">or</span> <span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span>
+
+        <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">other_record</span><span class="o">.</span><span class="n">beam</span> <span class="ow">and</span> <span class="n">compare_beam</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span> <span class="n">other_record</span><span class="o">.</span><span class="n">beam</span>
+        <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">beam</span> <span class="o">=</span> <span class="n">other_record</span><span class="o">.</span><span class="n">beam</span>
+            <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">other_record</span><span class="o">.</span><span class="n">detector</span> <span class="ow">and</span> <span class="n">compare_detector</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span> <span class="n">other_record</span><span class="o">.</span><span class="n">detector</span>
+        <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">detector</span> <span class="o">=</span> <span class="n">other_record</span><span class="o">.</span><span class="n">detector</span>
+            <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">other_record</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">and</span> <span class="n">compare_goniometer</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">other_record</span><span class="o">.</span><span class="n">goniometer</span>
+        <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">goniometer</span> <span class="o">=</span> <span class="n">other_record</span><span class="o">.</span><span class="n">goniometer</span>
+            <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="n">record_altered</span></div>
+
+<div class="viewcode-block" id="ImageMetadataRecord.from_format"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.ImageMetadataRecord.from_format">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_format</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
+        <span class="c1"># type: (Format) -&gt; Any</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read metadata information from a Format instance.</span>
+
+<span class="sd">        This will only pull information out of a single format instance</span>
+<span class="sd">        while it is open - combining metadata records must be done</span>
+<span class="sd">        separately.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            format: The instance of the format class to read data from</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A new ImageMetadataRecord with the pre-read information</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">record</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">fmt</span><span class="o">.</span><span class="n">get_image_file</span><span class="p">()</span>
+        <span class="c1"># Get the metadata from the format</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">beam</span> <span class="o">=</span> <span class="n">fmt</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">detector</span> <span class="o">=</span> <span class="n">fmt</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">goniometer</span> <span class="o">=</span> <span class="n">fmt</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">scan</span> <span class="o">=</span> <span class="n">fmt</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="c1"># Get the template and index if possible - and only if we&#39;ve got a</span>
+        <span class="c1"># recorded oscillation value</span>
+        <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">abs</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">template</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">template_regex</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">record</span></div>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;beam&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;detector&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">detector</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;goiometer&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">goniometer</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;scan&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scan</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;template&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">template</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;index&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">),</span>
+        <span class="p">]</span>
+        <span class="n">itemstr</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">items</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">{}{}{}</span><span class="s2">&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s2">&quot; &quot;</span> <span class="k">if</span> <span class="n">itemstr</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">itemstr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scan</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">template</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OpeningPathIterator"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.OpeningPathIterator">[docs]</a><span class="k">class</span> <span class="nc">OpeningPathIterator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Utility class to efficiently open all paths.</span>
+
+<span class="sd">    A path is a potential file or directory.</span>
+<span class="sd">    Each path will be opened with :meth:`dxtbx.format.Format.open_file`,</span>
+<span class="sd">    but in order to do so each file will only be opened once, and extraneous</span>
+<span class="sd">    use of :func:`os.stat` will be avoided.</span>
+<span class="sd">    Any path entries that are a directory will be recursed into, once -</span>
+<span class="sd">    any further directories found will be ignored. Any path that is not</span>
+<span class="sd">    a file or directory, or on which IO fails for any reason, will be added</span>
+<span class="sd">    to the :attr:`unhandled` list.</span>
+<span class="sd">    The current expected length of the iterator can be found with</span>
+<span class="sd">    `len(iterator)` - this can change while iterating, because until a</span>
+<span class="sd">    directory is encountered it cannot be detected without extra IO</span>
+<span class="sd">    operations. The number of items processed can be accessed through the</span>
+<span class="sd">    :attr:`index` attribute.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        unhandled:  List of paths that could not be handled</span>
+<span class="sd">        index:      Index of the next path item (alternatively, number</span>
+<span class="sd">                    of processed path items)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pathnames</span><span class="p">):</span>
+        <span class="c1"># type: (Iterable[str])</span>
+        <span class="sd">&quot;&quot;&quot;Initialise the path iterator.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pathnames: Paths to attempt to open</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Store a tuple of (recurse, pathname) to track what was root level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">deque</span><span class="p">((</span><span class="kc">True</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pathnames</span><span class="p">))</span>
+        <span class="c1"># Let&#39;s keep track of how many we&#39;ve processed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># List of paths that could not be opened</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the next path to process&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Get the next path from the queue</span>
+            <span class="p">(</span><span class="n">do_recurse</span><span class="p">,</span> <span class="n">pathname</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Attempt to open this path</span>
+            <span class="n">Format</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">IOError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="n">errno</span><span class="o">.</span><span class="n">EISDIR</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">do_recurse</span><span class="p">:</span>
+                    <span class="c1"># We&#39;ve tried to open a directory. Get all the entries...</span>
+                    <span class="n">subdir_paths</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+                        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="c1"># ... and add them to our queue. Make sure not to mark for recursion</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">extendleft</span><span class="p">((</span><span class="kc">False</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">subdir_paths</span><span class="p">))</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Adding </span><span class="si">%d</span><span class="s2"> files from </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">subdir_paths</span><span class="p">),</span> <span class="n">pathname</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Not adding sub-level directory entry </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pathname</span><span class="p">)</span>
+                <span class="c1"># Don&#39;t return directory instances</span>
+                <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># A non-directory-related IO error</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Could not import </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pathname</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">strerror</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">errno</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">pathname</span>
+
+    <span class="nb">next</span> <span class="o">=</span> <span class="fm">__next__</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the (current) total of path items&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the number of processed items&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span></div>
+
+
+<span class="k">def</span> <span class="nf">_merge_model_metadata</span><span class="p">(</span>
+    <span class="n">records</span><span class="p">,</span> <span class="n">compare_beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compare_detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compare_goniometer</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">):</span>
+    <span class="c1"># type: (Iterable[ImageMetadataRecord], Callable, Callable, Callable)</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Merge metadata between consecutive record objects.</span>
+
+<span class="sd">    This will compare each record with the previous one, and make sure</span>
+<span class="sd">    the metadata instances are shared where appropriate.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        records:    Records for the images to merge into imagesets</span>
+<span class="sd">        compare_beam:       The function to to compare beams</span>
+<span class="sd">        compare_detector:   The function to compare detectors</span>
+<span class="sd">        compare_goniometer: The function to compare goniometers</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">prev</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_iterate_with_previous</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">prev</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">record</span><span class="o">.</span><span class="n">merge_metadata_from</span><span class="p">(</span>
+            <span class="n">prev</span><span class="p">,</span>
+            <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
+            <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
+            <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
+        <span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_merge_scans</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">scan_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># type: (Iterable[ImageMetadataRecord], float) -&gt; List[ImageMetadataRecord]</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Merge consecutive scan records with identical metadata.</span>
+
+<span class="sd">    The records should have previously had their model metadata merged,</span>
+<span class="sd">    as identity will be used to compare metadata identity at this stage.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        records:        Records to merge</span>
+<span class="sd">        scan_tolerance: Percentage of oscillation range to tolerate</span>
+<span class="sd">                        when merging scan records</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A (potentially shorter) list of records with scans merged</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">merged_records</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Merging scans&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">prev</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_iterate_with_previous</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+        <span class="c1"># The first record always gets recorded</span>
+        <span class="k">if</span> <span class="n">prev</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">merged_records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;  Saving initial record </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">record</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="c1"># Compare metadata instances</span>
+        <span class="n">same_metadata</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">prev</span><span class="o">.</span><span class="n">beam</span> <span class="ow">is</span> <span class="n">record</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
+            <span class="n">prev</span><span class="o">.</span><span class="n">detector</span> <span class="ow">is</span> <span class="n">record</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span>
+            <span class="n">prev</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="n">record</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="c1"># Condition for combining:</span>
+        <span class="c1"># - All metadata must match</span>
+        <span class="c1"># - Previous record must be templated</span>
+        <span class="c1"># - This record must be templated</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">all</span><span class="p">(</span><span class="n">same_metadata</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">prev</span><span class="o">.</span><span class="n">template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="n">record</span><span class="o">.</span><span class="n">template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="c1"># Attempt to append to scan</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">scan_tolerance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">prev</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">scan</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">prev</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">scan</span><span class="p">,</span> <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;  Failed to merge record </span><span class="si">%s</span><span class="s2"> with previous - writing new scan&quot;</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># If we appended, then we don&#39;t need to keep this record&#39;s scan</span>
+                <span class="n">record</span><span class="o">.</span><span class="n">scan</span> <span class="o">=</span> <span class="n">prev</span><span class="o">.</span><span class="n">scan</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;  Appended record </span><span class="si">%s</span><span class="s2"> to previous&quot;</span><span class="p">,</span> <span class="n">record</span><span class="p">)</span>
+                <span class="k">continue</span>
+        <span class="n">merged_records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Result of merging record scans: </span><span class="si">%d</span><span class="s2"> records&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">merged_records</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">merged_records</span>
+
+
+<span class="k">def</span> <span class="nf">_create_imagesweep</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># type: (ImageMetadataRecord, Type[Format], Dict) -&gt; dxtbx.imageset.ImageSweep</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create an ImageSweep object from a single rotation data image.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        record: Single-image metadata records to merge into a single imageset</span>
+<span class="sd">        format_class: The format class object for these image records</span>
+<span class="sd">        format_kwargs: Extra arguments to pass to the format class when</span>
+<span class="sd">            creating an ImageSet</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        An imageset representing the sweep of data</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">index_start</span><span class="p">,</span> <span class="n">index_end</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
+    <span class="c1"># Create the sweep</span>
+    <span class="n">sweep</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">make_sweep</span><span class="p">(</span>
+        <span class="n">template</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">template</span><span class="p">),</span>
+        <span class="n">indices</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="n">index_start</span><span class="p">,</span> <span class="n">index_end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">format_class</span><span class="o">=</span><span class="n">format_class</span><span class="p">,</span>
+        <span class="n">beam</span><span class="o">=</span><span class="n">record</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span>
+        <span class="n">detector</span><span class="o">=</span><span class="n">record</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span>
+        <span class="n">goniometer</span><span class="o">=</span><span class="n">record</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span>
+        <span class="n">scan</span><span class="o">=</span><span class="n">record</span><span class="o">.</span><span class="n">scan</span><span class="p">,</span>
+        <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+        <span class="c1"># check_format=False,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">sweep</span>
+
+
+<span class="k">def</span> <span class="nf">_groupby_template_is_none</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+    <span class="c1"># type: (Iterable[ImageMetadataRecord]) -&gt; Generator[List[ImageMetadataRecord]]</span>
+    <span class="sd">&quot;&quot;&quot;Specialization of groupby that groups records by format=None&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span>
+        <span class="nb">enumerate</span><span class="p">(</span><span class="n">records</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">template</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="p">):</span>
+        <span class="k">yield</span> <span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">group</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_convert_to_imagesets</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># type: (Iterable[ImageMetadataRecord], Type[dxtbx.format.Format], Dict) -&gt; Generator[dxtbx.imageset.ImageSet]</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert records into imagesets.</span>
+
+<span class="sd">    The records should have been metadata- and scan-merged by this point.</span>
+<span class="sd">    Rules:</span>
+<span class="sd">    - Any groups of template=None where any of the metadata objects</span>
+<span class="sd">      are shared, go into a single imageset</span>
+<span class="sd">    - Anything with a template goes into a single sweep</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        records: The records to convert</span>
+<span class="sd">        format_class: The format class for the data in this record</span>
+<span class="sd">        format_kwargs: Any format configuration arguments to pass</span>
+<span class="sd">            to the format imageset creator.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Imagesets representing the records</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Iterate over images/sets such that template=None are clustered</span>
+    <span class="k">for</span> <span class="n">setgroup</span> <span class="ow">in</span> <span class="n">_groupby_template_is_none</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">setgroup</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># If we have a template, then it&#39;s a sweep</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">setgroup</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Got group of metadata records in template?&quot;</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Creating Imagesweep from </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">setgroup</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">template</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">_create_imagesweep</span><span class="p">(</span><span class="n">setgroup</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Without a template, it was never identified as a sweep, so an imageset</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Creating ImageSet from </span><span class="si">%d</span><span class="s2"> files&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">setgroup</span><span class="p">))</span>
+            <span class="k">yield</span> <span class="n">_create_imageset</span><span class="p">(</span><span class="n">setgroup</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_create_imageset</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># type: (Iterable[ImageMetadataRecord], Type[dxtbx.format.Format], Dict) -&gt; dxtbx.imageset.ImageSet</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create an ImageSet object from a set of single-image records.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        records: Single-image metadata records to merge into a single imageset</span>
+<span class="sd">        format_class: The format class object for these image records</span>
+<span class="sd">        format_kwargs: Extra arguments to pass to the format class when</span>
+<span class="sd">            creating an ImageSet</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        An imageset for all the image records</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">records</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+    <span class="c1"># Nothing here should have been assigned a template parameter</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">template</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">records</span><span class="p">)</span>
+    <span class="c1"># Extract the filenames from the records</span>
+    <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">records</span><span class="p">]</span>
+    <span class="c1"># Create the imageset</span>
+    <span class="n">imageset</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">make_imageset</span><span class="p">(</span>
+        <span class="n">filenames</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+    <span class="c1"># Update all of the metadata for each record</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+        <span class="n">imageset</span><span class="o">.</span><span class="n">set_beam</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">beam</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">imageset</span><span class="o">.</span><span class="n">set_detector</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">detector</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">imageset</span><span class="o">.</span><span class="n">set_goniometer</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">imageset</span><span class="o">.</span><span class="n">set_scan</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">scan</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">imageset</span>
+
+
 <div class="viewcode-block" id="DataBlockFilenameImporter"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.DataBlockFilenameImporter">[docs]</a><span class="k">class</span> <span class="nc">DataBlockFilenameImporter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; A class to import a datablock from image files. &quot;&quot;&quot;</span>
 
@@ -516,42 +971,85 @@
 
         <span class="c1"># A function to append or create a new datablock</span>
         <span class="k">def</span> <span class="nf">append_to_datablocks</span><span class="p">(</span><span class="n">iset</span><span class="p">):</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="p">:</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">iset</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DataBlock</span><span class="p">([</span><span class="n">iset</span><span class="p">]))</span>
-            <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">iset</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                <span class="c1"># This happens when we already have a datablock with a different format</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DataBlock</span><span class="p">([</span><span class="n">iset</span><span class="p">]))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Added imageset to datablock </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
 
-        <span class="c1"># Iterate through groups of files by format class</span>
+        <span class="c1"># Process each file given by this path list</span>
+        <span class="n">to_process</span> <span class="o">=</span> <span class="n">OpeningPathIterator</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
         <span class="n">find_format</span> <span class="o">=</span> <span class="n">FormatChecker</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">fmt</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">find_format</span><span class="o">.</span><span class="n">iter_groups</span><span class="p">(</span><span class="n">filenames</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">fmt</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">fmt</span><span class="o">.</span><span class="n">ignore</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">fmt</span><span class="p">,</span> <span class="n">FormatMultiImage</span><span class="p">):</span>
-                <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">group</span><span class="p">:</span>
-                    <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_single_file_imageset</span><span class="p">(</span>
-                        <span class="n">fmt</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span>
-                    <span class="p">)</span>
-                    <span class="n">append_to_datablocks</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Loaded file: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">records</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_file_metadata</span><span class="p">(</span>
-                    <span class="n">fmt</span><span class="p">,</span>
-                    <span class="n">group</span><span class="p">,</span>
-                    <span class="n">compare_beam</span><span class="p">,</span>
-                    <span class="n">compare_detector</span><span class="p">,</span>
-                    <span class="n">compare_goniometer</span><span class="p">,</span>
-                    <span class="n">scan_tolerance</span><span class="p">,</span>
-                    <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+
+        <span class="n">format_groups</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="c1">#        with progress(total=len(filenames)) as pbar:</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">to_process</span><span class="p">:</span>
+            <span class="c1"># We now have a file, pre-opened by Format.open_file (therefore</span>
+            <span class="c1"># cached). Determine its type, and prepare to put into a group</span>
+            <span class="n">format_class</span> <span class="o">=</span> <span class="n">find_format</span><span class="o">.</span><span class="n">find_format</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+            <span class="c1"># Verify this makes sense</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">format_class</span><span class="p">:</span>
+                <span class="c1"># No format class found?</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Could not determine format for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">format_class</span><span class="o">.</span><span class="n">ignore</span><span class="p">():</span>
+                <span class="c1"># Invalid format class found?</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;Found format class </span><span class="si">%s</span><span class="s2"> for </span><span class="si">%s</span><span class="s2"> but is ignored&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">format_class</span><span class="p">),</span>
+                    <span class="n">filename</span><span class="p">,</span>
                 <span class="p">)</span>
-                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">items</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">group</span><span class="p">):</span>
-                    <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_multi_file_imageset</span><span class="p">(</span>
-                        <span class="n">fmt</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">items</span><span class="p">),</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span>
-                    <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">format_class</span><span class="p">,</span> <span class="n">FormatMultiImage</span><span class="p">):</span>
+                <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_single_file_imageset</span><span class="p">(</span>
+                    <span class="n">format_class</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span>
+                <span class="p">)</span>
+                <span class="n">format_groups</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">format_class</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Loaded file: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">format_object</span> <span class="o">=</span> <span class="n">format_class</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">)</span>
+                <span class="n">meta</span> <span class="o">=</span> <span class="n">ImageMetadataRecord</span><span class="o">.</span><span class="n">from_format</span><span class="p">(</span><span class="n">format_object</span><span class="p">)</span>
+                <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">filename</span> <span class="o">==</span> <span class="n">filename</span>
+
+                <span class="c1"># Add this entry to our table of formats</span>
+                <span class="n">format_groups</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">format_class</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Loaded metadata of file: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+
+        <span class="c1"># Now, build datablocks from these files. Duplicating the logic of</span>
+        <span class="c1"># the previous implementation:</span>
+        <span class="c1"># - Each change in format goes into its own Datablock</span>
+        <span class="c1"># - FormatMultiImage files each have their own ImageSet</span>
+        <span class="c1"># - Every set of images forming a scan goes into its own ImageSweep</span>
+        <span class="c1"># - Any consecutive still frames that share any metadata with the</span>
+        <span class="c1">#   previous still fram get collected into one ImageSet</span>
+
+        <span class="c1"># Treat each format as a separate datablock</span>
+        <span class="k">for</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">records</span> <span class="ow">in</span> <span class="n">format_groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">format_class</span><span class="p">,</span> <span class="n">FormatMultiImage</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
                     <span class="n">append_to_datablocks</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Merge any consecutive and identical metadata together</span>
+            <span class="n">_merge_model_metadata</span><span class="p">(</span>
+                <span class="n">records</span><span class="p">,</span>
+                <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
+                <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
+                <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">records</span> <span class="o">=</span> <span class="n">_merge_scans</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">)</span>
+            <span class="n">imagesets</span> <span class="o">=</span> <span class="n">_convert_to_imagesets</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="p">)</span>
+            <span class="n">imagesets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">imagesets</span><span class="p">)</span>
+
+            <span class="c1"># Validate this datablock and store it</span>
+            <span class="k">assert</span> <span class="n">imagesets</span><span class="p">,</span> <span class="s2">&quot;Datablock got no imagesets?&quot;</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">imagesets</span><span class="p">:</span>
+                <span class="n">append_to_datablocks</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+        <span class="c1"># Now we are done. since in an __init__, the caller can now pick the</span>
+        <span class="c1"># results out of the .datablocks and .unhandled instance attributes.</span>
 
     <span class="k">def</span> <span class="nf">_extract_file_metadata</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -643,7 +1141,7 @@
 
                 <span class="c1"># If the last was not a sweep then if the current is a sweep or none of</span>
                 <span class="c1"># the models are the same, increment. Otherwise if the current is not a</span>
-                <span class="c1"># sweep or if both sweeps don&#39;t share all models increment. If both</span>
+                <span class="c1"># sweep or if both sweeps don&#39;t share all models, increment. If both</span>
                 <span class="c1"># share, models try scan and increment if exception.</span>
                 <span class="k">if</span> <span class="n">last</span><span class="o">.</span><span class="n">template</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">same</span><span class="p">):</span>
@@ -772,20 +1270,22 @@
 
         <span class="k">def</span> <span class="nf">load_models</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">beam</span> <span class="o">=</span> <span class="n">BeamFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">blist</span><span class="p">[</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]])</span>
+                <span class="n">beam</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">BeamFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">blist</span><span class="p">[</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]])</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="n">beam</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">dobj</span> <span class="o">=</span> <span class="n">dlist</span><span class="p">[</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;detector&quot;</span><span class="p">]]</span>
-                <span class="n">detector</span> <span class="o">=</span> <span class="n">DetectorFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dobj</span><span class="p">)</span>
+                <span class="n">detector</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">DetectorFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dobj</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="n">detector</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">gonio</span> <span class="o">=</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">glist</span><span class="p">[</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;goniometer&quot;</span><span class="p">]])</span>
+                <span class="n">gonio</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span>
+                    <span class="n">glist</span><span class="p">[</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;goniometer&quot;</span><span class="p">]]</span>
+                <span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="n">gonio</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">scan</span> <span class="o">=</span> <span class="n">ScanFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">slist</span><span class="p">[</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;scan&quot;</span><span class="p">]])</span>
+                <span class="n">scan</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">ScanFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">slist</span><span class="p">[</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;scan&quot;</span><span class="p">]])</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="n">scan</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">return</span> <span class="n">beam</span><span class="p">,</span> <span class="n">detector</span><span class="p">,</span> <span class="n">gonio</span><span class="p">,</span> <span class="n">scan</span>
@@ -1062,25 +1562,8 @@
         <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Create a list of data blocks from a list of directory or file names. &quot;&quot;&quot;</span>
-        <span class="n">filelist</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filenames</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">isfile</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-                <span class="n">filelist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">isdir</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-                <span class="n">subdir</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
-                    <span class="n">join</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">sf</span><span class="p">)</span> <span class="k">for</span> <span class="n">sf</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">if</span> <span class="n">isfile</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">sf</span><span class="p">))</span>
-                <span class="p">)</span>
-                <span class="n">filelist</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">subdir</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Added </span><span class="si">%d</span><span class="s2"> files from </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">subdir</span><span class="p">),</span> <span class="n">f</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="s2">&quot;Could not import </span><span class="si">%s</span><span class="s2">: not a valid file or directory name&quot;</span><span class="p">,</span> <span class="n">f</span>
-                <span class="p">)</span>
-                <span class="k">if</span> <span class="n">unhandled</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-
         <span class="n">importer</span> <span class="o">=</span> <span class="n">DataBlockFilenameImporter</span><span class="p">(</span>
-            <span class="n">filelist</span><span class="p">,</span>
+            <span class="n">filenames</span><span class="p">,</span>
             <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
             <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
             <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
@@ -1239,10 +1722,7 @@
 
 
 <div class="viewcode-block" id="BeamComparison"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.datablock.BeamComparison">[docs]</a><span class="k">class</span> <span class="nc">BeamComparison</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to provide simple beam comparison</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;A class to provide simple beam comparison&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1269,10 +1749,7 @@
 
 
 <div class="viewcode-block" id="DetectorComparison"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.datablock.DetectorComparison">[docs]</a><span class="k">class</span> <span class="nc">DetectorComparison</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to provide simple detector comparison</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;A class to provide simple detector comparison&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">fast_axis_tolerance</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">slow_axis_tolerance</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">origin_tolerance</span><span class="o">=</span><span class="mf">1e-6</span>
@@ -1293,10 +1770,7 @@
 
 
 <div class="viewcode-block" id="GoniometerComparison"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.datablock.GoniometerComparison">[docs]</a><span class="k">class</span> <span class="nc">GoniometerComparison</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to provide simple goniometer comparison</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;A class to provide simple goniometer comparison&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1330,10 +1804,7 @@
 
 
 <div class="viewcode-block" id="BeamDiff"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.BeamDiff">[docs]</a><span class="k">class</span> <span class="nc">BeamDiff</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to provide simple beam comparison</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;A class to provide simple beam comparison&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1371,10 +1842,7 @@
 
 
 <div class="viewcode-block" id="DetectorDiff"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.DetectorDiff">[docs]</a><span class="k">class</span> <span class="nc">DetectorDiff</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to provide simple detector comparison</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;A class to provide simple detector comparison&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">fast_axis_tolerance</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">slow_axis_tolerance</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">origin_tolerance</span><span class="o">=</span><span class="mf">1e-6</span>
@@ -1425,10 +1893,7 @@
 
 
 <div class="viewcode-block" id="GoniometerDiff"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.GoniometerDiff">[docs]</a><span class="k">class</span> <span class="nc">GoniometerDiff</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to provide simple goniometer comparison</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;A class to provide simple goniometer comparison&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1460,10 +1925,7 @@
 
 
 <div class="viewcode-block" id="ScanDiff"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.ScanDiff">[docs]</a><span class="k">class</span> <span class="nc">ScanDiff</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to provide scan comparison</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;A class to provide scan comparison&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scan_tolerance</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">scan_tolerance</span> <span class="o">=</span> <span class="n">scan_tolerance</span>
