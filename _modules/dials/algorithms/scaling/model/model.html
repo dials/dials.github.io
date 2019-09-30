@@ -72,6 +72,11 @@
     <span class="n">SmoothScaleComponent3D</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.scaling.scaling_utilities</span> <span class="k">import</span> <span class="n">sph_harm_table</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.scaling.plots</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">plot_absorption_parameters</span><span class="p">,</span>
+    <span class="n">plot_absorption_surface</span><span class="p">,</span>
+    <span class="n">plot_smooth_scales</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dials_scaling_ext</span> <span class="k">import</span> <span class="p">(</span>
     <span class="n">calc_theta_phi</span><span class="p">,</span>
     <span class="n">calc_lookup_index</span><span class="p">,</span>
@@ -180,6 +185,8 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">configdict</span><span class="p">,</span> <span class="n">is_scaled</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialise the model with no components and a :obj:`configdict`.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No model components created.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_components</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span> <span class="o">=</span> <span class="n">configdict</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_is_scaled</span> <span class="o">=</span> <span class="n">is_scaled</span>
@@ -214,6 +221,10 @@
         <span class="sd">&quot;&quot;&quot;Add the required reflection table data to the model components.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
 
+<div class="viewcode-block" id="ScalingModelBase.plot_model_components"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.ScalingModelBase.plot_model_components">[docs]</a>    <span class="k">def</span> <span class="nf">plot_model_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a dict of plots for plotting model components with plotly.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{}</span></div>
+
 <div class="viewcode-block" id="ScalingModelBase.from_data"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.ScalingModelBase.from_data">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">reflection_table</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Create the model from input data.&quot;&quot;&quot;</span>
@@ -247,7 +258,7 @@
         <span class="sd">&quot;&quot;&quot;:obj:`list`: a nested list of component names.</span>
 
 <span class="sd">        This list indicates to the scaler the order to perform scaling in</span>
-<span class="sd">        consecutive scaling mode (command line option concurrent=0).</span>
+<span class="sd">        consecutive scaling mode.</span>
 <span class="sd">        e.g. [[&#39;scale&#39;, &#39;decay&#39;], [&#39;absorption&#39;]] would cause the first cycle to</span>
 <span class="sd">        refine scale and decay, and then absorption in a subsequent cycle.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -561,7 +572,15 @@
             <span class="s2">&quot;absorption&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">abs_params</span><span class="p">,</span> <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="n">a_params_sds</span><span class="p">},</span>
         <span class="p">}</span>
 
-        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">,</span> <span class="n">is_scaled</span><span class="p">)</span></div></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">,</span> <span class="n">is_scaled</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PhysicalScalingModel.plot_model_components"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.PhysicalScalingModel.plot_model_components">[docs]</a>    <span class="k">def</span> <span class="nf">plot_model_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">plot_smooth_scales</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;absorption&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">plot_absorption_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">plot_absorption_surface</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">d</span></div></div>
 
 
 <div class="viewcode-block" id="ArrayScalingModel"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.ArrayScalingModel">[docs]</a><span class="k">class</span> <span class="nc">ArrayScalingModel</span><span class="p">(</span><span class="n">ScalingModelBase</span><span class="p">):</span>
@@ -574,6 +593,10 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">,</span> <span class="n">is_scaled</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Create the array scaling model components.&quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ArrayScalingModel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">configdict</span><span class="p">,</span> <span class="n">is_scaled</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">i</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">,</span> <span class="s2">&quot;absorption&quot;</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Array model must have at least one of decay or absorption corrections&quot;</span>
+            <span class="p">)</span>
         <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
             <span class="n">decay_setup</span> <span class="o">=</span> <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SmoothScaleComponent2D</span><span class="p">(</span>
@@ -661,10 +684,19 @@
         <span class="n">n_param</span><span class="p">,</span> <span class="n">time_norm_fac</span><span class="p">,</span> <span class="n">time_rot_int</span> <span class="o">=</span> <span class="n">initialise_smooth_input</span><span class="p">(</span>
             <span class="n">new_osc_range</span><span class="p">,</span> <span class="n">one_osc</span><span class="p">,</span> <span class="n">conf</span><span class="p">[</span><span class="s2">&quot;time_rot_interval&quot;</span><span class="p">]</span>
         <span class="p">)</span>
-        <span class="n">n_old_time_params</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
-            <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">n_x_params</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">n_old_time_params</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+                <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">n_x_params</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n_old_time_params</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+                <span class="o">/</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">n_x_params</span>
+                    <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">n_y_params</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
         <span class="n">offset</span> <span class="o">=</span> <span class="n">calculate_new_offset</span><span class="p">(</span>
             <span class="n">current_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
             <span class="n">new_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
@@ -1001,6 +1033,17 @@
     <span class="n">ext_phil_scope</span> <span class="o">=</span> <span class="n">ext_phil_scope</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">ext_phil_scope</span><span class="o">.</span><span class="n">adopt_scope</span><span class="p">(</span><span class="n">entry_point</span><span class="o">.</span><span class="n">load</span><span class="p">()</span><span class="o">.</span><span class="n">phil_scope</span><span class="p">)</span>
     <span class="n">model_phil_scope</span><span class="o">.</span><span class="n">adopt_scope</span><span class="p">(</span><span class="n">ext_master_scope</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="plot_scaling_models"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.plot_scaling_models">[docs]</a><span class="k">def</span> <span class="nf">plot_scaling_models</span><span class="p">(</span><span class="n">model_dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a dict of component plots for the model for plotting with plotly.&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">entry_point</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span>
+        <span class="n">pkg_resources</span><span class="o">.</span><span class="n">iter_entry_points</span><span class="p">(</span><span class="s2">&quot;dxtbx.scaling_model_ext&quot;</span><span class="p">)</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">model_dict</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">entry_point</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">entry_point</span><span class="o">.</span><span class="n">load</span><span class="p">()</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">model_dict</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">plot_model_components</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">()</span></div>
 </pre></div>
 
           </div>
