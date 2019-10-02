@@ -1,0 +1,666 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.lattice_search.low_res_spot_match &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for dials.algorithms.indexing.lattice_search.low_res_spot_match</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+
+<span class="kn">import</span> <span class="nn">libtbx.phil</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="k">import</span> <span class="n">miller</span>
+<span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="k">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="n">Crystal</span>
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="k">import</span> <span class="n">matrix</span>
+<span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="k">import</span> <span class="n">least_squares_plane</span><span class="p">,</span> <span class="n">superpose</span>
+
+<span class="kn">from</span> <span class="nn">.strategy</span> <span class="k">import</span> <span class="n">Strategy</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">TWO_PI</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+<span class="n">FIVE_DEG</span> <span class="o">=</span> <span class="n">TWO_PI</span> <span class="o">*</span> <span class="mf">5.0</span> <span class="o">/</span> <span class="mf">360.0</span>
+
+
+<span class="k">class</span> <span class="nc">CompleteGraph</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed_vertex</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vertices</span> <span class="o">=</span> <span class="p">[</span><span class="n">seed_vertex</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="p">[{</span><span class="mi">0</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total_weight</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="k">def</span> <span class="nf">factory_add_vertex</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vertex</span><span class="p">,</span> <span class="n">weights_to_other</span><span class="p">):</span>
+        <span class="c1"># Return a new graph as a copy of this with an extra vertex added. This</span>
+        <span class="c1"># is a factory rather than a change in-place because CompleteGraph ought</span>
+        <span class="c1"># to be immutable to implement __hash__</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="n">current_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">vertices</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">weights_to_other</span><span class="p">)</span> <span class="o">==</span> <span class="n">current_len</span>
+        <span class="n">g</span><span class="o">.</span><span class="n">vertices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vertex</span><span class="p">)</span>
+        <span class="n">node</span> <span class="o">=</span> <span class="n">current_len</span>
+
+        <span class="c1"># Update distances from other nodes to the new one</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">weights_to_other</span><span class="p">):</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">weight</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">node</span><span class="p">]</span> <span class="o">=</span> <span class="n">w</span>
+
+        <span class="c1"># Add distances to other nodes from this one</span>
+        <span class="n">weights_to_other</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">to_other</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">weights_to_other</span><span class="p">):</span>
+            <span class="n">to_other</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">w</span>
+        <span class="n">g</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">to_other</span><span class="p">)</span>
+
+        <span class="c1"># Update the total weight</span>
+        <span class="n">g</span><span class="o">.</span><span class="n">total_weight</span> <span class="o">+=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">weights_to_other</span><span class="p">)</span>
+
+        <span class="c1"># Sort the vertices and weights by spot_id</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">vertices</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v_w</span><span class="p">:</span> <span class="n">v_w</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;spot_id&quot;</span><span class="p">])</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">l</span><span class="p">)</span>
+        <span class="n">g</span><span class="o">.</span><span class="n">vertices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">g</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">g</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">((</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">],</span> <span class="n">e</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">vertices</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">b</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">b</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
+
+
+<span class="n">low_res_spot_match_phil_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">candidate_spots</span>
+<span class="s2">{</span>
+<span class="s2">    limit_resolution_by = *n_spots d_min</span>
+<span class="s2">    .type = choice</span>
+
+<span class="s2">    d_min = 15.0</span>
+<span class="s2">    .type = float(value_min=0)</span>
+
+<span class="s2">    n_spots = 10</span>
+<span class="s2">    .type = int</span>
+
+<span class="s2">    d_star_tolerance = 4.0</span>
+<span class="s2">    .help = &quot;Number of sigmas from the centroid position for which to&quot;</span>
+<span class="s2">            &quot;calculate d* bands&quot;</span>
+<span class="s2">    .type = float</span>
+<span class="s2">}</span>
+
+<span class="s2">use_P1_indices_as_seeds = False</span>
+<span class="s2">    .type = bool</span>
+
+<span class="s2">search_depth = *triplets quads</span>
+<span class="s2">    .type = choice</span>
+
+<span class="s2">bootstrap_crystal = False</span>
+<span class="s2">    .type = bool</span>
+
+<span class="s2">max_pairs = 200</span>
+<span class="s2">    .type = int</span>
+
+<span class="s2">max_triplets = 600</span>
+<span class="s2">    .type = int</span>
+
+<span class="s2">max_quads = 600</span>
+<span class="s2">    .type = int</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="LowResSpotMatch"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.lattice_search.LowResSpotMatch">[docs]</a><span class="k">class</span> <span class="nc">LowResSpotMatch</span><span class="p">(</span><span class="n">Strategy</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Lattice search by matching low resolution spots to candidate indices</span>
+<span class="sd">    based on resolution and reciprocal space distance between observed spots.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">low_res_spot_match_phil_str</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">target_symmetry_primitive</span><span class="p">,</span> <span class="n">max_lattices</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Construct a LowResSpotMatch object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target_symmetry_primitive (cctbx.crystal.symmetry): The target</span>
+<span class="sd">                crystal symmetry and unit cell</span>
+
+<span class="sd">            max_lattices (int): The maximum number of lattice models to find</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LowResSpotMatch</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_symmetry_primitive</span> <span class="o">=</span> <span class="n">target_symmetry_primitive</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_lattices</span> <span class="o">=</span> <span class="n">max_lattices</span>
+
+        <span class="c1"># Set reciprocal space orthogonalisation matrix</span>
+        <span class="n">uc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target_symmetry_primitive</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Bmat</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">uc</span><span class="o">.</span><span class="n">fractionalization_matrix</span><span class="p">())</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+
+<div class="viewcode-block" id="LowResSpotMatch.find_crystal_models"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.lattice_search.LowResSpotMatch.find_crystal_models">[docs]</a>    <span class="k">def</span> <span class="nf">find_crystal_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Find a list of candidate crystal models.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            reflections (dials.array_family.flex.reflection_table):</span>
+<span class="sd">                The found spots centroids and associated data</span>
+
+<span class="sd">            experiments (dxtbx.model.experiment_list.ExperimentList):</span>
+<span class="sd">                The experimental geometry models</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Take a subset of the observations at the same resolution and calculate</span>
+        <span class="c1"># some values that will be needed for the search</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calc_obs_data</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
+
+        <span class="c1"># Construct a library of candidate low res indices with their d* values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calc_candidate_hkls</span><span class="p">()</span>
+
+        <span class="c1"># First search: match each observation with candidate indices within the</span>
+        <span class="c1"># acceptable resolution band</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calc_seeds_and_stems</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">use_P1_indices_as_seeds</span><span class="p">:</span>
+            <span class="n">seeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stems</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">seeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using </span><span class="si">{0}</span><span class="s2"> seeds&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">seeds</span><span class="p">)))</span>
+
+        <span class="c1"># Second search: match seed spots with another spot from a different</span>
+        <span class="c1"># reciprocal lattice row, such that the observed reciprocal space distances</span>
+        <span class="c1"># are within tolerances</span>
+        <span class="n">pairs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">seeds</span><span class="p">:</span>
+            <span class="n">pairs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pairs_with_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found </span><span class="si">{0}</span><span class="s2"> pairs&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pairs</span><span class="p">)))</span>
+        <span class="n">pairs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">pairs</span><span class="p">))</span>  <span class="c1"># filter duplicates</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">max_pairs</span><span class="p">:</span>
+            <span class="n">pairs</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">attrgetter</span><span class="p">(</span><span class="s2">&quot;total_weight&quot;</span><span class="p">))</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">max_pairs</span>
+            <span class="n">pairs</span> <span class="o">=</span> <span class="n">pairs</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using </span><span class="si">{0}</span><span class="s2"> highest-scoring pairs&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pairs</span><span class="p">)))</span>
+
+        <span class="c1"># Further search iterations: extend to more spots within tolerated distances</span>
+        <span class="n">triplets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">:</span>
+            <span class="n">triplets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_extend_by_candidates</span><span class="p">(</span><span class="n">pair</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found </span><span class="si">{0}</span><span class="s2"> triplets&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">triplets</span><span class="p">)))</span>
+        <span class="n">triplets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">triplets</span><span class="p">))</span>  <span class="c1"># filter duplicates</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">max_triplets</span><span class="p">:</span>
+            <span class="n">triplets</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">attrgetter</span><span class="p">(</span><span class="s2">&quot;total_weight&quot;</span><span class="p">))</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">max_triplets</span>
+            <span class="n">triplets</span> <span class="o">=</span> <span class="n">triplets</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using </span><span class="si">{0}</span><span class="s2"> highest-scoring triplets&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">triplets</span><span class="p">)))</span>
+
+        <span class="n">branches</span> <span class="o">=</span> <span class="n">triplets</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">search_depth</span> <span class="o">==</span> <span class="s2">&quot;quads&quot;</span><span class="p">:</span>
+            <span class="n">quads</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">triplet</span> <span class="ow">in</span> <span class="n">triplets</span><span class="p">:</span>
+                <span class="n">quads</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_extend_by_candidates</span><span class="p">(</span><span class="n">triplet</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> quads&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">quads</span><span class="p">)))</span>
+            <span class="n">quads</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">quads</span><span class="p">))</span>  <span class="c1"># filter duplicates</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">max_quads</span><span class="p">:</span>
+                <span class="n">quads</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">attrgetter</span><span class="p">(</span><span class="s2">&quot;total_weight&quot;</span><span class="p">))</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">max_quads</span>
+                <span class="n">quads</span> <span class="o">=</span> <span class="n">quads</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using </span><span class="si">{0}</span><span class="s2"> highest-scoring quads&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">quads</span><span class="p">)))</span>
+            <span class="n">branches</span> <span class="o">=</span> <span class="n">quads</span>
+
+        <span class="c1"># Sort branches by total deviation of observed distances from expected</span>
+        <span class="n">branches</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">attrgetter</span><span class="p">(</span><span class="s2">&quot;total_weight&quot;</span><span class="p">))</span>
+
+        <span class="n">candidate_crystal_models</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">branch</span> <span class="ow">in</span> <span class="n">branches</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_crystal_model</span><span class="p">(</span><span class="n">branch</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">model</span><span class="p">:</span>
+                <span class="n">candidate_crystal_models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidate_crystal_models</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_lattices</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span> <span class="o">=</span> <span class="n">candidate_crystal_models</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span></div>
+
+    <span class="k">def</span> <span class="nf">_calc_candidate_hkls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># First a list of indices that fill 1 ASU</span>
+        <span class="n">hkl_list</span> <span class="o">=</span> <span class="n">miller</span><span class="o">.</span><span class="n">build_set</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_target_symmetry_primitive</span><span class="p">,</span>
+            <span class="n">anomalous_flag</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">d_min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">candidate_spots</span><span class="o">.</span><span class="n">d_min</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">rt</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">()</span>
+        <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hkl_list</span><span class="o">.</span><span class="n">indices</span><span class="p">()</span>
+        <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">hkl_list</span><span class="o">.</span><span class="n">d_spacings</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+        <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bmat</span><span class="o">.</span><span class="n">elems</span> <span class="o">*</span> <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_hkls</span> <span class="o">=</span> <span class="n">rt</span>
+
+        <span class="c1"># Now P1 indices with separate Friedel pairs</span>
+        <span class="n">hkl_list</span> <span class="o">=</span> <span class="n">miller</span><span class="o">.</span><span class="n">build_set</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_target_symmetry_primitive</span><span class="p">,</span>
+            <span class="n">anomalous_flag</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">d_min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">candidate_spots</span><span class="o">.</span><span class="n">d_min</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">hkl_list_p1</span> <span class="o">=</span> <span class="n">hkl_list</span><span class="o">.</span><span class="n">expand_to_p1</span><span class="p">()</span>
+        <span class="n">rt</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">()</span>
+        <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hkl_list_p1</span><span class="o">.</span><span class="n">indices</span><span class="p">()</span>
+        <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">hkl_list_p1</span><span class="o">.</span><span class="n">d_spacings</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+        <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bmat</span><span class="o">.</span><span class="n">elems</span> <span class="o">*</span> <span class="n">rt</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_hkls_p1</span> <span class="o">=</span> <span class="n">rt</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_calc_obs_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates a set of low resolution observations to try to match to</span>
+<span class="sd">    indices. Each observation will record its d* value as well as</span>
+<span class="sd">    tolerated d* bands and a &#39;clock angle&#39;&quot;&quot;&quot;</span>
+
+        <span class="n">spot_d_star</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">candidate_spots</span><span class="o">.</span><span class="n">limit_resolution_by</span> <span class="o">==</span> <span class="s2">&quot;n_spots&quot;</span><span class="p">:</span>
+            <span class="n">n_spots</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">candidate_spots</span><span class="o">.</span><span class="n">n_spots</span>
+            <span class="n">n_spots</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_spots</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">d_star_max</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sorted</span><span class="p">(</span><span class="n">spot_d_star</span><span class="p">)[</span><span class="n">n_spots</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">candidate_spots</span><span class="o">.</span><span class="n">d_min</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">d_star_max</span>
+
+        <span class="c1"># First select low resolution spots only</span>
+        <span class="n">spot_d_star</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="n">d_star_max</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">candidate_spots</span><span class="o">.</span><span class="n">d_min</span>
+        <span class="n">sel</span> <span class="o">=</span> <span class="n">spot_d_star</span> <span class="o">&lt;=</span> <span class="n">d_star_max</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">spot_d_star</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+        <span class="c1"># XXX In what circumstance might there be more than one experiment?</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">beam</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Lab coordinate of the beam centre, using the first spot&#39;s panel</span>
+        <span class="n">panel</span> <span class="o">=</span> <span class="n">detector</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;panel&quot;</span><span class="p">]]</span>
+        <span class="n">bc</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_ray_intersection</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())</span>
+        <span class="n">bc_lab</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_lab_coord</span><span class="p">(</span><span class="n">bc</span><span class="p">)</span>
+
+        <span class="c1"># Lab coordinate of each spot</span>
+        <span class="n">spot_lab</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">))</span>
+        <span class="n">pnl_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;panel&quot;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">pnl</span> <span class="ow">in</span> <span class="n">pnl_ids</span><span class="p">:</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;panel&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">pnl</span>
+            <span class="n">panel</span> <span class="o">=</span> <span class="n">detector</span><span class="p">[</span><span class="n">pnl</span><span class="p">]</span>
+            <span class="n">obs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+            <span class="n">x_mm</span><span class="p">,</span> <span class="n">y_mm</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+            <span class="n">spot_lab</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
+                <span class="n">sel</span><span class="p">,</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_lab_coord</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">vec2_double</span><span class="p">(</span><span class="n">x_mm</span><span class="p">,</span> <span class="n">y_mm</span><span class="p">))</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Radius vectors for each spot</span>
+        <span class="n">radius</span> <span class="o">=</span> <span class="n">spot_lab</span> <span class="o">-</span> <span class="n">bc_lab</span>
+
+        <span class="c1"># Usually the radius vectors would all be in a single plane, but this might</span>
+        <span class="c1"># not be the case if the spots are on different panels. To put them on the</span>
+        <span class="c1"># same plane, project onto fast/slow of the panel used to get the beam</span>
+        <span class="c1"># centre</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">),</span> <span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_fast_axis</span><span class="p">())</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">),</span> <span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_slow_axis</span><span class="p">())</span>
+        <span class="n">clock_dirs</span> <span class="o">=</span> <span class="p">(</span><span class="n">radius</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">*</span> <span class="n">df</span> <span class="o">+</span> <span class="n">radius</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span> <span class="o">*</span> <span class="n">ds</span><span class="p">)</span><span class="o">.</span><span class="n">each_normalize</span><span class="p">()</span>
+
+        <span class="c1"># From this, find positive angles of each vector around a clock, using the</span>
+        <span class="c1"># fast axis as 12 o&#39;clock</span>
+        <span class="n">angs</span> <span class="o">=</span> <span class="n">clock_dirs</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_fast_axis</span><span class="p">())</span>
+        <span class="n">dots</span> <span class="o">=</span> <span class="n">clock_dirs</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_slow_axis</span><span class="p">())</span>
+        <span class="n">sel</span> <span class="o">=</span> <span class="n">dots</span> <span class="o">&lt;</span> <span class="mi">0</span>  <span class="c1"># select directions in the second half of the clock face</span>
+        <span class="n">angs</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="p">(</span><span class="n">TWO_PI</span> <span class="o">-</span> <span class="n">angs</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;clock_angle&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">angs</span>
+
+        <span class="c1"># Project radius vectors onto fast/slow of the relevant panels</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">))</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">pnl</span> <span class="ow">in</span> <span class="n">pnl_ids</span><span class="p">:</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;panel&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">pnl</span>
+            <span class="n">panel</span> <span class="o">=</span> <span class="n">detector</span><span class="p">[</span><span class="n">pnl</span><span class="p">]</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_fast_axis</span><span class="p">())</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_slow_axis</span><span class="p">())</span>
+        <span class="n">panel_dirs</span> <span class="o">=</span> <span class="p">(</span><span class="n">radius</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">*</span> <span class="n">df</span> <span class="o">+</span> <span class="n">radius</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span> <span class="o">*</span> <span class="n">ds</span><span class="p">)</span><span class="o">.</span><span class="n">each_normalize</span><span class="p">()</span>
+
+        <span class="c1"># Calc error along each panel direction with simple error propagation</span>
+        <span class="c1"># that assumes no covariance between x and y centroid errors.</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">panel_dirs</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">panel_dirs</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span>
+        <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">r2</span> <span class="o">=</span> <span class="n">x2</span> <span class="o">+</span> <span class="n">y2</span>
+        <span class="n">sig_x2</span><span class="p">,</span> <span class="n">sig_y2</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.variance&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+        <span class="n">var_r</span> <span class="o">=</span> <span class="p">(</span><span class="n">x2</span> <span class="o">/</span> <span class="n">r2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sig_x2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y2</span> <span class="o">/</span> <span class="n">r2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sig_y2</span>
+        <span class="n">sig_r</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var_r</span><span class="p">)</span>
+
+        <span class="c1"># Pixel coordinates at limits of the band</span>
+        <span class="n">tol</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">candidate_spots</span><span class="o">.</span><span class="n">d_star_tolerance</span>
+        <span class="n">outer_spot_lab</span> <span class="o">=</span> <span class="n">spot_lab</span> <span class="o">+</span> <span class="n">panel_dirs</span> <span class="o">*</span> <span class="p">(</span><span class="n">tol</span> <span class="o">*</span> <span class="n">sig_r</span><span class="p">)</span>
+        <span class="n">inner_spot_lab</span> <span class="o">=</span> <span class="n">spot_lab</span> <span class="o">-</span> <span class="n">panel_dirs</span> <span class="o">*</span> <span class="p">(</span><span class="n">tol</span> <span class="o">*</span> <span class="n">sig_r</span><span class="p">)</span>
+
+        <span class="c1"># Set d* at band limits</span>
+        <span class="n">inv_lambda</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+        <span class="n">s1_outer</span> <span class="o">=</span> <span class="n">outer_spot_lab</span><span class="o">.</span><span class="n">each_normalize</span><span class="p">()</span> <span class="o">*</span> <span class="n">inv_lambda</span>
+        <span class="n">s1_inner</span> <span class="o">=</span> <span class="n">inner_spot_lab</span><span class="o">.</span><span class="n">each_normalize</span><span class="p">()</span> <span class="o">*</span> <span class="n">inv_lambda</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_outer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s1_outer</span> <span class="o">-</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_inner&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s1_inner</span> <span class="o">-</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_band2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_outer&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_inner&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_calc_seeds_and_stems</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># As the first stage of search, determine a list of seed spots for further</span>
+        <span class="c1"># stages. Order these by distance of observed d* from the candidate</span>
+        <span class="c1"># reflection&#39;s canonical d*</span>
+
+        <span class="c1"># First the &#39;seeds&#39; (in 1 ASU)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">spot</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">):</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">candidate_hkls</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">spot</span><span class="p">[</span><span class="s2">&quot;d_star_outer&quot;</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">candidate_hkls</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">spot</span><span class="p">[</span><span class="s2">&quot;d_star_inner&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">cands</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">candidate_hkls</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cands</span><span class="p">:</span>
+                <span class="n">r_dst</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">spot</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;spot_id&quot;</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span>
+                        <span class="s2">&quot;miller_index&quot;</span><span class="p">:</span> <span class="n">c</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;rlp_datum&quot;</span><span class="p">:</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]),</span>
+                        <span class="s2">&quot;residual_d_star&quot;</span><span class="p">:</span> <span class="n">r_dst</span><span class="p">,</span>
+                        <span class="s2">&quot;clock_angle&quot;</span><span class="p">:</span> <span class="n">spot</span><span class="p">[</span><span class="s2">&quot;clock_angle&quot;</span><span class="p">],</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">seeds</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">itemgetter</span><span class="p">(</span><span class="s2">&quot;residual_d_star&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Now the &#39;stems&#39; to use in second search level, using all indices in P 1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stems</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">spot</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">):</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">candidate_hkls_p1</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">spot</span><span class="p">[</span><span class="s2">&quot;d_star_outer&quot;</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">candidate_hkls_p1</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">spot</span><span class="p">[</span><span class="s2">&quot;d_star_inner&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">cands</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">candidate_hkls_p1</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cands</span><span class="p">:</span>
+                <span class="n">r_dst</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">spot</span><span class="p">[</span><span class="s2">&quot;d_star&quot;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;spot_id&quot;</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span>
+                        <span class="s2">&quot;miller_index&quot;</span><span class="p">:</span> <span class="n">c</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;rlp_datum&quot;</span><span class="p">:</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]),</span>
+                        <span class="s2">&quot;residual_d_star&quot;</span><span class="p">:</span> <span class="n">r_dst</span><span class="p">,</span>
+                        <span class="s2">&quot;clock_angle&quot;</span><span class="p">:</span> <span class="n">spot</span><span class="p">[</span><span class="s2">&quot;clock_angle&quot;</span><span class="p">],</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">stems</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">itemgetter</span><span class="p">(</span><span class="s2">&quot;residual_d_star&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_pairs_with_seed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">):</span>
+
+        <span class="n">seed_rlp</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="n">seed</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]][</span><span class="s2">&quot;rlp&quot;</span><span class="p">])</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">cand</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stems</span><span class="p">:</span>
+            <span class="c1"># Don&#39;t check the seed spot itself</span>
+            <span class="k">if</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">seed</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Skip spots at a very similar clock angle, which probably belong to the</span>
+            <span class="c1"># same line of indices from the origin</span>
+            <span class="n">angle_diff</span> <span class="o">=</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;clock_angle&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">seed</span><span class="p">[</span><span class="s2">&quot;clock_angle&quot;</span><span class="p">]</span>
+            <span class="n">angle_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(((</span><span class="n">angle_diff</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">%</span> <span class="n">TWO_PI</span><span class="p">)</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">angle_diff</span> <span class="o">&lt;</span> <span class="n">FIVE_DEG</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Calculate the plane normal for the plane containing the seed and stem.</span>
+            <span class="c1"># Skip pairs of Miller indices that belong to the same line</span>
+            <span class="n">seed_vec</span> <span class="o">=</span> <span class="n">seed</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]</span>
+            <span class="n">cand_vec</span> <span class="o">=</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">seed_vec</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">cand_vec</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">ZeroDivisionError</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Compare expected reciprocal space distance with observed distance</span>
+            <span class="n">cand_rlp</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="n">cand</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]][</span><span class="s2">&quot;rlp&quot;</span><span class="p">])</span>
+            <span class="n">obs_dist</span> <span class="o">=</span> <span class="p">(</span><span class="n">cand_rlp</span> <span class="o">-</span> <span class="n">seed_rlp</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span>
+            <span class="n">exp_dist</span> <span class="o">=</span> <span class="p">(</span><span class="n">seed_vec</span> <span class="o">-</span> <span class="n">cand_vec</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span>
+            <span class="n">r_dist</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">obs_dist</span> <span class="o">-</span> <span class="n">exp_dist</span><span class="p">)</span>
+
+            <span class="c1"># If the distance difference is larger than the sum in quadrature of the</span>
+            <span class="c1"># tolerated d* bands then reject the candidate</span>
+            <span class="n">sq_band1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="n">seed</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]][</span><span class="s2">&quot;d_star_band2&quot;</span><span class="p">]</span>
+            <span class="n">sq_band2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="n">cand</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]][</span><span class="s2">&quot;d_star_band2&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">r_dist</span> <span class="o">&gt;</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">sq_band1</span> <span class="o">+</span> <span class="n">sq_band2</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Store the seed-stem match as a 2-node graph</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">CompleteGraph</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;spot_id&quot;</span><span class="p">:</span> <span class="n">seed</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;miller_index&quot;</span><span class="p">:</span> <span class="n">seed</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;rlp_datum&quot;</span><span class="p">:</span> <span class="n">seed</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">],</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">factory_add_vertex</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;spot_id&quot;</span><span class="p">:</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;miller_index&quot;</span><span class="p">:</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;rlp_datum&quot;</span><span class="p">:</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">],</span>
+                <span class="p">},</span>
+                <span class="n">weights_to_other</span><span class="o">=</span><span class="p">[</span><span class="n">r_dist</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">_extend_by_candidates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">):</span>
+
+        <span class="n">existing_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">vertices</span><span class="p">]</span>
+        <span class="n">obs_relps</span> <span class="o">=</span> <span class="p">[</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="n">e</span><span class="p">][</span><span class="s2">&quot;rlp&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">existing_ids</span><span class="p">]</span>
+        <span class="n">exp_relps</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">vertices</span><span class="p">]</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">cand</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stems</span><span class="p">:</span>
+            <span class="c1"># Don&#39;t check spots already matched</span>
+            <span class="k">if</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">existing_ids</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Compare expected reciprocal space distances with observed distances</span>
+            <span class="n">cand_rlp</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="n">cand</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]][</span><span class="s2">&quot;rlp&quot;</span><span class="p">])</span>
+            <span class="n">cand_vec</span> <span class="o">=</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]</span>
+
+            <span class="n">obs_dists</span> <span class="o">=</span> <span class="p">[(</span><span class="n">cand_rlp</span> <span class="o">-</span> <span class="n">rlp</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="k">for</span> <span class="n">rlp</span> <span class="ow">in</span> <span class="n">obs_relps</span><span class="p">]</span>
+            <span class="n">exp_dists</span> <span class="o">=</span> <span class="p">[(</span><span class="n">vec</span> <span class="o">-</span> <span class="n">cand_vec</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="k">for</span> <span class="n">vec</span> <span class="ow">in</span> <span class="n">exp_relps</span><span class="p">]</span>
+
+            <span class="n">residual_dist</span> <span class="o">=</span> <span class="p">[</span><span class="nb">abs</span><span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">obs_dists</span><span class="p">,</span> <span class="n">exp_dists</span><span class="p">)]</span>
+
+            <span class="c1"># If any of the distance differences is larger than the sum in quadrature</span>
+            <span class="c1"># of the tolerated d* bands then reject the candidate</span>
+            <span class="n">sq_candidate_band</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="n">cand</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]][</span><span class="s2">&quot;d_star_band2&quot;</span><span class="p">]</span>
+            <span class="n">bad_candidate</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">r_dist</span><span class="p">,</span> <span class="n">spot_id</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">residual_dist</span><span class="p">,</span> <span class="n">existing_ids</span><span class="p">):</span>
+                <span class="n">sq_relp_band</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="n">spot_id</span><span class="p">][</span><span class="s2">&quot;d_star_band2&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">r_dist</span> <span class="o">&gt;</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">sq_relp_band</span> <span class="o">+</span> <span class="n">sq_candidate_band</span><span class="p">):</span>
+                    <span class="n">bad_candidate</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="n">bad_candidate</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Calculate co-planarity of the relps, including the origin</span>
+            <span class="n">points</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">exp_relps</span> <span class="o">+</span> <span class="p">[</span><span class="n">cand_vec</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)])</span>
+            <span class="n">plane</span> <span class="o">=</span> <span class="n">least_squares_plane</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+            <span class="n">plane_score</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum_sq</span><span class="p">(</span>
+                <span class="n">points</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">plane</span><span class="o">.</span><span class="n">normal</span><span class="p">)</span> <span class="o">-</span> <span class="n">plane</span><span class="o">.</span><span class="n">distance_to_origin</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Reject if the group of relps are too far from lying in a single plane.</span>
+            <span class="c1"># This cut-off was determined by trial and error using simulated images.</span>
+            <span class="k">if</span> <span class="n">plane_score</span> <span class="o">&gt;</span> <span class="mf">6e-7</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Construct a graph including the accepted candidate node</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">factory_add_vertex</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;spot_id&quot;</span><span class="p">:</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;miller_index&quot;</span><span class="p">:</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;rlp_datum&quot;</span><span class="p">:</span> <span class="n">cand</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">],</span>
+                <span class="p">},</span>
+                <span class="n">weights_to_other</span><span class="o">=</span><span class="n">residual_dist</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_fit_U_from_superposed_points</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+
+        <span class="c1"># Add the origin to both sets of points</span>
+        <span class="n">reference</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">other</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+        <span class="c1"># Find U matrix that takes ideal relps to the reference</span>
+        <span class="n">fit</span> <span class="o">=</span> <span class="n">superpose</span><span class="o">.</span><span class="n">least_squares_fit</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fit</span><span class="o">.</span><span class="n">r</span>
+
+    <span class="k">def</span> <span class="nf">_fit_crystal_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">):</span>
+
+        <span class="n">vertices</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">vertices</span>
+
+        <span class="c1"># Reciprocal lattice points of the observations</span>
+        <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">([</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;spot_id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">vertices</span><span class="p">])</span>
+        <span class="n">reference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+        <span class="c1"># Ideal relps from the known cell</span>
+        <span class="n">other</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">([</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;rlp_datum&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">vertices</span><span class="p">])</span>
+
+        <span class="n">U</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_U_from_superposed_points</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+        <span class="n">UB</span> <span class="o">=</span> <span class="n">U</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bmat</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">bootstrap_crystal</span><span class="p">:</span>
+
+            <span class="c1"># Attempt to index the low resolution spots</span>
+            <span class="kn">from</span> <span class="nn">dials_algorithms_indexing_ext</span> <span class="k">import</span> <span class="n">AssignIndices</span>
+
+            <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">UB_matrices</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mat3_double</span><span class="p">([</span><span class="n">UB</span><span class="p">])</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">AssignIndices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">],</span> <span class="n">phi</span><span class="p">,</span> <span class="n">UB_matrices</span><span class="p">,</span> <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+            <span class="n">hkl</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">miller_indices</span><span class="p">()</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="n">hkl</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">hkl_vec</span> <span class="o">=</span> <span class="n">hkl</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+            <span class="c1"># Use the result to get a new UB matrix</span>
+            <span class="n">reference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+            <span class="n">other</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bmat</span><span class="o">.</span><span class="n">elems</span> <span class="o">*</span> <span class="n">hkl_vec</span>
+            <span class="n">U</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_U_from_superposed_points</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+            <span class="n">UB</span> <span class="o">=</span> <span class="n">U</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Bmat</span>
+
+        <span class="c1"># Calculate RMSD of the fit</span>
+        <span class="n">rms</span> <span class="o">=</span> <span class="n">reference</span><span class="o">.</span><span class="n">rms_difference</span><span class="p">(</span><span class="n">U</span><span class="o">.</span><span class="n">elems</span> <span class="o">*</span> <span class="n">other</span><span class="p">)</span>
+
+        <span class="c1"># Construct a crystal model</span>
+        <span class="n">xl</span> <span class="o">=</span> <span class="n">Crystal</span><span class="p">(</span><span class="n">A</span><span class="o">=</span><span class="n">UB</span><span class="p">,</span> <span class="n">space_group_symbol</span><span class="o">=</span><span class="s2">&quot;P1&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Monkey-patch crystal to return rms of the fit (useful?)</span>
+        <span class="n">xl</span><span class="o">.</span><span class="n">rms</span> <span class="o">=</span> <span class="n">rms</span>
+
+        <span class="k">return</span> <span class="n">xl</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../links.html">Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="../../../../../_static/LBL-logo-wide.jpeg" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="../../../../../_static/STFC_logo.png" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2019, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
