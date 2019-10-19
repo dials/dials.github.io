@@ -71,10 +71,10 @@ detector model would be to fix.</p>
 and between all of the datasets we collected then we can use DIALS joint
 refinement to refine all of the crystal cells <em>at the same time</em>, simultaneously
 with shared detector and beam models.</p>
-<p>In this tutorial, we will attempt to do that for 73 sweeps of data collected
+<p>In this tutorial, we will attempt to do that for 73 sequences of data collected
 from crystals of TehA, a well-diffracting integral membrane protein measured
 using <em>in situ</em> diffraction from crystallisation plates at room temperature.
-Each sweep provides between 4 and 10 degrees of data.</p>
+Each sequence provides between 4 and 10 degrees of data.</p>
 <p>This tutorial is relatively advanced in that it requires high level scripting
 of the DIALS command line programs, however candidate scripts are provided and
 the tutorial will hopefully be easy enough to follow.</p>
@@ -82,8 +82,8 @@ the tutorial will hopefully be easy enough to follow.</p>
 <div class="section" id="individual-processing">
 <h2>Individual processing<a class="headerlink" href="#individual-processing" title="Permalink to this headline">¶</a></h2>
 <p>We start with a directory full of images. It is easy enough to figure out
-which files belong with which sweep from the filename templates, however note
-that the pattern between templates is not totally consistent. Most of the sweeps
+which files belong with which sequence from the filename templates, however note
+that the pattern between templates is not totally consistent. Most of the sequences
 start with the prefix <code class="samp docutils literal notranslate"><span class="pre">xtal</span></code>, but some have just <code class="samp docutils literal notranslate"><span class="pre">xta</span></code>. One way of
 getting around this annoyance would be to use the fact that each dataset has
 a single <code class="samp docutils literal notranslate"><span class="pre">*.log</span></code> file associated with it and identify the different
@@ -102,13 +102,13 @@ input {
 DataBlock 0
   format: &lt;class &#39;dxtbx.format.FormatCBFMiniPilatus.FormatCBFMiniPilatus&#39;&gt;
   num images: 2711
-  num sweeps: 73
+  num sequences: 73
   num stills: 0
 --------------------------------------------------------------------------------
 Writing datablocks to datablock.expt
 </pre></div>
 </div>
-<p>With a single command we have determined that there are 73 individual sweeps
+<p>With a single command we have determined that there are 73 individual sequences
 comprising 2711 total images. Running the following command will give us
 information about each one of these datasets:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">show</span> <span class="n">datablock</span><span class="o">.</span><span class="n">expt</span>
@@ -118,10 +118,10 @@ information about each one of these datasets:</p>
 Before we perform the joint analysis, we want to do the individual analysis
 to compare to. This will also give us intermediate files so that we don’t have
 to start from scratch when setting up the joint refinement job. Essentially
-we just want to run a sequence of DIALS commands to process each recorded sweep.
-However we can’t (currently) split the datablock into individual sweeps with
+we just want to run a sequence of DIALS commands to process each recorded sequence.
+However we can’t (currently) split the datablock into individual sequences with
 a single command. We will have to start again with <strong class="program">dials.import</strong> for
-each sweep individually - but we really don’t want to run this manually 73
+each sequence individually - but we really don’t want to run this manually 73
 times.</p>
 <p>The solution is to write a script that will take the <code class="samp docutils literal notranslate"><span class="pre">datablock.expt</span></code> as
 input, extract the filename templates, and run the same processing commands
@@ -131,7 +131,7 @@ or more specifically <strong class="program">dials.python</strong> because we wi
 features in the cctbx to make it easy to write scripts that take advantage
 of <a class="reference external" href="http://cctbx.sourceforge.net/current/python/libtbx.easy_mp.html">parallel execution</a>.
 Also we would like to read <code class="samp docutils literal notranslate"><span class="pre">datablock.expt</span></code> with the DIALS API rather than
-extracting the sweep templates using something like <strong class="program">grep</strong>.</p>
+extracting the sequence templates using something like <strong class="program">grep</strong>.</p>
 <p>The script we used to do this is reproduced below. You can copy this into a file,
 save it as <code class="samp docutils literal notranslate"><span class="pre">process_TehA.py</span></code> and then run it as follows:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">time</span> <span class="n">dials</span><span class="o">.</span><span class="n">python</span> <span class="n">process_TehA</span><span class="o">.</span><span class="n">py</span> <span class="n">datablock</span><span class="o">.</span><span class="n">expt</span>
@@ -151,8 +151,8 @@ script does. If time is <em>really</em> short then try uncommenting the line
 <span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="kn">import</span> <span class="n">DataBlockFactory</span>
 <span class="kn">from</span> <span class="nn">dials.test</span> <span class="kn">import</span> <span class="n">cd</span>
 
-<span class="k">def</span> <span class="nf">process_sweep</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
-  <span class="sd">&quot;&quot;&quot;Process a single sweep of data. The parameter &#39;task&#39; will be a</span>
+<span class="k">def</span> <span class="nf">process_sequence</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Process a single sequence of data. The parameter &#39;task&#39; will be a</span>
 <span class="sd">  tuple, the first element of which is an integer job number and the</span>
 <span class="sd">  second is the filename template of the images to process&quot;&quot;&quot;</span>
 
@@ -160,7 +160,7 @@ script does. If time is <em>really</em> short then try uncommenting the line
   <span class="n">template</span> <span class="o">=</span> <span class="n">task</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 
   <span class="c1"># create directory</span>
-  <span class="k">with</span> <span class="n">cd</span><span class="p">(</span><span class="s2">&quot;sweep_</span><span class="si">%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">num</span><span class="p">):</span>
+  <span class="k">with</span> <span class="n">cd</span><span class="p">(</span><span class="s2">&quot;sequence_</span><span class="si">%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">num</span><span class="p">):</span>
     <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.import template={0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
     <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
     <span class="n">easy_run</span><span class="o">.</span><span class="n">fully_buffered</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="s2">&quot;dials.find_spots datablock.expt&quot;</span><span class="p">)</span>
@@ -206,7 +206,7 @@ script does. If time is <em>really</em> short then try uncommenting the line
       <span class="k">return</span>
 
   <span class="c1"># if we got this far, return the path to the MTZ</span>
-  <span class="k">return</span> <span class="s2">&quot;sweep_</span><span class="si">%02d</span><span class="s2">/integrated.mtz&quot;</span> <span class="o">%</span> <span class="n">num</span>
+  <span class="k">return</span> <span class="s2">&quot;sequence_</span><span class="si">%02d</span><span class="s2">/integrated.mtz&quot;</span> <span class="o">%</span> <span class="n">num</span>
 
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
 
@@ -216,8 +216,8 @@ script does. If time is <em>really</em> short then try uncommenting the line
   <span class="n">datablock_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
   <span class="n">datablock</span> <span class="o">=</span> <span class="n">DataBlockFactory</span><span class="o">.</span><span class="n">from_serialized_format</span><span class="p">(</span><span class="n">datablock_path</span><span class="p">,</span>
     <span class="n">check_format</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-  <span class="n">sweeps</span> <span class="o">=</span> <span class="n">datablock</span><span class="o">.</span><span class="n">extract_sweeps</span><span class="p">()</span>
-  <span class="n">templates</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">get_template</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">sweeps</span><span class="p">]</span>
+  <span class="n">sequences</span> <span class="o">=</span> <span class="n">datablock</span><span class="o">.</span><span class="n">extract_sequences</span><span class="p">()</span>
+  <span class="n">templates</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">get_template</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">sequences</span><span class="p">]</span>
   <span class="n">tasklist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">templates</span><span class="p">)))</span>
 
   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasklist</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s2">&quot;No images found!&quot;</span><span class="p">)</span>
@@ -233,7 +233,7 @@ script does. If time is <em>really</em> short then try uncommenting the line
     <span class="k">print</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">task</span>
 
   <span class="n">results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
-    <span class="n">func</span><span class="o">=</span><span class="n">process_sweep</span><span class="p">,</span>
+    <span class="n">func</span><span class="o">=</span><span class="n">process_sequence</span><span class="p">,</span>
     <span class="n">iterable</span><span class="o">=</span><span class="n">tasklist</span><span class="p">,</span>
     <span class="n">processes</span><span class="o">=</span><span class="n">nproc</span><span class="p">,</span>
     <span class="n">preserve_order</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
@@ -250,22 +250,22 @@ just imports to bring in modules from the Python standard library as well as
 <code class="samp docutils literal notranslate"><span class="pre">DataBlockFactory</span></code> from <code class="samp docutils literal notranslate"><span class="pre">dxtbx</span></code> to read in the datablock and
 a class from the <code class="samp docutils literal notranslate"><span class="pre">dials.test</span></code> package that simplifies running commands in
 a new directory. Following that is a definition for the function
-<code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code> which will perform all the steps required to process one
+<code class="samp docutils literal notranslate"><span class="pre">process_sequence</span></code> which will perform all the steps required to process one
 dataset from images to unmerged MTZ. The code block under:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
 </pre></div>
 </div>
 <p>are the lines that are executed when the script starts. First we check that the
-script has been passed a path to a datablock. We then extract the 73 sweeps
+script has been passed a path to a datablock. We then extract the 73 sequences
 from this into a list, then get the filename templates from each element in the
 list. We associate each of these templates with a number to form a list of
-‘tasks’ to pass into <code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code>, but instead
+‘tasks’ to pass into <code class="samp docutils literal notranslate"><span class="pre">process_sequence</span></code>, but instead
 of doing this in serial we can use <code class="samp docutils literal notranslate"><span class="pre">easy_mp</span></code> to run in parallel. This will
-be okay because inside <code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code>, we ensure that all results are
+be okay because inside <code class="samp docutils literal notranslate"><span class="pre">process_sequence</span></code>, we ensure that all results are
 written into a new directory. First we use a facility of the <code class="samp docutils literal notranslate"><span class="pre">easy_mp</span></code>
 module to determine the number of processes to run in parallel and then we submit
 the job with <code class="samp docutils literal notranslate"><span class="pre">parallel_map</span></code>.</p>
-<p>Within <code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code> all external commands are run within a <code class="samp docutils literal notranslate"><span class="pre">with</span></code>
+<p>Within <code class="samp docutils literal notranslate"><span class="pre">process_sequence</span></code> all external commands are run within a <code class="samp docutils literal notranslate"><span class="pre">with</span></code>
 block where execution is controlled by the <em>context manager</em> <code class="samp docutils literal notranslate"><span class="pre">cd</span></code>. If you
 want the gory details, they are <a class="reference external" href="https://docs.python.org/2/reference/datamodel.html#context-managers">here</a>.
 Essentially this is a way to write clean code that tidies up after itself
@@ -276,9 +276,9 @@ already exists, this will fail with an error.</p>
 familiar from other tutorials. There are a couple of interesting points
 to note though. We know that the correct space group is <em>H</em> 3, but it turns out
 that if we ask <strong class="program">dials.index</strong> to find an <em>H</em> 3 cell right from the start
-then many of the sweeps fail to index. This is simply because the initial models
+then many of the sequences fail to index. This is simply because the initial models
 contained in <code class="samp docutils literal notranslate"><span class="pre">datablock.expt</span></code> are too poor to locate a cell with the
-symmetry constraints. However, for many of the sweeps the indexing program will
+symmetry constraints. However, for many of the sequences the indexing program will
 refine the <em>P</em> 1 solution to the correct cell. For this reason we first run
 indexing in <em>P</em> 1:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">index</span> <span class="n">datablock</span><span class="o">.</span><span class="n">expt</span> <span class="n">strong</span><span class="o">.</span><span class="n">refl</span> <span class="n">output</span><span class="o">.</span><span class="n">experiments</span><span class="o">=</span><span class="n">P1_models</span><span class="o">.</span><span class="n">expt</span>
@@ -341,7 +341,7 @@ careful processing should be done first!</p>
 <p>After each of these major steps we check whether the last command ran successfully
 by checking for the existence of an expected output file. If the file does not
 exist we make no effort to rescue the dataset, we just return early from the
-<code class="samp docutils literal notranslate"><span class="pre">process_sweep</span></code> function, freeing up a process so that
+<code class="samp docutils literal notranslate"><span class="pre">process_sequence</span></code> function, freeing up a process so that
 <code class="samp docutils literal notranslate"><span class="pre">parallel_map</span></code> can start up the next.</p>
 <p>Here is the output of a run of the script:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Attempting</span> <span class="n">to</span> <span class="n">process</span> <span class="n">the</span> <span class="n">following</span> <span class="n">datasets</span><span class="p">,</span> <span class="k">with</span> <span class="mi">5</span> <span class="n">processes</span>
@@ -451,47 +451,47 @@ exist we make no effort to rescue the dataset, we just return early from the
 <span class="n">Job</span> <span class="mi">71</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">initial</span> <span class="n">indexing</span>
 <span class="n">Job</span> <span class="mi">72</span> <span class="n">failed</span> <span class="ow">in</span> <span class="n">indexing</span>
 <span class="n">Successfully</span> <span class="n">created</span> <span class="n">the</span> <span class="n">following</span> <span class="n">MTZs</span><span class="p">:</span>
-<span class="n">sweep_00</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_01</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_02</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_03</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_05</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_09</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_14</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_16</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_17</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_18</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_19</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_22</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_23</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_24</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_25</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_26</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_27</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_28</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_29</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_30</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_31</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_33</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_34</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_36</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_42</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_43</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_46</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_48</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_50</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_51</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_53</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_54</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_56</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_58</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_59</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_60</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_63</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_64</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_65</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_66</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
-<span class="n">sweep_67</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_00</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_01</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_02</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_03</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_05</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_09</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_14</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_16</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_17</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_18</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_19</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_22</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_23</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_24</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_25</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_26</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_27</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_28</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_29</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_30</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_31</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_33</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_34</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_36</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_42</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_43</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_46</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_48</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_50</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_51</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_53</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_54</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_56</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_58</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_59</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_60</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_63</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_64</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_65</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_66</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
+<span class="n">sequence_67</span><span class="o">/</span><span class="n">integrated</span><span class="o">.</span><span class="n">mtz</span>
 
 <span class="n">real</span>  <span class="mi">7</span><span class="n">m45</span><span class="o">.</span><span class="mi">656</span><span class="n">s</span>
 <span class="n">user</span>  <span class="mi">25</span><span class="n">m32</span><span class="o">.</span><span class="mi">532</span><span class="n">s</span>
@@ -512,12 +512,12 @@ say <code class="file docutils literal notranslate"><span class="pre">individual
 </div></blockquote>
 <p>Immediately the dendrogram shows that dataset 27 is an extreme outlier.
 From <code class="file docutils literal notranslate"><span class="pre">FINAL_list_of_files.dat</span></code> we can see that this refers to
-<code class="file docutils literal notranslate"><span class="pre">sweep_46/integrated.mtz</span></code>.
+<code class="file docutils literal notranslate"><span class="pre">sequence_46/integrated.mtz</span></code>.
 As we kept all the dials <code class="file docutils literal notranslate"><span class="pre">.log</span></code> files
 from DIALS processing we could investigate this further, however as this is
-only one sweep out of 41, we decide just to throw it away and
+only one sequence out of 41, we decide just to throw it away and
 move on. So, edit <code class="file docutils literal notranslate"><span class="pre">individual_mtzs.dat</span></code> to remove
-the line <code class="file docutils literal notranslate"><span class="pre">sweep_46/integrated.mtz</span></code>
+the line <code class="file docutils literal notranslate"><span class="pre">sequence_46/integrated.mtz</span></code>
 and rerun blend.</p>
 <p>Now the dendrogram looks better:</p>
 <blockquote>
@@ -533,111 +533,111 @@ datasets.</p>
 we would like to do joint refinement of the crystals to reduce correlations
 between the detector or beam parameters with individual crystals. As motivation
 we may look at these correlations for one of these datasets. For example:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">sweep_00</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">sequence_00</span>
 <span class="n">dials</span><span class="o">.</span><span class="n">refine</span> <span class="n">indexed</span><span class="o">.</span><span class="n">expt</span> <span class="n">indexed</span><span class="o">.</span><span class="n">refl</span> <span class="n">scan_varying</span><span class="o">=</span><span class="n">false</span> \
   <span class="n">track_parameter_correlation</span><span class="o">=</span><span class="n">true</span> <span class="n">correlation_plot</span><span class="o">.</span><span class="n">filename</span><span class="o">=</span><span class="n">corrplot</span><span class="o">.</span><span class="n">png</span>
 <span class="n">cd</span> <span class="o">..</span>
 </pre></div>
 </div>
-<p>The new file <code class="file docutils literal notranslate"><span class="pre">sweep_00/corrplot.png</span></code> shows correlations between parameters
+<p>The new file <code class="file docutils literal notranslate"><span class="pre">sequence_00/corrplot.png</span></code> shows correlations between parameters
 refined with this single 8 degree dataset. Clearly parameters like the
 detector distance and the crystal metrical matrix parameters are highly
 correlated.</p>
 <blockquote>
-<div><img alt="../../_images/sweep_00_corrplot.png" src="../../_images/sweep_00_corrplot.png" />
+<div><img alt="../../_images/sequence_00_corrplot.png" src="../../_images/sequence_00_corrplot.png" />
 </div></blockquote>
 <p>Although the DIALS toolkit has a sophisticated mechanism for modelling
 multi-experiment data, the user interface for handling such data is still
-rather limited. In order to do joint refinement of the sweeps we need to combine them
+rather limited. In order to do joint refinement of the sequences we need to combine them
 into a single multi-experiment <code class="file docutils literal notranslate"><span class="pre">combined.expt</span></code> and corresponding
 <code class="file docutils literal notranslate"><span class="pre">combined.refl</span></code>. Whilst doing this we want to reduce the separate
 detector, beam and goniometer models for each experiment into a single shared
 model of each type. The program <strong class="program">dials.combine_experiments</strong> can
 be used for this, but first we have to prepare an input file with a text editor
-listing the individual sweeps in order. We can use
+listing the individual sequences in order. We can use
 <code class="file docutils literal notranslate"><span class="pre">individual_mtzs.dat</span></code> as a template to start with. In our case the final
 file looks like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">input</span> <span class="p">{</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_00/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_01/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_02/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_03/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_05/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_09/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_14/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_16/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_17/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_18/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_19/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_22/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_23/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_24/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_25/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_26/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_27/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_28/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_29/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_30/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_31/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_33/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_34/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_36/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_42/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_43/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_48/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_50/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_51/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_53/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_54/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_56/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_58/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_59/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_60/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_63/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_64/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_65/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_66/refined.expt&quot;</span>
-  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sweep_67/refined.expt&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_00/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_01/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_02/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_03/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_05/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_09/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_14/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_16/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_17/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_18/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_19/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_22/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_23/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_24/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_25/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_26/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_27/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_28/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_29/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_30/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_31/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_33/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_34/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_36/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_42/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_43/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_48/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_50/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_51/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_53/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_54/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_56/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_58/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_59/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_60/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_63/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_64/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_65/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_66/indexed.refl&quot;</span>
-  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sweep_67/indexed.refl&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_00/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_01/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_02/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_03/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_05/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_09/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_14/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_16/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_17/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_18/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_19/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_22/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_23/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_24/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_25/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_26/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_27/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_28/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_29/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_30/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_31/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_33/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_34/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_36/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_42/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_43/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_48/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_50/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_51/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_53/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_54/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_56/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_58/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_59/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_60/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_63/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_64/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_65/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_66/refined.expt&quot;</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;sequence_67/refined.expt&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_00/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_01/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_02/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_03/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_05/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_09/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_14/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_16/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_17/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_18/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_19/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_22/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_23/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_24/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_25/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_26/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_27/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_28/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_29/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_30/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_31/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_33/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_34/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_36/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_42/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_43/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_48/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_50/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_51/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_53/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_54/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_56/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_58/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_59/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_60/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_63/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_64/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_65/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_66/indexed.refl&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;sequence_67/indexed.refl&quot;</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -652,7 +652,7 @@ file looks like this:</p>
 <p>The <code class="samp docutils literal notranslate"><span class="pre">reference_from_experiment</span></code> options tell the program to replace all
 beam, goniometer and detector models in the input experiments with those
 models taken from the first experiment, i.e. experiment ‘0’ using 0-based
-indexing. The output lists the number of reflections in each sweep contributing
+indexing. The output lists the number of reflections in each sequence contributing
 to the final <code class="file docutils literal notranslate"><span class="pre">combined.refl</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">---------------------</span>
 <span class="o">|</span> <span class="n">Experiment</span> <span class="o">|</span> <span class="n">Nref</span> <span class="o">|</span>
@@ -879,7 +879,7 @@ in the file <code class="file docutils literal notranslate"><span class="pre">di
 terminal.</p>
 <p>We can compare the RMSDs from individually refined experiments to those from
 the joint experiments. For example, look at the RSMDs for experiment 0, in the
-logfile <code class="file docutils literal notranslate"><span class="pre">sweep_00/dials.refine.log</span></code>:</p>
+logfile <code class="file docutils literal notranslate"><span class="pre">sequence_00/dials.refine.log</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">RMSDs</span> <span class="n">by</span> <span class="n">experiment</span><span class="p">:</span>
 <span class="o">--------------------------------------------</span>
 <span class="o">|</span> <span class="n">Exp</span> <span class="o">|</span> <span class="n">Nref</span> <span class="o">|</span> <span class="n">RMSD_X</span>  <span class="o">|</span> <span class="n">RMSD_Y</span> <span class="o">|</span> <span class="n">RMSD_Z</span>   <span class="o">|</span>
@@ -982,8 +982,8 @@ to run in parallel, similar to the one used previously:</p>
 <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_run</span><span class="p">,</span> <span class="n">easy_mp</span>
 <span class="kn">from</span> <span class="nn">dials.test</span> <span class="kn">import</span> <span class="n">cd</span>
 
-<span class="k">def</span> <span class="nf">process_sweep</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
-  <span class="sd">&quot;&quot;&quot;Process a single sweep of data. The parameter &#39;task&#39; will be a</span>
+<span class="k">def</span> <span class="nf">process_sequence</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Process a single sequence of data. The parameter &#39;task&#39; will be a</span>
 <span class="sd">  tuple, the first element of which is an integer job number and the</span>
 <span class="sd">  second is the path to the directory containing the data&quot;&quot;&quot;</span>
 
@@ -996,7 +996,7 @@ to run in parallel, similar to the one used previously:</p>
   <span class="n">reflections_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">datadir</span><span class="p">,</span> <span class="n">reflections_file</span><span class="p">)</span>
 
   <span class="c1"># create directory</span>
-  <span class="k">with</span> <span class="n">cd</span><span class="p">(</span><span class="s2">&quot;sweep_</span><span class="si">%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">num</span><span class="p">):</span>
+  <span class="k">with</span> <span class="n">cd</span><span class="p">(</span><span class="s2">&quot;sequence_</span><span class="si">%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">num</span><span class="p">):</span>
     <span class="c1"># WARNING! Fast and dirty integration.</span>
     <span class="c1"># Do not use the result for scaling/merging!</span>
     <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dials.integrate </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> &quot;</span> <span class="o">+</span> \
@@ -1016,7 +1016,7 @@ to run in parallel, similar to the one used previously:</p>
       <span class="k">return</span>
 
   <span class="c1"># if we got this far, return the path to the MTZ</span>
-  <span class="k">return</span> <span class="s2">&quot;sweep_</span><span class="si">%02d</span><span class="s2">/integrated.mtz&quot;</span> <span class="o">%</span> <span class="n">num</span>
+  <span class="k">return</span> <span class="s2">&quot;sequence_</span><span class="si">%02d</span><span class="s2">/integrated.mtz&quot;</span> <span class="o">%</span> <span class="n">num</span>
 
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
 
@@ -1038,7 +1038,7 @@ to run in parallel, similar to the one used previously:</p>
     <span class="k">print</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">: </span><span class="si">%s</span><span class="s2">/experiments</span><span class="si">%02d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">task</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">task</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">task</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
   <span class="n">results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
-    <span class="n">func</span><span class="o">=</span><span class="n">process_sweep</span><span class="p">,</span>
+    <span class="n">func</span><span class="o">=</span><span class="n">process_sequence</span><span class="p">,</span>
     <span class="n">iterable</span><span class="o">=</span><span class="n">tasklist</span><span class="p">,</span>
     <span class="n">processes</span><span class="o">=</span><span class="n">nproc</span><span class="p">,</span>
     <span class="n">preserve_order</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
@@ -1054,7 +1054,7 @@ directory can be run as follows:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">python</span> <span class="n">integrate_joint_TehA</span><span class="o">.</span><span class="n">py</span> <span class="o">.</span>
 </pre></div>
 </div>
-<p>As expected this creates all 40 MTZs for the jointly refined sweeps without any
+<p>As expected this creates all 40 MTZs for the jointly refined sequences without any
 problem. We can copy the paths to these into a new file, say
 <code class="file docutils literal notranslate"><span class="pre">joint_mtzs.dat</span></code>, and run blend:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">echo</span> <span class="s2">&quot;END&quot;</span> <span class="o">|</span> <span class="n">blend</span> <span class="o">-</span><span class="n">a</span> <span class="n">joint_mtzs</span><span class="o">.</span><span class="n">dat</span>

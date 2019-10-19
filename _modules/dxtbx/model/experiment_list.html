@@ -55,20 +55,20 @@
 <span class="kn">from</span> <span class="nn">builtins</span> <span class="k">import</span> <span class="nb">range</span>
 
 <span class="kn">import</span> <span class="nn">pkg_resources</span>
+
 <span class="kn">import</span> <span class="nn">six</span>
 <span class="kn">import</span> <span class="nn">six.moves.cPickle</span> <span class="k">as</span> <span class="nn">pickle</span>
-
 <span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="k">import</span> <span class="p">(</span>
     <span class="n">BeamComparison</span><span class="p">,</span>
     <span class="n">DataBlockFactory</span><span class="p">,</span>
     <span class="n">DataBlockTemplateImporter</span><span class="p">,</span>
     <span class="n">DetectorComparison</span><span class="p">,</span>
     <span class="n">GoniometerComparison</span><span class="p">,</span>
-    <span class="n">SweepDiff</span><span class="p">,</span>
+    <span class="n">SequenceDiff</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dxtbx.format.FormatMultiImage</span> <span class="k">import</span> <span class="n">FormatMultiImage</span>
 <span class="kn">from</span> <span class="nn">dxtbx.format.image</span> <span class="k">import</span> <span class="n">ImageBool</span><span class="p">,</span> <span class="n">ImageDouble</span>
-<span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="k">import</span> <span class="n">ImageGrid</span><span class="p">,</span> <span class="n">ImageSet</span><span class="p">,</span> <span class="n">ImageSetFactory</span><span class="p">,</span> <span class="n">ImageSweep</span>
+<span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="k">import</span> <span class="n">ImageGrid</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">,</span> <span class="n">ImageSet</span><span class="p">,</span> <span class="n">ImageSetFactory</span>
 <span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="k">import</span> <span class="p">(</span>
     <span class="n">BeamFactory</span><span class="p">,</span>
     <span class="n">CrystalFactory</span><span class="p">,</span>
@@ -79,10 +79,10 @@
     <span class="n">ProfileModelFactory</span><span class="p">,</span>
     <span class="n">ScanFactory</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dxtbx.sequence_filenames</span> <span class="k">import</span> <span class="n">template_image_range</span>
 <span class="kn">from</span> <span class="nn">dxtbx.serialize</span> <span class="k">import</span> <span class="n">xds</span>
 <span class="kn">from</span> <span class="nn">dxtbx.serialize.filename</span> <span class="k">import</span> <span class="n">resolve_path</span>
 <span class="kn">from</span> <span class="nn">dxtbx.serialize.load</span> <span class="k">import</span> <span class="n">_decode_dict</span>
-<span class="kn">from</span> <span class="nn">dxtbx.sweep_filenames</span> <span class="k">import</span> <span class="n">template_image_range</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
@@ -94,7 +94,7 @@
     <span class="s2">&quot;DetectorComparison&quot;</span><span class="p">,</span>
     <span class="s2">&quot;ExperimentListFactory&quot;</span><span class="p">,</span>
     <span class="s2">&quot;GoniometerComparison&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;SweepDiff&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SequenceDiff&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 
 
@@ -281,8 +281,11 @@
                         <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_grid</span><span class="p">(</span>
                             <span class="n">imageset_data</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span>
                         <span class="p">)</span>
-                    <span class="k">elif</span> <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ImageSweep&quot;</span><span class="p">:</span>
-                        <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_sweep</span><span class="p">(</span>
+                    <span class="k">elif</span> <span class="p">(</span>
+                        <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ImageSequence&quot;</span>
+                        <span class="ow">or</span> <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ImageSweep&quot;</span>
+                    <span class="p">):</span>
+                        <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_sequence</span><span class="p">(</span>
                             <span class="n">imageset_data</span><span class="p">,</span>
                             <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
                             <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
@@ -339,7 +342,7 @@
                         <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dy</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">dy_filename</span>
 
                         <span class="c1"># Update the imageset models</span>
-                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSweep</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">):</span>
                             <span class="n">imageset</span><span class="o">.</span><span class="n">set_beam</span><span class="p">(</span><span class="n">beam</span><span class="p">)</span>
                             <span class="n">imageset</span><span class="o">.</span><span class="n">set_detector</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span>
                             <span class="n">imageset</span><span class="o">.</span><span class="n">set_goniometer</span><span class="p">(</span><span class="n">goniometer</span><span class="p">)</span>
@@ -403,7 +406,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_make_stills</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">),</span> <span class="n">grid_size</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_make_sweep</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">_make_sequence</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">imageset</span><span class="p">,</span>
         <span class="n">beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -412,7 +415,7 @@
         <span class="n">scan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Make an image sweep. &quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot; Make an image sequence. &quot;&quot;&quot;</span>
         <span class="c1"># Get the template format</span>
         <span class="n">template</span> <span class="o">=</span> <span class="n">resolve_path</span><span class="p">(</span><span class="n">imageset</span><span class="p">[</span><span class="s2">&quot;template&quot;</span><span class="p">],</span> <span class="n">directory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_directory</span><span class="p">)</span>
 
@@ -428,8 +431,8 @@
             <span class="k">if</span> <span class="s2">&quot;single_file_indices&quot;</span> <span class="ow">in</span> <span class="n">imageset</span><span class="p">:</span>
                 <span class="n">format_class</span> <span class="o">=</span> <span class="n">FormatMultiImage</span>
 
-        <span class="c1"># Make a sweep from the input data</span>
-        <span class="k">return</span> <span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">make_sweep</span><span class="p">(</span>
+        <span class="c1"># Make a sequence from the input data</span>
+        <span class="k">return</span> <span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">make_sequence</span><span class="p">(</span>
             <span class="n">template</span><span class="p">,</span>
             <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">i0</span><span class="p">,</span> <span class="n">i1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)),</span>
             <span class="n">format_class</span><span class="o">=</span><span class="n">format_class</span><span class="p">,</span>
@@ -562,8 +565,8 @@
 <div class="viewcode-block" id="ExperimentListFactory.from_imageset_and_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_imageset_and_crystal">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">from_imageset_and_crystal</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Load an experiment list from an imageset and crystal. &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSweep</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_sweep_and_crystal</span><span class="p">(</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_sequence_and_crystal</span><span class="p">(</span>
                 <span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -571,9 +574,9 @@
                 <span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span>
             <span class="p">)</span></div>
 
-<div class="viewcode-block" id="ExperimentListFactory.from_sweep_and_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_sweep_and_crystal">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">from_sweep_and_crystal</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Create an experiment list from sweep and crystal. &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="ExperimentListFactory.from_sequence_and_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_sequence_and_crystal">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_sequence_and_crystal</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Create an experiment list from sequence and crystal. &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">load_models</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">ExperimentList</span><span class="p">(</span>
                 <span class="p">[</span>
@@ -713,14 +716,14 @@
 <div class="viewcode-block" id="ExperimentListFactory.from_xds"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_xds">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">from_xds</span><span class="p">(</span><span class="n">xds_inp</span><span class="p">,</span> <span class="n">xds_other</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Generate an experiment list from XDS files. &quot;&quot;&quot;</span>
-        <span class="c1"># Get the sweep from the XDS files</span>
-        <span class="n">sweep</span> <span class="o">=</span> <span class="n">xds</span><span class="o">.</span><span class="n">to_imageset</span><span class="p">(</span><span class="n">xds_inp</span><span class="p">,</span> <span class="n">xds_other</span><span class="p">)</span>
+        <span class="c1"># Get the sequence from the XDS files</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="n">xds</span><span class="o">.</span><span class="n">to_imageset</span><span class="p">(</span><span class="n">xds_inp</span><span class="p">,</span> <span class="n">xds_other</span><span class="p">)</span>
 
         <span class="c1"># Get the crystal from the XDS files</span>
         <span class="n">crystal</span> <span class="o">=</span> <span class="n">xds</span><span class="o">.</span><span class="n">to_crystal</span><span class="p">(</span><span class="n">xds_other</span><span class="p">)</span>
 
         <span class="c1"># Create the experiment list</span>
-        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_imageset_and_crystal</span><span class="p">(</span><span class="n">sweep</span><span class="p">,</span> <span class="n">crystal</span><span class="p">)</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_imageset_and_crystal</span><span class="p">(</span><span class="n">sequence</span><span class="p">,</span> <span class="n">crystal</span><span class="p">)</span>
 
         <span class="c1"># Set the crystal in the experiment list</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>

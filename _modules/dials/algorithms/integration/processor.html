@@ -53,6 +53,8 @@
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">time</span>
 
+<span class="kn">import</span> <span class="nn">psutil</span>
+
 <span class="kn">import</span> <span class="nn">boost.python</span>
 <span class="kn">import</span> <span class="nn">dials.algorithms.integration</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
@@ -429,7 +431,6 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="k">import</span> <span class="n">flex</span>
         <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="k">import</span> <span class="n">make_image</span>
-        <span class="kn">from</span> <span class="nn">libtbx.introspection</span> <span class="k">import</span> <span class="n">machine_memory_info</span>
 
         <span class="c1"># Get the start time</span>
         <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
@@ -489,40 +490,35 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="c1"># Compute percentage of max available. The function is not portable to</span>
-        <span class="c1"># windows so need to add a check if the function fails. On windows no</span>
-        <span class="c1"># warning will be printed</span>
-        <span class="n">memory_info</span> <span class="o">=</span> <span class="n">machine_memory_info</span><span class="p">()</span>
-        <span class="n">total_memory</span> <span class="o">=</span> <span class="n">memory_info</span><span class="o">.</span><span class="n">memory_total</span><span class="p">()</span>
+        <span class="c1"># Compute expected memory usage and warn if not enough</span>
+        <span class="n">total_memory</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">total</span>
         <span class="n">sbox_memory</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">compute_max_memory_usage</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">total_memory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">total_memory</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Your system appears to have no memory!&quot;</span>
-            <span class="k">assert</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
-            <span class="p">),</span> <span class="s2">&quot;maximum memory usage must be &gt; 0&quot;</span>
-            <span class="k">assert</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">&lt;=</span> <span class="mf">1.0</span>
-            <span class="p">),</span> <span class="s2">&quot;maximum memory usage must be &lt;= 1&quot;</span>
-            <span class="n">limit_memory</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
-            <span class="k">if</span> <span class="n">sbox_memory</span> <span class="o">&gt;</span> <span class="n">limit_memory</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        There was a problem allocating memory for shoeboxes. Possible solutions</span>
-<span class="sd">        include increasing the percentage of memory allowed for shoeboxes or</span>
-<span class="sd">        decreasing the block size. This could also be caused by a highly mosaic</span>
-<span class="sd">        crystal model - is your crystal really this mosaic?</span>
-<span class="sd">          Total system memory: %g GB</span>
-<span class="sd">          Limit shoebox memory: %g GB</span>
-<span class="sd">          Required shoebox memory: %g GB</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-                    <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">limit_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">sbox_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot; Memory usage:&quot;</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  Total system memory: </span><span class="si">%g</span><span class="s2"> GB&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  Limit shoebox memory: </span><span class="si">%g</span><span class="s2"> GB&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">limit_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  Required shoebox memory: </span><span class="si">%g</span><span class="s2"> GB&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sbox_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
+        <span class="p">),</span> <span class="s2">&quot;maximum memory usage must be &gt; 0&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">&lt;=</span> <span class="mf">1.0</span>
+        <span class="p">),</span> <span class="s2">&quot;maximum memory usage must be &lt;= 1&quot;</span>
+        <span class="n">limit_memory</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
+        <span class="k">if</span> <span class="n">sbox_memory</span> <span class="o">&gt;</span> <span class="n">limit_memory</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    There was a problem allocating memory for shoeboxes. Possible solutions</span>
+<span class="sd">    include increasing the percentage of memory allowed for shoeboxes or</span>
+<span class="sd">    decreasing the block size. This could also be caused by a highly mosaic</span>
+<span class="sd">    crystal model - is your crystal really this mosaic?</span>
+<span class="sd">        Total system memory: %g GB</span>
+<span class="sd">        Limit shoebox memory: %g GB</span>
+<span class="sd">        Required shoebox memory: %g GB</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">limit_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">sbox_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot; Memory usage:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  Total system memory: </span><span class="si">%g</span><span class="s2"> GB&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  Limit shoebox memory: </span><span class="si">%g</span><span class="s2"> GB&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">limit_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  Required shoebox memory: </span><span class="si">%g</span><span class="s2"> GB&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sbox_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
 
         <span class="c1"># Loop through the imageset, extract pixels and process reflections</span>
         <span class="n">read_time</span> <span class="o">=</span> <span class="mf">0.0</span>
@@ -813,7 +809,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute the number of processors</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">libtbx.introspection</span> <span class="k">import</span> <span class="n">machine_memory_info</span>
         <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="k">import</span> <span class="n">flex</span>
 
         <span class="c1"># Set the memory usage per processor</span>
@@ -824,30 +819,28 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">shoebox_memory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span><span class="p">)</span>
             <span class="p">)</span>
 
-            <span class="c1"># Compute percentage of max available. The function is not portable to</span>
-            <span class="c1"># windows so need to add a check if the function fails. On windows no</span>
-            <span class="c1"># warning will be printed</span>
-            <span class="n">memory_info</span> <span class="o">=</span> <span class="n">machine_memory_info</span><span class="p">()</span>
-            <span class="n">total_memory</span> <span class="o">=</span> <span class="n">memory_info</span><span class="o">.</span><span class="n">memory_total</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">total_memory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">assert</span> <span class="n">total_memory</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Your system appears to have no memory!&quot;</span>
-                <span class="n">limit_memory</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
-                <span class="n">njobs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">limit_memory</span> <span class="o">/</span> <span class="n">max_memory</span><span class="p">))</span>
-                <span class="k">if</span> <span class="n">njobs</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            No enough memory to run integration jobs. Possible solutions</span>
-<span class="sd">            include increasing the percentage of memory allowed for shoeboxes or</span>
-<span class="sd">            decreasing the block size.</span>
-<span class="sd">              Total system memory: %g GB</span>
-<span class="sd">              Limit shoebox memory: %g GB</span>
-<span class="sd">              Max shoebox memory: %g GB</span>
-<span class="sd">          &quot;&quot;&quot;</span>
-                        <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">limit_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">max_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
-                    <span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="n">njobs</span><span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">/=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span>
+            <span class="c1"># Compute expected memory usage and warn if not enough</span>
+            <span class="n">total_memory</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">total</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="n">total_memory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">total_memory</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="p">),</span> <span class="s2">&quot;psutil call appears to have given unexpected output&quot;</span>
+            <span class="n">limit_memory</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
+            <span class="n">njobs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">limit_memory</span> <span class="o">/</span> <span class="n">max_memory</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">njobs</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        No enough memory to run integration jobs. Possible solutions</span>
+<span class="sd">        include increasing the percentage of memory allowed for shoeboxes or</span>
+<span class="sd">        decreasing the block size.</span>
+<span class="sd">            Total system memory: %g GB</span>
+<span class="sd">            Limit shoebox memory: %g GB</span>
+<span class="sd">            Max shoebox memory: %g GB</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">total_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">limit_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span> <span class="n">max_memory</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="n">njobs</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span> <span class="o">/=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span>
 
     <span class="k">def</span> <span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -864,7 +857,7 @@
                 <span class="n">f0</span><span class="p">,</span> <span class="n">f1</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">frames</span><span class="p">()</span>
                 <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">num_reflections</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
                 <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">group</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">all_sweeps</span><span class="p">():</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">all_sequences</span><span class="p">():</span>
             <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="p">[</span>
                     <span class="s2">&quot;#&quot;</span><span class="p">,</span>
@@ -889,7 +882,7 @@
                     <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">group</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">f1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">p0</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">p1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
                 <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Experiments must be all sweeps or all stills&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Experiments must be all sequences or all stills&quot;</span><span class="p">)</span>
 
         <span class="c1"># The job table</span>
         <span class="n">task_table</span> <span class="o">=</span> <span class="n">table</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">has_header</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">justify</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
@@ -917,7 +910,7 @@
         <span class="sd">&quot;&quot;&quot; Initialise the pre-processor, post-processor and manager. &quot;&quot;&quot;</span>
 
         <span class="c1"># Ensure we have the correct type of data</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_sweeps</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_sequences</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        An inappropriate processing algorithm may have been selected!</span>
