@@ -68,6 +68,8 @@
 <span class="kn">from</span> <span class="nn">mmtbx.scaling</span> <span class="k">import</span> <span class="n">absolute_scaling</span>
 <span class="kn">from</span> <span class="nn">mmtbx.scaling</span> <span class="k">import</span> <span class="n">matthews</span>
 
+<span class="kn">from</span> <span class="nn">dials.util.resolutionizer</span> <span class="k">import</span> <span class="n">Resolutionizer</span><span class="p">,</span> <span class="n">phil_defaults</span>
+
 
 <div class="viewcode-block" id="symmetry_base"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base">[docs]</a><span class="k">class</span> <span class="nc">symmetry_base</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Base class for symmetry analysis.&quot;&quot;&quot;</span>
@@ -193,7 +195,8 @@
             <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml_aniso_normalisation</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)):</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Normalising intensities for dataset </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Normalising intensities for dataset </span><span class="si">%i</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
             <span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">normalise</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
@@ -347,49 +350,15 @@
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_resolution_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d_min</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Estimation of resolution for Laue group analysis</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">d_min</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span> <span class="ow">and</span> <span class="p">(</span>
             <span class="n">min_i_mean_over_sigma_mean</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">min_cc_half</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="p">):</span>
-            <span class="kn">from</span> <span class="nn">dials.util.resolutionizer</span> <span class="k">import</span> <span class="n">Resolutionizer</span><span class="p">,</span> <span class="n">phil_defaults</span>
-
-            <span class="n">rparams</span> <span class="o">=</span> <span class="n">phil_defaults</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span><span class="o">.</span><span class="n">resolutionizer</span>
-            <span class="n">rparams</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="mi">20</span>
-            <span class="n">rparams</span><span class="o">.</span><span class="n">plot</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="n">resolutionizer</span> <span class="o">=</span> <span class="n">Resolutionizer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="p">,</span> <span class="n">rparams</span><span class="p">)</span>
-            <span class="n">d_min_isigi</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="n">d_min_cc_half</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="k">if</span> <span class="n">min_i_mean_over_sigma_mean</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">d_min_isigi</span> <span class="o">=</span> <span class="n">resolutionizer</span><span class="o">.</span><span class="n">resolution_i_mean_over_sigma_mean</span><span class="p">(</span>
-                        <span class="n">min_i_mean_over_sigma_mean</span>
-                    <span class="p">)</span>
-                <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                        <span class="s2">&quot;I/sigI resolution filter failed with the following error:&quot;</span>
-                    <span class="p">)</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                        <span class="s2">&quot;Resolution estimate from &lt;I&gt;/&lt;sigI&gt; &gt; </span><span class="si">%.1f</span><span class="s2"> : </span><span class="si">%.2f</span><span class="s2">&quot;</span>
-                        <span class="o">%</span> <span class="p">(</span><span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">d_min_isigi</span><span class="p">)</span>
-                    <span class="p">)</span>
-            <span class="k">if</span> <span class="n">min_cc_half</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">d_min_cc_half</span> <span class="o">=</span> <span class="n">resolutionizer</span><span class="o">.</span><span class="n">resolution_cc_half</span><span class="p">(</span><span class="n">min_cc_half</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                        <span class="s2">&quot;CChalf resolution filter failed with the following error:&quot;</span>
-                    <span class="p">)</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                        <span class="s2">&quot;Resolution estimate from CC1/2 &gt; </span><span class="si">%.2f</span><span class="s2">: </span><span class="si">%.2f</span><span class="s2">&quot;</span>
-                        <span class="o">%</span> <span class="p">(</span><span class="n">min_cc_half</span><span class="p">,</span> <span class="n">d_min_cc_half</span><span class="p">)</span>
-                    <span class="p">)</span>
-            <span class="n">valid_d_mins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">({</span><span class="n">d_min_cc_half</span><span class="p">,</span> <span class="n">d_min_isigi</span><span class="p">}</span><span class="o">.</span><span class="n">difference</span><span class="p">({</span><span class="mi">0</span><span class="p">}))</span>
-            <span class="k">if</span> <span class="n">valid_d_mins</span><span class="p">:</span>
-                <span class="n">d_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">valid_d_mins</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;High resolution limit set to: </span><span class="si">%.2f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">d_min</span><span class="p">)</span>
+            <span class="n">d_min</span> <span class="o">=</span> <span class="n">resolution_filter_from_array</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;High resolution limit set to: </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">d_min</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">d_min</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">resolution_filter_selection</span><span class="p">(</span><span class="n">d_min</span><span class="o">=</span><span class="n">d_min</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span>
@@ -397,9 +366,66 @@
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="s2">&quot;Selecting </span><span class="si">%i</span><span class="s2"> reflections with d &gt; </span><span class="si">%.2f</span><span class="s2">&quot;</span>
-                <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">d_min</span><span class="p">)</span>
+                <span class="s2">&quot;Selecting </span><span class="si">%i</span><span class="s2"> reflections with d &gt; </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">d_min</span>
             <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="resolution_filter_from_array"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.resolution_filter_from_array">[docs]</a><span class="k">def</span> <span class="nf">resolution_filter_from_array</span><span class="p">(</span><span class="n">intensities</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run the resolution filter using miller array data format.&quot;&quot;&quot;</span>
+    <span class="n">rparams</span> <span class="o">=</span> <span class="n">phil_defaults</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span><span class="o">.</span><span class="n">resolutionizer</span>
+    <span class="n">rparams</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">rparams</span><span class="o">.</span><span class="n">plot</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">resolutionizer</span> <span class="o">=</span> <span class="n">Resolutionizer</span><span class="p">(</span><span class="n">intensities</span><span class="p">,</span> <span class="n">rparams</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_resolution_filter</span><span class="p">(</span><span class="n">resolutionizer</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="resolution_filter_from_reflections_experiments"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.resolution_filter_from_reflections_experiments">[docs]</a><span class="k">def</span> <span class="nf">resolution_filter_from_reflections_experiments</span><span class="p">(</span>
+    <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run the resolution filter using native dials data formats.&quot;&quot;&quot;</span>
+    <span class="n">rparams</span> <span class="o">=</span> <span class="n">phil_defaults</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span><span class="o">.</span><span class="n">resolutionizer</span>
+    <span class="n">rparams</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">rparams</span><span class="o">.</span><span class="n">plot</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">resolutionizer</span> <span class="o">=</span> <span class="n">Resolutionizer</span><span class="o">.</span><span class="n">from_reflections_and_experiments</span><span class="p">(</span>
+        <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">rparams</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">_resolution_filter</span><span class="p">(</span><span class="n">resolutionizer</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_resolution_filter</span><span class="p">(</span><span class="n">resolutionizer</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Use a resolutionizer to perform filtering for symmetry analysis.&quot;&quot;&quot;</span>
+    <span class="n">d_min_isigi</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">d_min_cc_half</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">min_i_mean_over_sigma_mean</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">d_min_isigi</span> <span class="o">=</span> <span class="n">resolutionizer</span><span class="o">.</span><span class="n">resolution_i_mean_over_sigma_mean</span><span class="p">(</span>
+                <span class="n">min_i_mean_over_sigma_mean</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;I/sigI resolution filter failed with the following error:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Resolution estimate from &lt;I&gt;/&lt;sigI&gt; &gt; </span><span class="si">%.1f</span><span class="s2"> : </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span>
+                <span class="n">d_min_isigi</span><span class="p">,</span>
+            <span class="p">)</span>
+    <span class="k">if</span> <span class="n">min_cc_half</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">d_min_cc_half</span> <span class="o">=</span> <span class="n">resolutionizer</span><span class="o">.</span><span class="n">resolution_cc_half</span><span class="p">(</span><span class="n">min_cc_half</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CChalf resolution filter failed with the following error:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Resolution estimate from CC1/2 &gt; </span><span class="si">%.2f</span><span class="s2">: </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">min_cc_half</span><span class="p">,</span>
+                <span class="n">d_min_cc_half</span><span class="p">,</span>
+            <span class="p">)</span>
+    <span class="n">valid_d_mins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">({</span><span class="n">d_min_cc_half</span><span class="p">,</span> <span class="n">d_min_isigi</span><span class="p">}</span><span class="o">.</span><span class="n">difference</span><span class="p">({</span><span class="mi">0</span><span class="p">}))</span>
+    <span class="k">if</span> <span class="n">valid_d_mins</span><span class="p">:</span>
+        <span class="n">d_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">valid_d_mins</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">d_min</span>
 </pre></div>
 
           </div>
