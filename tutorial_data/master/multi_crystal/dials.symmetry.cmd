@@ -1,0 +1,1 @@
+dials.symmetry scaled.expt scaled.refl laue_group=None

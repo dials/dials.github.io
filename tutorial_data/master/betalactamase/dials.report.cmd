@@ -1,1 +1,1 @@
-dials.report integrated.expt integrated.refl
+dials.report scaled.expt scaled.refl
