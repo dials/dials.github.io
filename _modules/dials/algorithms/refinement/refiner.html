@@ -64,6 +64,22 @@
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.refinement_helpers</span> <span class="k">import</span> <span class="n">ordinal_number</span>
 <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="k">import</span> <span class="n">parse</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement</span> <span class="k">import</span> <span class="n">DialsRefineConfigError</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.reflection_manager</span> <span class="k">import</span> <span class="n">ReflectionManagerFactory</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.prediction.managed_predictors</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">ExperimentsPredictorFactory</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">build_prediction_parameterisation</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.constraints</span> <span class="k">import</span> <span class="n">ConstraintManagerFactory</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.autoreduce</span> <span class="k">import</span> <span class="n">AutoReduce</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.parameter_report</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">ParameterReporter</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.engine</span> <span class="k">import</span> <span class="n">AdaptLstbx</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.restraints</span> <span class="k">import</span> <span class="n">RestraintsParameterisation</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target</span> <span class="k">import</span> <span class="n">TargetFactory</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.refinement.refinement_helpers</span> <span class="k">import</span> <span class="n">string_sel</span>
 
 <span class="c1"># The include scope directive does not work here. For example:</span>
 <span class="c1">#</span>
@@ -218,19 +234,7 @@
         <span class="k">return</span> <span class="n">rt</span>
 
 <div class="viewcode-block" id="RefinerFactory.from_parameters_data_experiments"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.from_parameters_data_experiments">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_parameters_data_experiments</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="kc">None</span>
-    <span class="p">):</span>
-
-        <span class="k">if</span> <span class="n">verbosity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="kn">import</span> <span class="nn">warnings</span>
-
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="s2">&quot;Setting verbosity for a Refiner is deprecated. See https://github.com/dials/dials/issues/860&quot;</span><span class="p">,</span>
-                <span class="ne">DeprecationWarning</span><span class="p">,</span>
-                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-            <span class="p">)</span>
-
+    <span class="k">def</span> <span class="nf">from_parameters_data_experiments</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
         <span class="c1"># TODO Checks on the input</span>
         <span class="c1"># E.g. does every experiment contain at least one overlapping model with at</span>
         <span class="c1"># least one other experiment? Are all the experiments either rotation series</span>
@@ -299,10 +303,6 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Input reflection list size = </span><span class="si">%d</span><span class="s2"> observations&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
 
         <span class="c1"># create reflection manager</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.reflection_manager</span> <span class="k">import</span> <span class="p">(</span>
-            <span class="n">ReflectionManagerFactory</span><span class="p">,</span>
-        <span class="p">)</span>
-
         <span class="n">refman</span> <span class="o">=</span> <span class="n">ReflectionManagerFactory</span><span class="o">.</span><span class="n">from_parameters_reflections_experiments</span><span class="p">(</span>
             <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">do_stills</span>
         <span class="p">)</span>
@@ -321,10 +321,6 @@
         <span class="n">do_sparse</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span>
 
         <span class="c1"># create managed reflection predictor</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.prediction.managed_predictors</span> <span class="k">import</span> <span class="p">(</span>
-            <span class="n">ExperimentsPredictorFactory</span><span class="p">,</span>
-        <span class="p">)</span>
-
         <span class="n">ref_predictor</span> <span class="o">=</span> <span class="n">ExperimentsPredictorFactory</span><span class="o">.</span><span class="n">from_experiments</span><span class="p">(</span>
             <span class="n">experiments</span><span class="p">,</span>
             <span class="n">force_stills</span><span class="o">=</span><span class="n">do_stills</span><span class="p">,</span>
@@ -355,13 +351,26 @@
 
         <span class="c1"># Create model parameterisations</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Building prediction equation parameterisation&quot;</span><span class="p">)</span>
-        <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">config_parameterisation</span><span class="p">(</span>
+        <span class="n">pred_param</span> <span class="o">=</span> <span class="n">build_prediction_parameterisation</span><span class="p">(</span>
             <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">do_stills</span>
         <span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Prediction equation parameterisation built&quot;</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Parameter order : name mapping&quot;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pred_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">()):</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Parameter </span><span class="si">%03d</span><span class="s2"> : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># Build a constraints manager, if requested</span>
+        <span class="n">cmf</span> <span class="o">=</span> <span class="n">ConstraintManagerFactory</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">)</span>
+        <span class="n">constraints_manager</span> <span class="o">=</span> <span class="n">cmf</span><span class="p">()</span>
+
+        <span class="c1"># Test for parameters that have too little data to refine and act accordingly</span>
+        <span class="n">autoreduce</span> <span class="o">=</span> <span class="n">AutoReduce</span><span class="p">(</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">auto_reduction</span><span class="p">,</span>
+            <span class="n">pred_param</span><span class="p">,</span>
+            <span class="n">refman</span><span class="p">,</span>
+            <span class="n">constraints_manager</span><span class="p">,</span>
+            <span class="n">cmf</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">autoreduce</span><span class="p">()</span>
+
+        <span class="c1"># if reduction was done, constraints_manager will have changed</span>
+        <span class="n">constraints_manager</span> <span class="o">=</span> <span class="n">autoreduce</span><span class="o">.</span><span class="n">constraints_manager</span>
 
         <span class="c1"># Build a restraints parameterisation (if requested).</span>
         <span class="c1"># Only unit cell restraints are supported at the moment.</span>
@@ -369,11 +378,19 @@
             <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="p">,</span> <span class="n">pred_param</span>
         <span class="p">)</span>
 
-        <span class="c1"># Build a constraints manager, if requested</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.constraints</span> <span class="k">import</span> <span class="n">ConstraintManagerFactory</span>
+        <span class="c1"># Parameter reporting</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Prediction equation parameterisation built&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Parameter order : name mapping&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pred_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">()):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Parameter </span><span class="si">%03d</span><span class="s2"> : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
 
-        <span class="n">cmf</span> <span class="o">=</span> <span class="n">ConstraintManagerFactory</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">)</span>
-        <span class="n">constraints_manager</span> <span class="o">=</span> <span class="n">cmf</span><span class="p">()</span>
+        <span class="n">param_reporter</span> <span class="o">=</span> <span class="n">ParameterReporter</span><span class="p">(</span>
+            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_detector_parameterisations</span><span class="p">(),</span>
+            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_beam_parameterisations</span><span class="p">(),</span>
+            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_crystal_orientation_parameterisations</span><span class="p">(),</span>
+            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_crystal_unit_cell_parameterisations</span><span class="p">(),</span>
+            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_goniometer_parameterisations</span><span class="p">(),</span>
+        <span class="p">)</span>
 
         <span class="c1"># Create target function</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Building target function&quot;</span><span class="p">)</span>
@@ -402,7 +419,6 @@
                 <span class="n">nparam</span><span class="p">,</span> <span class="n">nref</span><span class="p">,</span> <span class="n">ndim</span>
             <span class="p">)</span>
         <span class="p">)</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.engine</span> <span class="k">import</span> <span class="n">AdaptLstbx</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
             <span class="n">refinery</span><span class="p">,</span> <span class="n">AdaptLstbx</span>
@@ -461,31 +477,6 @@
             <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">return</span> <span class="n">params</span></div>
 
-<div class="viewcode-block" id="RefinerFactory.config_parameterisation"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_parameterisation">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">config_parameterisation</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">do_stills</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation</span> <span class="k">import</span> <span class="p">(</span>
-            <span class="n">build_prediction_parameterisation</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="n">pred_param</span> <span class="o">=</span> <span class="n">build_prediction_parameterisation</span><span class="p">(</span>
-            <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">do_stills</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Parameter reporting</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.parameterisation.parameter_report</span> <span class="k">import</span> <span class="p">(</span>
-            <span class="n">ParameterReporter</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="n">param_reporter</span> <span class="o">=</span> <span class="n">ParameterReporter</span><span class="p">(</span>
-            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_detector_parameterisations</span><span class="p">(),</span>
-            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_beam_parameterisations</span><span class="p">(),</span>
-            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_crystal_orientation_parameterisations</span><span class="p">(),</span>
-            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_crystal_unit_cell_parameterisations</span><span class="p">(),</span>
-            <span class="n">pred_param</span><span class="o">.</span><span class="n">get_goniometer_parameterisations</span><span class="p">(),</span>
-        <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">pred_param</span><span class="p">,</span> <span class="n">param_reporter</span></div>
-
 <div class="viewcode-block" id="RefinerFactory.config_restraints"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.config_restraints">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">config_restraints</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">pred_param</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Given a set of user parameters plus a model parameterisation, create</span>
@@ -515,8 +506,6 @@
         <span class="n">xl_ori_params</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_crystal_orientation_parameterisations</span><span class="p">()</span>
         <span class="n">xl_uc_params</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_crystal_unit_cell_parameterisations</span><span class="p">()</span>
         <span class="n">gon_params</span> <span class="o">=</span> <span class="n">pred_param</span><span class="o">.</span><span class="n">get_goniometer_parameterisations</span><span class="p">()</span>
-
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.restraints</span> <span class="k">import</span> <span class="n">RestraintsParameterisation</span>
 
         <span class="n">rp</span> <span class="o">=</span> <span class="n">RestraintsParameterisation</span><span class="p">(</span>
             <span class="n">detector_parameterisations</span><span class="o">=</span><span class="n">det_params</span><span class="p">,</span>
@@ -639,8 +628,6 @@
         <span class="n">do_sparse</span><span class="p">,</span>
     <span class="p">):</span>
 
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target</span> <span class="k">import</span> <span class="n">TargetFactory</span>
-
         <span class="n">target</span> <span class="o">=</span> <span class="n">TargetFactory</span><span class="o">.</span><span class="n">from_parameters_and_experiments</span><span class="p">(</span>
             <span class="n">params</span><span class="p">,</span>
             <span class="n">experiments</span><span class="p">,</span>
@@ -757,7 +744,6 @@
             <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
 
         <span class="n">all_labels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pred_param</span><span class="o">.</span><span class="n">get_param_names</span><span class="p">()</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.refinement_helpers</span> <span class="k">import</span> <span class="n">string_sel</span>
 
         <span class="k">if</span> <span class="n">col_select</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">col_select</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">all_labels</span><span class="p">)))</span>
@@ -1054,8 +1040,6 @@
         <span class="sd">&quot;&quot;&quot;Return a selection as a flex.bool in terms of the input reflection</span>
 <span class="sd">        data of those reflections that were used in the final step of</span>
 <span class="sd">        refinement.&quot;&quot;&quot;</span>
-
-        <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="k">import</span> <span class="n">flex</span>
 
         <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refman</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
         <span class="n">selection</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_refman</span><span class="o">.</span><span class="n">get_indexed</span><span class="p">()),</span> <span class="kc">False</span><span class="p">)</span>
