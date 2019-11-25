@@ -59,6 +59,7 @@
 <span class="kn">import</span> <span class="nn">boost.python</span>
 <span class="kn">import</span> <span class="nn">dials.algorithms.integration</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
+<span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="k">import</span> <span class="n">flex</span>
 <span class="kn">from</span> <span class="nn">dials_algorithms_integration_integrator_ext</span> <span class="k">import</span> <span class="p">(</span>
     <span class="n">Executor</span><span class="p">,</span>
     <span class="n">Group</span><span class="p">,</span>
@@ -103,6 +104,18 @@
 <span class="p">]</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_average_shoebox_size</span><span class="p">(</span><span class="n">reflections</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculate the average shoebox size for debugging&quot;&quot;&quot;</span>
+
+    <span class="n">shoebox</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;shoebox&quot;</span><span class="p">]</span>
+    <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">random_selection</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoebox</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoebox</span><span class="p">),</span> <span class="mi">1000</span><span class="p">))</span>
+    <span class="n">subset_sb</span> <span class="o">=</span> <span class="n">shoebox</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+    <span class="n">xsize</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">xsize</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subset_sb</span><span class="p">]))</span>
+    <span class="n">ysize</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">ysize</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subset_sb</span><span class="p">]))</span>
+    <span class="n">zsize</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">zsize</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subset_sb</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">xsize</span><span class="p">,</span> <span class="n">ysize</span><span class="p">,</span> <span class="n">zsize</span>
 
 
 <span class="nd">@boost</span><span class="o">.</span><span class="n">python</span><span class="o">.</span><span class="n">inject_into</span><span class="p">(</span><span class="n">Executor</span><span class="p">)</span>
@@ -430,7 +443,6 @@
 
 <span class="sd">        :return: The processed data</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="k">import</span> <span class="n">flex</span>
         <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="k">import</span> <span class="n">make_image</span>
 
         <span class="c1"># Get the start time</span>
@@ -502,13 +514,7 @@
         <span class="p">),</span> <span class="s2">&quot;maximum memory usage must be &lt;= 1&quot;</span>
         <span class="n">limit_memory</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
         <span class="k">if</span> <span class="n">sbox_memory</span> <span class="o">&gt;</span> <span class="n">limit_memory</span><span class="p">:</span>
-            <span class="n">shoebox</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;shoebox&quot;</span><span class="p">]</span>
-            <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">random_selection</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoebox</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shoebox</span><span class="p">),</span> <span class="mi">1000</span><span class="p">))</span>
-            <span class="n">subset_sb</span> <span class="o">=</span> <span class="n">shoebox</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-            <span class="n">xsize</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">xsize</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subset_sb</span><span class="p">]))</span>
-            <span class="n">ysize</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">ysize</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subset_sb</span><span class="p">]))</span>
-            <span class="n">zsize</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">zsize</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subset_sb</span><span class="p">]))</span>
-
+            <span class="n">xsize</span><span class="p">,</span> <span class="n">ysize</span><span class="p">,</span> <span class="n">zsize</span> <span class="o">=</span> <span class="n">_average_shoebox_size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    There was a problem allocating memory for shoeboxes. Possible solutions</span>
@@ -825,7 +831,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute the number of processors</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="k">import</span> <span class="n">flex</span>
 
         <span class="c1"># Set the memory usage per processor</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;multiprocessing&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
@@ -843,11 +848,14 @@
             <span class="n">limit_memory</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
             <span class="n">njobs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">limit_memory</span> <span class="o">/</span> <span class="n">max_memory</span><span class="p">))</span>
             <span class="k">if</span> <span class="n">njobs</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">xsize</span><span class="p">,</span> <span class="n">ysize</span><span class="p">,</span> <span class="n">zsize</span> <span class="o">=</span> <span class="n">_average_shoebox_size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        No enough memory to run integration jobs. Possible solutions</span>
 <span class="sd">        include increasing the percentage of memory allowed for shoeboxes or</span>
-<span class="sd">        decreasing the block size.</span>
+<span class="sd">        decreasing the block size. This could be caused by a highly mosaic</span>
+<span class="sd">        crystal model.  The average shoebox size is %d * %d * %d pixels - is</span>
+<span class="sd">        your crystal really this mosaic?</span>
 <span class="sd">            Total system memory: %g GB</span>
 <span class="sd">            Limit shoebox memory: %g GB</span>
 <span class="sd">            Max shoebox memory: %g GB</span>
