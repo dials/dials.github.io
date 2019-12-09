@@ -793,19 +793,37 @@
         <span class="kn">import</span> <span class="nn">six.moves.cPickle</span> <span class="k">as</span> <span class="nn">pickle</span>
         <span class="kn">from</span> <span class="nn">dxtbx.format.image</span> <span class="kn">import</span> <span class="n">ImageBool</span>
 
+        <span class="c1"># Loop through all the experiments and get the unique imagesets</span>
+        <span class="n">imagesets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">imageset</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">imagesets</span><span class="p">:</span>
+                <span class="n">imagesets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">imageset</span><span class="p">)</span>
+
         <span class="c1"># Loop through all the imagesets and find the strong spots</span>
         <span class="n">reflections</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
 
-            <span class="n">imageset</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">imageset</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">imagesets</span><span class="p">):</span>
 
             <span class="c1"># Find the strong spots in the sequence</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finding strong spots in imageset </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finding strong spots in imageset </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">j</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
             <span class="n">table</span><span class="p">,</span> <span class="n">hot_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_spots_in_imageset</span><span class="p">(</span><span class="n">imageset</span><span class="p">)</span>
-            <span class="n">table</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">nrows</span><span class="p">(),</span> <span class="n">i</span><span class="p">)</span>
+
+            <span class="c1"># Fix up the experiment ID&#39;s now</span>
+            <span class="n">table</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">nrows</span><span class="p">(),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">imageset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">imageset</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="p">:</span>
+                    <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+                    <span class="n">z</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="n">table</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">((</span><span class="n">z</span> <span class="o">&gt;</span> <span class="n">z0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">z</span> <span class="o">&lt;</span> <span class="n">z1</span><span class="p">),</span> <span class="n">i</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">table</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">nrows</span><span class="p">(),</span> <span class="n">j</span><span class="p">)</span>
+            <span class="n">missed</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">assert</span> <span class="n">missed</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">missed</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">reflections</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
 
             <span class="c1"># Write a hot pixel mask</span>
@@ -897,9 +915,6 @@
 
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Finding spots in image </span><span class="si">{0}</span><span class="s2"> to </span><span class="si">{1}</span><span class="s2">...&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">j0</span><span class="p">,</span> <span class="n">j1</span><span class="p">))</span>
             <span class="n">j0</span> <span class="o">-=</span> <span class="mi">1</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">):</span>
-                <span class="n">j0</span> <span class="o">-=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">j1</span> <span class="o">-=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">r</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">extract_spots</span><span class="p">(</span><span class="n">imageset</span><span class="p">[</span><span class="n">j0</span><span class="p">:</span><span class="n">j1</span><span class="p">])</span>
             <span class="n">reflections</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">h</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
