@@ -179,10 +179,14 @@
         <span class="n">max_n_group</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">n_pairs</span> <span class="o">/</span> <span class="n">min_num_groups</span><span class="p">,</span> <span class="mi">200</span><span class="p">))</span>  <span class="c1"># maximum number in group</span>
         <span class="n">min_n_group</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">max_n_group</span><span class="p">))</span>  <span class="c1"># minimum number in group</span>
 
+        <span class="k">if</span> <span class="p">(</span><span class="n">max_n_group</span> <span class="o">-</span> <span class="n">min_n_group</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cc_sig_fac</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">return</span>
+
         <span class="n">mean_ccs</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
         <span class="n">rms_ccs</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
         <span class="n">ns</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">min_n_group</span><span class="p">,</span> <span class="n">max_n_group</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">min_n_group</span><span class="p">,</span> <span class="n">max_n_group</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
             <span class="n">ns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
             <span class="n">ccs</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">200</span><span class="p">):</span>
@@ -197,8 +201,10 @@
         <span class="n">y</span> <span class="o">=</span> <span class="n">rms_ccs</span>
         <span class="n">fit</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">linear_regression</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
 
-        <span class="k">assert</span> <span class="n">fit</span><span class="o">.</span><span class="n">is_well_defined</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cc_sig_fac</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">slope</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">fit</span><span class="o">.</span><span class="n">is_well_defined</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cc_sig_fac</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">slope</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cc_sig_fac</span> <span class="o">=</span> <span class="mi">0</span>
 
     <span class="k">def</span> <span class="nf">_estimate_cc_true</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 
@@ -310,7 +316,10 @@
             <span class="s2">&quot;Estimated expectation value of true correlation coefficient E(CC) = </span><span class="si">%.3f</span><span class="s2">&quot;</span>
             <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">E_cc_true</span>
         <span class="p">)</span>
-        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Estimated sd(CC) = </span><span class="si">%.3f</span><span class="s2"> / sqrt(N)&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">cc_sig_fac</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cc_sig_fac</span><span class="p">:</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Estimated sd(CC) = </span><span class="si">%.3f</span><span class="s2"> / sqrt(N)&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">cc_sig_fac</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Too few reflections to estimate sd(CC).&quot;</span><span class="p">)</span>
         <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
             <span class="s2">&quot;Estimated E(CC) of true correlation coefficient from identity = </span><span class="si">%.3f</span><span class="s2">&quot;</span>
             <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">cc_true</span>
