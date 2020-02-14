@@ -76,11 +76,6 @@
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;Executor&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;FinalizerBase&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;FinalizerRot&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;FinalizerStills&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;InitializerRot&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;InitializerStills&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Integrator&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Integrator2D&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Integrator3D&quot;</span><span class="p">,</span>
@@ -483,192 +478,151 @@
         <span class="k">return</span> <span class="n">result</span></div></div>
 
 
-<div class="viewcode-block" id="InitializerRot"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.InitializerRot">[docs]</a><span class="k">class</span> <span class="nc">InitializerRot</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_initialize_rotation</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A pre-processing class for oscillation data.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Initialise the pre-processor.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="c1"># Compute some reflection properties</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_zeta_multi</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Do some pre-processing.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Compute some reflection properties</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">compute_zeta_multi</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="c1"># Filter the reflections by zeta</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;zeta&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">dont_integrate</span><span class="p">)</span>
 
-        <span class="c1"># Filter the reflections by zeta</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;zeta&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">dont_integrate</span><span class="p">)</span>
-
-        <span class="c1"># Filter the reflections by powder ring</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">])</span>
-            <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span></div>
+    <span class="c1"># Filter the reflections by powder ring</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">])</span>
+        <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="InitializerStills"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.InitializerStills">[docs]</a><span class="k">class</span> <span class="nc">InitializerStills</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_initialize_stills</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A pre-processing class for stills data.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Initialise the pre-processor.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="c1"># Compute some reflection properties</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Do some pre-processing.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Compute some reflection properties</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="c1"># Check the bounding boxes are all 1 frame in width</span>
+    <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">z1</span> <span class="o">-</span> <span class="n">z0</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;bbox is invalid&quot;</span>
 
-        <span class="c1"># Check the bounding boxes are all 1 frame in width</span>
-        <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
-        <span class="k">assert</span> <span class="p">(</span><span class="n">z1</span> <span class="o">-</span> <span class="n">z0</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;bbox is invalid&quot;</span>
-
-        <span class="c1"># Filter the reflections by powder ring</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">])</span>
-            <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span></div>
+    <span class="c1"># Filter the reflections by powder ring</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">powder_filter</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">])</span>
+        <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">in_powder_ring</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="FinalizerBase"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.FinalizerBase">[docs]</a><span class="k">class</span> <span class="nc">FinalizerBase</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Initialise the post processor.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">experiments</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
-
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">overlaps_scope</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">overlaps_filter</span>
-        <span class="k">if</span> <span class="kc">True</span> <span class="ow">in</span> <span class="p">[</span>
-            <span class="n">overlaps_scope</span><span class="o">.</span><span class="n">foreground_foreground</span><span class="o">.</span><span class="n">enable</span><span class="p">,</span>
-            <span class="n">overlaps_scope</span><span class="o">.</span><span class="n">foreground_background</span><span class="o">.</span><span class="n">enable</span><span class="p">,</span>
-        <span class="p">]:</span>
-            <span class="kn">from</span> <span class="nn">dials.algorithms.integration.overlaps_filter</span> <span class="kn">import</span> <span class="p">(</span>
-                <span class="n">OverlapsFilterMultiExpt</span><span class="p">,</span>
-            <span class="p">)</span>
-
-            <span class="n">overlaps_filter</span> <span class="o">=</span> <span class="n">OverlapsFilterMultiExpt</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="n">overlaps_scope</span><span class="o">.</span><span class="n">foreground_foreground</span><span class="o">.</span><span class="n">enable</span><span class="p">:</span>
-                <span class="n">overlaps_filter</span><span class="o">.</span><span class="n">remove_foreground_foreground_overlaps</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">overlaps_scope</span><span class="o">.</span><span class="n">foreground_background</span><span class="o">.</span><span class="n">enable</span><span class="p">:</span>
-                <span class="n">overlaps_filter</span><span class="o">.</span><span class="n">remove_foreground_background_overlaps</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">overlaps_filter</span><span class="o">.</span><span class="n">refl</span></div>
-
-
-<div class="viewcode-block" id="FinalizerRot"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.FinalizerRot">[docs]</a><span class="k">class</span> <span class="nc">FinalizerRot</span><span class="p">(</span><span class="n">FinalizerBase</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_finalize</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A post-processing class for oscillation data.</span>
+<span class="sd">    A generic post-processing function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">overlaps_scope</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">overlaps_filter</span>
+    <span class="k">if</span> <span class="kc">True</span> <span class="ow">in</span> <span class="p">[</span>
+        <span class="n">overlaps_scope</span><span class="o">.</span><span class="n">foreground_foreground</span><span class="o">.</span><span class="n">enable</span><span class="p">,</span>
+        <span class="n">overlaps_scope</span><span class="o">.</span><span class="n">foreground_background</span><span class="o">.</span><span class="n">enable</span><span class="p">,</span>
+    <span class="p">]:</span>
+        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.overlaps_filter</span> <span class="kn">import</span> <span class="n">OverlapsFilterMultiExpt</span>
+
+        <span class="n">overlaps_filter</span> <span class="o">=</span> <span class="n">OverlapsFilterMultiExpt</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">overlaps_scope</span><span class="o">.</span><span class="n">foreground_foreground</span><span class="o">.</span><span class="n">enable</span><span class="p">:</span>
+            <span class="n">overlaps_filter</span><span class="o">.</span><span class="n">remove_foreground_foreground_overlaps</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">overlaps_scope</span><span class="o">.</span><span class="n">foreground_background</span><span class="o">.</span><span class="n">enable</span><span class="p">:</span>
+            <span class="n">overlaps_filter</span><span class="o">.</span><span class="n">remove_foreground_background_overlaps</span><span class="p">()</span>
+        <span class="n">reflections</span> <span class="o">=</span> <span class="n">overlaps_filter</span><span class="o">.</span><span class="n">refl</span>
+    <span class="k">return</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span>
+
+
+<span class="k">def</span> <span class="nf">_finalize_rotation</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A post-processing function for oscillation data.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Do some post processing.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">FinalizerRot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__call__</span><span class="p">()</span>
+    <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span> <span class="o">=</span> <span class="n">_finalize</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
-        <span class="c1"># Compute the corrections</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">compute_corrections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span></div>
+    <span class="c1"># Compute the corrections</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_corrections</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span>
 
 
-<div class="viewcode-block" id="FinalizerStills"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.FinalizerStills">[docs]</a><span class="k">class</span> <span class="nc">FinalizerStills</span><span class="p">(</span><span class="n">FinalizerBase</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_finalize_stills</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A post-processing class for stills data.</span>
+<span class="sd">    A post-processing function for stills data.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span> <span class="o">=</span> <span class="n">_finalize</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Do some post processing.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">FinalizerStills</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__call__</span><span class="p">()</span>
+    <span class="n">integrated</span> <span class="o">=</span> <span class="n">reflections</span>
 
-        <span class="n">integrated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span>
+    <span class="c1"># Select only those reflections which were integrated</span>
+    <span class="k">if</span> <span class="s2">&quot;intensity.prf.variance&quot;</span> <span class="ow">in</span> <span class="n">integrated</span><span class="p">:</span>
+        <span class="n">selection</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">integrated</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">integrated</span><span class="p">,</span> <span class="nb">all</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">selection</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">integrated</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">integrated_sum</span><span class="p">)</span>
+    <span class="n">integrated</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">selection</span><span class="p">)</span>
 
-        <span class="c1"># Select only those reflections which were integrated</span>
-        <span class="k">if</span> <span class="s2">&quot;intensity.prf.variance&quot;</span> <span class="ow">in</span> <span class="n">integrated</span><span class="p">:</span>
-            <span class="n">selection</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">integrated</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">integrated</span><span class="p">,</span> <span class="nb">all</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">selection</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">integrated</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">integrated_sum</span><span class="p">)</span>
-        <span class="n">integrated</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">selection</span><span class="p">)</span>
+    <span class="n">len_all</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated</span><span class="p">)</span>
+    <span class="n">integrated</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="o">~</span><span class="n">integrated</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">integrated</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">foreground_includes_bad_pixels</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s2">&quot;Filtering </span><span class="si">%d</span><span class="s2"> reflections with at least one bad foreground pixel out of </span><span class="si">%d</span><span class="s2">&quot;</span>
+        <span class="o">%</span> <span class="p">(</span><span class="n">len_all</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated</span><span class="p">),</span> <span class="n">len_all</span><span class="p">)</span>
+    <span class="p">)</span>
 
-        <span class="n">len_all</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated</span><span class="p">)</span>
-        <span class="n">integrated</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
-            <span class="o">~</span><span class="n">integrated</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">integrated</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">foreground_includes_bad_pixels</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="s2">&quot;Filtering </span><span class="si">%d</span><span class="s2"> reflections with at least one bad foreground pixel out of </span><span class="si">%d</span><span class="s2">&quot;</span>
-            <span class="o">%</span> <span class="p">(</span><span class="n">len_all</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated</span><span class="p">),</span> <span class="n">len_all</span><span class="p">)</span>
-        <span class="p">)</span>
-
-        <span class="c1"># verify sigmas are sensible</span>
-        <span class="k">if</span> <span class="s2">&quot;intensity.prf.value&quot;</span> <span class="ow">in</span> <span class="n">integrated</span><span class="p">:</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.prf.variance&quot;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="c1"># verify sigmas are sensible</span>
+    <span class="k">if</span> <span class="s2">&quot;intensity.prf.value&quot;</span> <span class="ow">in</span> <span class="n">integrated</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.prf.variance&quot;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
+                <span class="s2">&quot;Found negative variances (prf). Are bad pixels properly masked out?&quot;</span>
+            <span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;intensity.sum.value&quot;</span> <span class="ow">in</span> <span class="n">integrated</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
-                    <span class="s2">&quot;Found negative variances (prf). Are bad pixels properly masked out?&quot;</span>
+                    <span class="s2">&quot;Found negative variances (sum). Are bad pixels properly masked out?&quot;</span>
                 <span class="p">)</span>
-        <span class="k">if</span> <span class="s2">&quot;intensity.sum.value&quot;</span> <span class="ow">in</span> <span class="n">integrated</span><span class="p">:</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
-                        <span class="s2">&quot;Found negative variances (sum). Are bad pixels properly masked out?&quot;</span>
-                    <span class="p">)</span>
-                <span class="n">n</span> <span class="o">=</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-                <span class="n">sel</span> <span class="o">=</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span>
-                    <span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.value&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
-                <span class="p">)</span>
-                <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                        <span class="s2">&quot;Filtering </span><span class="si">%d</span><span class="s2"> reflections with no integrated signal (sum and variance = 0) out of </span><span class="si">%d</span><span class="s2">&quot;</span>
-                        <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated</span><span class="p">))</span>
-                    <span class="p">)</span>
-                    <span class="n">integrated</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
-                        <span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
-                    <span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
-                        <span class="s2">&quot;Found reflections with variances == 0 but summed signal != 0&quot;</span>
-                    <span class="p">)</span>
-
-            <span class="c1"># apply detector gain to summation variances</span>
-            <span class="n">integrated</span><span class="p">[</span>
-                <span class="s2">&quot;intensity.sum.variance&quot;</span>
-            <span class="p">]</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">summation</span><span class="o">.</span><span class="n">detector_gain</span>
-        <span class="k">if</span> <span class="s2">&quot;background.sum.value&quot;</span> <span class="ow">in</span> <span class="n">integrated</span><span class="p">:</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;background.sum.variance&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
-                    <span class="s2">&quot;Found negative variances (background sum). Are bad pixels properly masked out?&quot;</span>
-                <span class="p">)</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;background.sum.variance&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span>
+                <span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.value&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="s2">&quot;Filtering </span><span class="si">%d</span><span class="s2"> reflections with zero background variance&quot;</span>
-                    <span class="o">%</span> <span class="p">((</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;background.sum.variance&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+                    <span class="s2">&quot;Filtering </span><span class="si">%d</span><span class="s2"> reflections with no integrated signal (sum and variance = 0) out of </span><span class="si">%d</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">integrated</span><span class="p">))</span>
                 <span class="p">)</span>
-                <span class="n">integrated</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
-                    <span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;background.sum.variance&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="n">integrated</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;intensity.sum.variance&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
+                    <span class="s2">&quot;Found reflections with variances == 0 but summed signal != 0&quot;</span>
                 <span class="p">)</span>
-            <span class="c1"># apply detector gain to background summation variances</span>
-            <span class="n">integrated</span><span class="p">[</span>
-                <span class="s2">&quot;background.sum.variance&quot;</span>
-            <span class="p">]</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">summation</span><span class="o">.</span><span class="n">detector_gain</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">integrated</span></div>
+        <span class="c1"># apply detector gain to summation variances</span>
+        <span class="n">integrated</span><span class="p">[</span>
+            <span class="s2">&quot;intensity.sum.variance&quot;</span>
+        <span class="p">]</span> <span class="o">*=</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">summation</span><span class="o">.</span><span class="n">detector_gain</span>
+    <span class="k">if</span> <span class="s2">&quot;background.sum.value&quot;</span> <span class="ow">in</span> <span class="n">integrated</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;background.sum.variance&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
+                <span class="s2">&quot;Found negative variances (background sum). Are bad pixels properly masked out?&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;background.sum.variance&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Filtering </span><span class="si">%d</span><span class="s2"> reflections with zero background variance&quot;</span>
+                <span class="o">%</span> <span class="p">((</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;background.sum.variance&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+            <span class="p">)</span>
+            <span class="n">integrated</span> <span class="o">=</span> <span class="n">integrated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">integrated</span><span class="p">[</span><span class="s2">&quot;background.sum.variance&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># apply detector gain to background summation variances</span>
+        <span class="n">integrated</span><span class="p">[</span>
+            <span class="s2">&quot;background.sum.variance&quot;</span>
+        <span class="p">]</span> <span class="o">*=</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">summation</span><span class="o">.</span><span class="n">detector_gain</span>
+
+    <span class="n">reflections</span> <span class="o">=</span> <span class="n">integrated</span>
+
+    <span class="k">return</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span>
 
 
 <div class="viewcode-block" id="ProfileModellerExecutor"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProfileModellerExecutor">[docs]</a><span class="k">class</span> <span class="nc">ProfileModellerExecutor</span><span class="p">(</span><span class="n">Executor</span><span class="p">):</span>
@@ -1097,8 +1051,7 @@
         <span class="p">)</span>
 
         <span class="c1"># Initialize the reflections</span>
-        <span class="n">initialize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InitializerClass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
-        <span class="n">initialize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialize_reflections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
 
         <span class="c1"># Check if we want to do some profile fitting</span>
         <span class="n">fitting_class</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting_class</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">]</span>
@@ -1287,10 +1240,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
 
         <span class="c1"># Finalize the reflections</span>
-        <span class="n">finalize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">FinalizerClass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
-        <span class="n">finalize</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">finalize</span><span class="o">.</span><span class="n">reflections</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">finalize</span><span class="o">.</span><span class="n">experiments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">finalize_reflections</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span>
+        <span class="p">)</span>
 
         <span class="c1"># Create the integration report</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="n">IntegrationReport</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
@@ -1348,9 +1300,9 @@
 <span class="sd">    Integrator for 3D algorithms</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerRot</span>
+    <span class="n">initialize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_initialize_rotation</span><span class="p">)</span>
     <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">Processor3D</span>
-    <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerRot</span></div>
+    <span class="n">finalize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_finalize_rotation</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="IntegratorFlat3D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorFlat3D">[docs]</a><span class="k">class</span> <span class="nc">IntegratorFlat3D</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
@@ -1358,9 +1310,9 @@
 <span class="sd">    Integrator for flattened 3D algorithms</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerRot</span>
+    <span class="n">initialize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_initialize_rotation</span><span class="p">)</span>
     <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">ProcessorFlat3D</span>
-    <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerRot</span></div>
+    <span class="n">finalize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_finalize_rotation</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Integrator2D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator2D">[docs]</a><span class="k">class</span> <span class="nc">Integrator2D</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
@@ -1368,9 +1320,9 @@
 <span class="sd">    Integrator for 2D algorithms</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerRot</span>
+    <span class="n">initialize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_initialize_rotation</span><span class="p">)</span>
     <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">Processor2D</span>
-    <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerRot</span></div>
+    <span class="n">finalize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_finalize_rotation</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="IntegratorSingle2D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorSingle2D">[docs]</a><span class="k">class</span> <span class="nc">IntegratorSingle2D</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
@@ -1378,9 +1330,9 @@
 <span class="sd">    Integrator for 2D algorithms on a single image</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerRot</span>
+    <span class="n">initialize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_initialize_rotation</span><span class="p">)</span>
     <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">ProcessorSingle2D</span>
-    <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerRot</span></div>
+    <span class="n">finalize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_finalize_rotation</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="IntegratorStills"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorStills">[docs]</a><span class="k">class</span> <span class="nc">IntegratorStills</span><span class="p">(</span><span class="n">Integrator</span><span class="p">):</span>
@@ -1388,9 +1340,9 @@
 <span class="sd">    Integrator for still algorithms</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">InitializerClass</span> <span class="o">=</span> <span class="n">InitializerStills</span>
+    <span class="n">initialize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_initialize_stills</span><span class="p">)</span>
     <span class="n">ProcessorClass</span> <span class="o">=</span> <span class="n">ProcessorStills</span>
-    <span class="n">FinalizerClass</span> <span class="o">=</span> <span class="n">FinalizerStills</span></div>
+    <span class="n">finalize_reflections</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">_finalize_stills</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Integrator3DThreaded"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator3DThreaded">[docs]</a><span class="k">class</span> <span class="nc">Integrator3DThreaded</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
