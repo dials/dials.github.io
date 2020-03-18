@@ -63,6 +63,8 @@
     <span class="n">SingleScaleFactor</span><span class="p">,</span>
     <span class="n">SingleBScaleFactor</span><span class="p">,</span>
     <span class="n">SHScaleComponent</span><span class="p">,</span>
+    <span class="n">LinearDoseDecay</span><span class="p">,</span>
+    <span class="n">QuadraticDoseDecay</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.scaling.model.components.smooth_scale_components</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">SmoothScaleComponent1D</span><span class="p">,</span>
@@ -78,6 +80,8 @@
     <span class="n">plot_array_decay_plot</span><span class="p">,</span>
     <span class="n">plot_array_modulation_plot</span><span class="p">,</span>
     <span class="n">plot_array_absorption_plot</span><span class="p">,</span>
+    <span class="n">plot_dose_decay</span><span class="p">,</span>
+    <span class="n">plot_relative_Bs</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dials_scaling_ext</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">calc_theta_phi</span><span class="p">,</span>
@@ -98,6 +102,51 @@
 <span class="s2">            default models).&quot;</span>
 <span class="s2">    .expert_level = 1</span>
 <span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">dose_decay_model_phil_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">scale_interval = 2.0</span>
+<span class="s2">    .type = float(value_min=1.0)</span>
+<span class="s2">    .help = &quot;Rotation (phi) interval between model parameters for the scale&quot;</span>
+<span class="s2">            &quot;component.&quot;</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">relative_B_correction = True</span>
+<span class="s2">    .type = bool</span>
+<span class="s2">    .help = &quot;Option to turn off relative B correction.&quot;</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">decay_correction = True</span>
+<span class="s2">    .type = bool</span>
+<span class="s2">    .help = &quot;Option to turn off decay correction.&quot;</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">share.decay = True</span>
+<span class="s2">    .type = bool</span>
+<span class="s2">    .help = &quot;Share the decay model between sweeps.&quot;</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">resolution_dependence = *quadratic linear</span>
+<span class="s2">    .type = choice</span>
+<span class="s2">    .help = &quot;Use a dose model that depends linearly or quadratically on 1/d&quot;</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">absorption_correction = False</span>
+<span class="s2">    .type = bool</span>
+<span class="s2">    .help = &quot;Option to turn on spherical harmonic absorption correction.&quot;</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">lmax = 4</span>
+<span class="s2">    .type = int(value_min=2)</span>
+<span class="s2">    .help = &quot;Number of spherical harmonics to include for absorption&quot;</span>
+<span class="s2">            &quot;correction, recommended to be no more than 6.&quot;</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">surface_weight = 1e6</span>
+<span class="s2">    .type = float(value_min=0.0)</span>
+<span class="s2">    .help = &quot;Restraint weight applied to spherical harmonic terms in the&quot;</span>
+<span class="s2">            &quot;absorption correction.&quot;</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">fix_initial = True</span>
+<span class="s2">    .type = bool</span>
+<span class="s2">    .help = &quot;If performing full matrix minimisation, in the final cycle,&quot;</span>
+<span class="s2">            &quot;constrain the initial parameter for more reliable parameter and&quot;</span>
+<span class="s2">            &quot;scale factor error estimates.&quot;</span>
+<span class="s2">    .expert_level = 2</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
 
 <span class="n">physical_model_phil_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
 <span class="s2">scale_interval = 15.0</span>
@@ -311,6 +360,9 @@
         <span class="sd">&quot;&quot;&quot;Record the intensity combination Imid value.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;Imid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Imid</span></div>
 
+<div class="viewcode-block" id="ScalingModelBase.get_shared_components"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.ScalingModelBase.get_shared_components">[docs]</a>    <span class="k">def</span> <span class="nf">get_shared_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
     <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;:obj:`str`: Return a string representation of a scaling model.&quot;&quot;&quot;</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Scaling model:&quot;</span><span class="p">]</span>
@@ -333,6 +385,259 @@
                         <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;     </span><span class="si">%.4f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">p</span><span class="p">)</span>
         <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_add_absorption_component_to_physically_derived_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">reflection_table</span><span class="p">):</span>
+    <span class="n">lmax</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;lmax&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">reflection_table</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">100000</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="s2">&quot;s0c&quot;</span> <span class="ow">in</span> <span class="n">reflection_table</span>
+        <span class="k">assert</span> <span class="s2">&quot;s1c&quot;</span> <span class="ow">in</span> <span class="n">reflection_table</span>
+        <span class="n">theta_phi_0</span> <span class="o">=</span> <span class="n">calc_theta_phi</span><span class="p">(</span>
+            <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;s0c&quot;</span><span class="p">]</span>
+        <span class="p">)</span>  <span class="c1"># array of tuples in radians</span>
+        <span class="n">theta_phi_1</span> <span class="o">=</span> <span class="n">calc_theta_phi</span><span class="p">(</span><span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;s1c&quot;</span><span class="p">])</span>
+        <span class="n">s0_lookup_index</span> <span class="o">=</span> <span class="n">calc_lookup_index</span><span class="p">(</span><span class="n">theta_phi_0</span><span class="p">,</span> <span class="n">points_per_degree</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">s1_lookup_index</span> <span class="o">=</span> <span class="n">calc_lookup_index</span><span class="p">(</span><span class="n">theta_phi_1</span><span class="p">,</span> <span class="n">points_per_degree</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">SHScaleComponent</span><span class="o">.</span><span class="n">coefficients_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">SHScaleComponent</span><span class="o">.</span><span class="n">coefficients_list</span> <span class="o">=</span> <span class="n">create_sph_harm_lookup_table</span><span class="p">(</span>
+                <span class="n">lmax</span><span class="p">,</span> <span class="n">points_per_degree</span><span class="o">=</span><span class="mi">2</span>
+            <span class="p">)</span>  <span class="c1"># set the class variable and share</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">SHScaleComponent</span><span class="o">.</span><span class="n">coefficients_list</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">lmax</span> <span class="o">*</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">+</span> <span class="n">lmax</span><span class="p">)):</span>
+            <span class="c1"># this (rare) case can happen if adding a new dataset with a larger lmax!</span>
+            <span class="n">SHScaleComponent</span><span class="o">.</span><span class="n">coefficients_list</span> <span class="o">=</span> <span class="n">create_sph_harm_lookup_table</span><span class="p">(</span>
+                <span class="n">lmax</span><span class="p">,</span> <span class="n">points_per_degree</span><span class="o">=</span><span class="mi">2</span>
+            <span class="p">)</span>  <span class="c1"># set the class variable and share</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;s0_lookup&quot;</span><span class="p">:</span> <span class="n">s0_lookup_index</span><span class="p">,</span>
+            <span class="s2">&quot;s1_lookup&quot;</span><span class="p">:</span> <span class="n">s1_lookup_index</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="c1"># here just pass in good reflections</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;sph_harm_table&quot;</span><span class="p">:</span> <span class="n">sph_harm_table</span><span class="p">(</span><span class="n">reflection_table</span><span class="p">,</span> <span class="n">lmax</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="n">surface_weight</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;abs_surface_weight&quot;</span><span class="p">]</span>
+    <span class="n">parameter_restraints</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([])</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">lmax</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">parameter_restraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="mf">1.0</span><span class="p">]</span> <span class="o">*</span> <span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)))</span>
+    <span class="n">parameter_restraints</span> <span class="o">*=</span> <span class="n">surface_weight</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameter_restraints</span> <span class="o">=</span> <span class="n">parameter_restraints</span>
+
+
+<div class="viewcode-block" id="DoseDecay"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay">[docs]</a><span class="k">class</span> <span class="nc">DoseDecay</span><span class="p">(</span><span class="n">ScalingModelBase</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;A model similar to the physical model, where an exponential decay</span>
+<span class="sd">    component is used plus a relative B-factor per sweep, with no absorption</span>
+<span class="sd">    surface by default. Most suitable for multi-crystal datasets.&quot;&quot;&quot;</span>
+
+    <span class="n">id_</span> <span class="o">=</span> <span class="s2">&quot;dose_decay&quot;</span>
+
+    <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">dose_decay_model_phil_str</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">,</span> <span class="n">is_scaled</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create the phyiscal scaling model components.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">DoseDecay</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">configdict</span><span class="p">,</span> <span class="n">is_scaled</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="n">scale_setup</span> <span class="o">=</span> <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SmoothScaleComponent1D</span><span class="p">(</span>
+                <span class="n">scale_setup</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span> <span class="n">scale_setup</span><span class="p">[</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="n">decay_setup</span> <span class="o">=</span> <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;resolution_dependence&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;linear&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">LinearDoseDecay</span><span class="p">(</span>
+                    <span class="n">decay_setup</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span> <span class="n">decay_setup</span><span class="p">[</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">QuadraticDoseDecay</span><span class="p">(</span>
+                    <span class="n">decay_setup</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span> <span class="n">decay_setup</span><span class="p">[</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;relative_B&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="n">B_setup</span> <span class="o">=</span> <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;relative_B&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;relative_B&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SingleBScaleFactor</span><span class="p">(</span>
+                <span class="n">B_setup</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span> <span class="n">B_setup</span><span class="p">[</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;absorption&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="n">absorption_setup</span> <span class="o">=</span> <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SHScaleComponent</span><span class="p">(</span>
+                <span class="n">absorption_setup</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span> <span class="n">absorption_setup</span><span class="p">[</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">consecutive_refinement_order</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;:obj:`list`: a nested list of component names to indicate scaling order.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[[</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="s2">&quot;relative_B&quot;</span><span class="p">,</span> <span class="s2">&quot;decay&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]]</span>
+
+<div class="viewcode-block" id="DoseDecay.fix_initial_parameter"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.fix_initial_parameter">[docs]</a>    <span class="k">def</span> <span class="nf">fix_initial_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span> <span class="ow">and</span> <span class="n">params</span><span class="o">.</span><span class="n">dose_decay</span><span class="o">.</span><span class="n">fix_initial</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fix_initial_parameter</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="DoseDecay.get_shared_components"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.get_shared_components">[docs]</a>    <span class="k">def</span> <span class="nf">get_shared_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;shared&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">configdict</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;shared&quot;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="s2">&quot;decay&quot;</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="DoseDecay.configure_components"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.configure_components">[docs]</a>    <span class="k">def</span> <span class="nf">configure_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflection_table</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add the required reflection table data to the model components.&quot;&quot;&quot;</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;s_norm_fac&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">norm</span><span class="p">}</span>
+        <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">phi</span><span class="p">,</span> <span class="s2">&quot;d&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">]}</span>
+        <span class="k">if</span> <span class="s2">&quot;relative_B&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;relative_B&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;d&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">]}</span>
+        <span class="k">if</span> <span class="s2">&quot;absorption&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">_add_absorption_component_to_physically_derived_model</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="n">reflection_table</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="DoseDecay.limit_image_range"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.limit_image_range">[docs]</a>    <span class="k">def</span> <span class="nf">limit_image_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_image_range</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Modify the model to be suitable for a reduced image range.</span>
+
+<span class="sd">        For this model, this involves determining whether the number of parameters</span>
+<span class="sd">        should be reduced and may reduce the number of parameters in the scale and</span>
+<span class="sd">        decay components.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            new_image_range (tuple): The (start, end) of the new image range.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">configdict</span>
+        <span class="n">current_image_range</span> <span class="o">=</span> <span class="n">conf</span><span class="p">[</span><span class="s2">&quot;valid_image_range&quot;</span><span class="p">]</span>
+        <span class="n">current_osc_range</span> <span class="o">=</span> <span class="n">conf</span><span class="p">[</span><span class="s2">&quot;valid_osc_range&quot;</span><span class="p">]</span>
+        <span class="c1"># calculate one osc as don&#39;t have access to scan object here</span>
+        <span class="n">one_osc</span> <span class="o">=</span> <span class="p">(</span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;valid_osc_range&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">conf</span><span class="p">[</span><span class="s2">&quot;valid_osc_range&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="n">conf</span><span class="p">[</span><span class="s2">&quot;valid_image_range&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="p">(</span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;valid_image_range&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">new_osc_range</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">new_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">current_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">one_osc</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">new_image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">current_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">one_osc</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">n_param</span><span class="p">,</span> <span class="n">s_norm_fac</span><span class="p">,</span> <span class="n">scale_rot_int</span> <span class="o">=</span> <span class="n">initialise_smooth_input</span><span class="p">(</span>
+                <span class="n">new_osc_range</span><span class="p">,</span> <span class="n">one_osc</span><span class="p">,</span> <span class="n">conf</span><span class="p">[</span><span class="s2">&quot;scale_rot_interval&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">n_old_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+            <span class="n">conf</span><span class="p">[</span><span class="s2">&quot;scale_rot_interval&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scale_rot_int</span>
+            <span class="n">conf</span><span class="p">[</span><span class="s2">&quot;s_norm_fac&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">s_norm_fac</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">calculate_new_offset</span><span class="p">(</span>
+                <span class="n">current_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">new_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">s_norm_fac</span><span class="p">,</span>
+                <span class="n">n_old_params</span><span class="p">,</span>
+                <span class="n">n_param</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">new_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">offset</span> <span class="p">:</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">n_param</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_new_parameters</span><span class="p">(</span><span class="n">new_params</span><span class="p">)</span>
+
+        <span class="n">new_osc_range_0</span> <span class="o">=</span> <span class="n">current_osc_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">new_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">current_image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">one_osc</span>
+        <span class="p">)</span>
+        <span class="n">new_osc_range_1</span> <span class="o">=</span> <span class="n">current_osc_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">new_image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">current_image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">one_osc</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;valid_osc_range&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_osc_range_0</span><span class="p">,</span> <span class="n">new_osc_range_1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_valid_image_range</span><span class="p">(</span><span class="n">new_image_range</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DoseDecay.from_data"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.from_data">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">reflection_table</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create the scaling model defined by the params.&quot;&quot;&quot;</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">dose_decay</span>
+        <span class="n">configdict</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">({</span><span class="s2">&quot;corrections&quot;</span><span class="p">:</span> <span class="p">[]})</span>
+        <span class="n">parameters_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">osc_range</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">()</span>
+        <span class="n">one_osc_width</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;valid_osc_range&quot;</span><span class="p">:</span> <span class="n">osc_range</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">share</span><span class="o">.</span><span class="n">decay</span><span class="p">:</span>
+            <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;shared&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]})</span>
+
+        <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">)</span>
+        <span class="n">n_scale_param</span><span class="p">,</span> <span class="n">s_norm_fac</span><span class="p">,</span> <span class="n">scale_rot_int</span> <span class="o">=</span> <span class="n">initialise_smooth_input</span><span class="p">(</span>
+            <span class="n">osc_range</span><span class="p">,</span> <span class="n">one_osc_width</span><span class="p">,</span> <span class="n">params</span><span class="o">.</span><span class="n">scale_interval</span>
+        <span class="p">)</span>
+        <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="s2">&quot;s_norm_fac&quot;</span><span class="p">:</span> <span class="n">s_norm_fac</span><span class="p">,</span> <span class="s2">&quot;scale_rot_interval&quot;</span><span class="p">:</span> <span class="n">scale_rot_int</span><span class="p">}</span>
+        <span class="p">)</span>
+        <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">n_scale_param</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+            <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">relative_B_correction</span><span class="p">:</span>
+            <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;relative_B&quot;</span><span class="p">)</span>
+            <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;relative_B&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">decay_correction</span><span class="p">:</span>
+            <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;decay&quot;</span><span class="p">)</span>
+            <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;resolution_dependence&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">resolution_dependence</span><span class="p">})</span>
+            <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">absorption_correction</span><span class="p">:</span>
+            <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;absorption&quot;</span><span class="p">)</span>
+            <span class="n">n_abs_param</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">lmax</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="mi">2</span> <span class="o">+</span> <span class="n">params</span><span class="o">.</span><span class="n">lmax</span>
+            <span class="p">)</span>  <span class="c1"># arithmetic sum formula (a1=3, d=2)</span>
+            <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;lmax&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">lmax</span><span class="p">})</span>
+            <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;abs_surface_weight&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">surface_weight</span><span class="p">})</span>
+            <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">n_abs_param</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DoseDecay.from_dict"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.from_dict">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a :obj:`PhysicalScalingModel` from a dictionary.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">id_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;expected __id__ </span><span class="si">%s</span><span class="s2">, got </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">id_</span><span class="p">,</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]))</span>
+        <span class="p">(</span><span class="n">s_params</span><span class="p">,</span> <span class="n">d_params</span><span class="p">,</span> <span class="n">abs_params</span><span class="p">,</span> <span class="n">B</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="p">(</span><span class="n">s_params_sds</span><span class="p">,</span> <span class="n">d_params_sds</span><span class="p">,</span> <span class="n">a_params_sds</span><span class="p">,</span> <span class="n">B_sd</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">configdict</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;configuration_parameters&quot;</span><span class="p">]</span>
+        <span class="n">is_scaled</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;is_scaled&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="n">s_params</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">][</span><span class="s2">&quot;parameters&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="s2">&quot;est_standard_devs&quot;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]:</span>
+                <span class="n">s_params_sds</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">][</span><span class="s2">&quot;est_standard_devs&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s2">&quot;relative_B&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="n">B</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;relative_B&quot;</span><span class="p">][</span><span class="s2">&quot;parameters&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="s2">&quot;est_standard_devs&quot;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;relative_B&quot;</span><span class="p">]:</span>
+                <span class="n">B_sd</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;relative_B&quot;</span><span class="p">][</span><span class="s2">&quot;est_standard_devs&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="n">d_params</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">][</span><span class="s2">&quot;parameters&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="s2">&quot;est_standard_devs&quot;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]:</span>
+                <span class="n">d_params_sds</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">][</span><span class="s2">&quot;est_standard_devs&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s2">&quot;absorption&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="n">abs_params</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">][</span><span class="s2">&quot;parameters&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="s2">&quot;est_standard_devs&quot;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]:</span>
+                <span class="n">a_params_sds</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">][</span><span class="s2">&quot;est_standard_devs&quot;</span><span class="p">])</span>
+
+        <span class="n">parameters_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">s_params</span><span class="p">,</span> <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="n">s_params_sds</span><span class="p">},</span>
+            <span class="s2">&quot;decay&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">d_params</span><span class="p">,</span> <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="n">d_params_sds</span><span class="p">},</span>
+            <span class="s2">&quot;relative_B&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">B</span><span class="p">,</span> <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="n">B_sd</span><span class="p">},</span>
+            <span class="s2">&quot;absorption&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">abs_params</span><span class="p">,</span> <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="n">a_params_sds</span><span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">,</span> <span class="n">is_scaled</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DoseDecay.plot_model_components"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.plot_model_components">[docs]</a>    <span class="k">def</span> <span class="nf">plot_model_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">plot_dose_decay</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;absorption&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">plot_absorption_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">plot_absorption_surface</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">d</span></div></div>
 
 
 <div class="viewcode-block" id="PhysicalScalingModel"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.PhysicalScalingModel">[docs]</a><span class="k">class</span> <span class="nc">PhysicalScalingModel</span><span class="p">(</span><span class="n">ScalingModelBase</span><span class="p">):</span>
@@ -373,57 +678,21 @@
 
 <div class="viewcode-block" id="PhysicalScalingModel.configure_components"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.PhysicalScalingModel.configure_components">[docs]</a>    <span class="k">def</span> <span class="nf">configure_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflection_table</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Add the required reflection table data to the model components.&quot;&quot;&quot;</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">if</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
-            <span class="n">norm</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
-                <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;s_norm_fac&quot;</span><span class="p">]</span>
-            <span class="p">)</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;s_norm_fac&quot;</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;scale&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">norm</span><span class="p">}</span>
         <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
-            <span class="n">norm</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
-                <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;d_norm_fac&quot;</span><span class="p">]</span>
-            <span class="p">)</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="n">phi</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;d_norm_fac&quot;</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameter_restraints</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span>
                 <span class="n">params</span><span class="o">.</span><span class="n">physical</span><span class="o">.</span><span class="n">decay_restraint</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">norm</span><span class="p">,</span> <span class="s2">&quot;d&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">]}</span>
         <span class="k">if</span> <span class="s2">&quot;absorption&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
-            <span class="n">lmax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;lmax&quot;</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">reflection_table</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">100000</span><span class="p">:</span>
-                <span class="k">assert</span> <span class="s2">&quot;s0c&quot;</span> <span class="ow">in</span> <span class="n">reflection_table</span>
-                <span class="k">assert</span> <span class="s2">&quot;s1c&quot;</span> <span class="ow">in</span> <span class="n">reflection_table</span>
-                <span class="n">theta_phi_0</span> <span class="o">=</span> <span class="n">calc_theta_phi</span><span class="p">(</span>
-                    <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;s0c&quot;</span><span class="p">]</span>
-                <span class="p">)</span>  <span class="c1"># array of tuples in radians</span>
-                <span class="n">theta_phi_1</span> <span class="o">=</span> <span class="n">calc_theta_phi</span><span class="p">(</span><span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;s1c&quot;</span><span class="p">])</span>
-                <span class="n">s0_lookup_index</span> <span class="o">=</span> <span class="n">calc_lookup_index</span><span class="p">(</span><span class="n">theta_phi_0</span><span class="p">,</span> <span class="n">points_per_degree</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-                <span class="n">s1_lookup_index</span> <span class="o">=</span> <span class="n">calc_lookup_index</span><span class="p">(</span><span class="n">theta_phi_1</span><span class="p">,</span> <span class="n">points_per_degree</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">SHScaleComponent</span><span class="o">.</span><span class="n">coefficients_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">SHScaleComponent</span><span class="o">.</span><span class="n">coefficients_list</span> <span class="o">=</span> <span class="n">create_sph_harm_lookup_table</span><span class="p">(</span>
-                        <span class="n">lmax</span><span class="p">,</span> <span class="n">points_per_degree</span><span class="o">=</span><span class="mi">2</span>
-                    <span class="p">)</span>  <span class="c1"># set the class variable and share</span>
-                <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">SHScaleComponent</span><span class="o">.</span><span class="n">coefficients_list</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">lmax</span> <span class="o">*</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">+</span> <span class="n">lmax</span><span class="p">)):</span>
-                    <span class="c1"># this (rare) case can happen if adding a new dataset with a larger lmax!</span>
-                    <span class="n">SHScaleComponent</span><span class="o">.</span><span class="n">coefficients_list</span> <span class="o">=</span> <span class="n">create_sph_harm_lookup_table</span><span class="p">(</span>
-                        <span class="n">lmax</span><span class="p">,</span> <span class="n">points_per_degree</span><span class="o">=</span><span class="mi">2</span>
-                    <span class="p">)</span>  <span class="c1"># set the class variable and share</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;s0_lookup&quot;</span><span class="p">:</span> <span class="n">s0_lookup_index</span><span class="p">,</span>
-                    <span class="s2">&quot;s1_lookup&quot;</span><span class="p">:</span> <span class="n">s1_lookup_index</span><span class="p">,</span>
-                <span class="p">}</span>
-            <span class="c1"># here just pass in good reflections</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;sph_harm_table&quot;</span><span class="p">:</span> <span class="n">sph_harm_table</span><span class="p">(</span><span class="n">reflection_table</span><span class="p">,</span> <span class="n">lmax</span><span class="p">)</span>
-                <span class="p">}</span>
-            <span class="n">surface_weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configdict</span><span class="p">[</span><span class="s2">&quot;abs_surface_weight&quot;</span><span class="p">]</span>
-            <span class="n">parameter_restraints</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([])</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">lmax</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-                <span class="n">parameter_restraints</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="mf">1.0</span><span class="p">]</span> <span class="o">*</span> <span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)))</span>
-            <span class="n">parameter_restraints</span> <span class="o">*=</span> <span class="n">surface_weight</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parameter_restraints</span> <span class="o">=</span> <span class="n">parameter_restraints</span></div>
+            <span class="n">_add_absorption_component_to_physically_derived_model</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="n">reflection_table</span>
+            <span class="p">)</span></div>
 
 <div class="viewcode-block" id="PhysicalScalingModel.limit_image_range"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.PhysicalScalingModel.limit_image_range">[docs]</a>    <span class="k">def</span> <span class="nf">limit_image_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_image_range</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Modify the model to be suitable for a reduced image range.</span>
@@ -891,7 +1160,6 @@
         <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
                 <span class="s2">&quot;d&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">],</span>
-                <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span>
             <span class="p">}</span></div>
 
     <span class="nd">@property</span>
@@ -1046,6 +1314,14 @@
         <span class="n">model</span> <span class="o">=</span> <span class="n">entry_point</span><span class="o">.</span><span class="n">load</span><span class="p">()</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">model_dict</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">plot_model_components</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="make_combined_plots"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.make_combined_plots">[docs]</a><span class="k">def</span> <span class="nf">make_combined_plots</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Make any plots that require evaluation of all models.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;dose_decay&quot;</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+        <span class="n">relative_Bs</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;relative_B&quot;</span><span class="p">][</span><span class="s2">&quot;parameters&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="k">return</span> <span class="n">plot_relative_Bs</span><span class="p">(</span><span class="n">relative_Bs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{}</span></div>
 </pre></div>
 
           </div>
