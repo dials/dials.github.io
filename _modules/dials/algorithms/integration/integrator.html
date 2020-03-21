@@ -219,6 +219,11 @@
 <span class="sd">          .type = bool</span>
 <span class="sd">          .help = &quot;Use profile fitting if available&quot;</span>
 
+<span class="sd">        sigma_b_multiplier = 2.0</span>
+<span class="sd">          .type = float(value_min=1.0)</span>
+<span class="sd">          .help = &quot;Background box expansion factor&quot;</span>
+<span class="sd">          .expert_level = 3</span>
+
 <span class="sd">        validation {</span>
 
 <span class="sd">          number_of_partitions = 1</span>
@@ -367,7 +372,7 @@
 
 <div class="viewcode-block" id="Parameters"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Parameters">[docs]</a><span class="k">class</span> <span class="nc">Parameters</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class to represent the integration parameters</span>
+<span class="sd">    A stack of classes to represent the integration parameters</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="Parameters.Filter"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Parameters.Filter">[docs]</a>    <span class="k">class</span> <span class="nc">Filter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -391,6 +396,7 @@
 
         <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">fitting</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sigma_b_multiplier</span> <span class="o">=</span> <span class="mf">2.0</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">validation</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Profile</span><span class="o">.</span><span class="n">Validation</span><span class="p">()</span></div>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -457,6 +463,9 @@
         <span class="n">result</span><span class="o">.</span><span class="n">debug_reference_filename</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">reference</span><span class="o">.</span><span class="n">filename</span>
         <span class="n">result</span><span class="o">.</span><span class="n">debug_reference_output</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">reference</span><span class="o">.</span><span class="n">output</span>
 
+        <span class="c1"># Profile parameters</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">sigma_b_multiplier</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">sigma_b_multiplier</span>
+
         <span class="c1"># Get the min zeta filter</span>
         <span class="n">result</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">ice_rings</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
@@ -486,7 +495,9 @@
     <span class="c1"># Compute some reflection properties</span>
     <span class="n">reflections</span><span class="o">.</span><span class="n">compute_zeta_multi</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
     <span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
-    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span>
+        <span class="n">experiments</span><span class="p">,</span> <span class="n">sigma_b_multiplier</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">sigma_b_multiplier</span>
+    <span class="p">)</span>
 
     <span class="c1"># Filter the reflections by zeta</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;zeta&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">params</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_zeta</span>
@@ -505,7 +516,9 @@
 
     <span class="c1"># Compute some reflection properties</span>
     <span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
-    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span>
+        <span class="n">experiments</span><span class="p">,</span> <span class="n">sigma_b_multiplier</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">sigma_b_multiplier</span>
+    <span class="p">)</span>
 
     <span class="c1"># Check the bounding boxes are all 1 frame in width</span>
     <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
@@ -1373,7 +1386,9 @@
         <span class="c1"># Compute some reflection properties</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">compute_zeta_multi</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">compute_d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">compute_bbox</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="n">sigma_b_multiplier</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">sigma_b_multiplier</span>
+        <span class="p">)</span>
 
         <span class="c1"># Filter the reflections by zeta</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span>
