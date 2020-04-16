@@ -100,6 +100,11 @@
 <span class="sd">lattice_symmetry_max_delta = 5.0</span>
 <span class="sd">  .type = float(value_min=0)</span>
 
+<span class="sd">best_monoclinic_beta = True</span>
+<span class="sd">  .type = bool</span>
+<span class="sd">  .help = &quot;If True, then for monoclinic centered cells, I2 will be preferred over C2 if&quot;</span>
+<span class="sd">          &quot;it gives a more oblique cell (i.e. smaller beta angle).&quot;</span>
+
 <span class="sd">dimensions = Auto</span>
 <span class="sd">  .type = int(value_min=2)</span>
 
@@ -185,6 +190,7 @@
             <span class="n">min_cc_half</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">min_cc_half</span><span class="p">,</span>
             <span class="n">relative_length_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">absolute_angle_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">best_monoclinic_beta</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">best_monoclinic_beta</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">Subject</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span> <span class="n">events</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;optimised&quot;</span><span class="p">,</span> <span class="s2">&quot;analysed_symmetry&quot;</span><span class="p">,</span> <span class="s2">&quot;analysed_clusters&quot;</span><span class="p">]</span>
@@ -194,23 +200,25 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">space_group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 
             <span class="k">def</span> <span class="nf">_map_space_group_to_input_cell</span><span class="p">(</span><span class="n">intensities</span><span class="p">,</span> <span class="n">space_group</span><span class="p">):</span>
+                <span class="kn">from</span> <span class="nn">cctbx.sgtbx.bravais_types</span> <span class="kn">import</span> <span class="n">bravais_lattice</span>
+
                 <span class="n">best_subgroup</span> <span class="o">=</span> <span class="n">find_matching_symmetry</span><span class="p">(</span>
-                    <span class="n">intensities</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span> <span class="n">space_group</span>
+                    <span class="n">intensities</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span>
+                    <span class="n">space_group</span><span class="p">,</span>
+                    <span class="n">best_monoclinic_beta</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">bravais_lattice</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="n">space_group</span><span class="p">))</span>
+                    <span class="o">==</span> <span class="s2">&quot;mI&quot;</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="n">cb_op_inp_best</span> <span class="o">=</span> <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">]</span>
                 <span class="n">best_subsym</span> <span class="o">=</span> <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;best_subsym&quot;</span><span class="p">]</span>
-                <span class="n">cb_op_best_ref</span> <span class="o">=</span> <span class="n">best_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_reference_setting</span><span class="p">()</span>
-                <span class="n">ref_subsym</span> <span class="o">=</span> <span class="n">best_subsym</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_best_ref</span><span class="p">)</span>
-                <span class="n">cb_op_ref_primitive</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">ref_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_primitive_setting</span><span class="p">()</span>
+                <span class="n">cb_op_best_primitive</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">best_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_primitive_setting</span><span class="p">()</span>
                 <span class="p">)</span>
+
                 <span class="n">sg_cb_op_inp_primitive</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="n">space_group</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">change_of_basis_op_to_primitive_setting</span><span class="p">()</span>
                 <span class="p">)</span>
                 <span class="n">sg_primitive</span> <span class="o">=</span> <span class="n">space_group</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">sg_cb_op_inp_primitive</span><span class="p">)</span>
-                <span class="n">sg_best</span> <span class="o">=</span> <span class="n">sg_primitive</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span>
-                    <span class="p">(</span><span class="n">cb_op_ref_primitive</span> <span class="o">*</span> <span class="n">cb_op_best_ref</span><span class="p">)</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
-                <span class="p">)</span>
+                <span class="n">sg_best</span> <span class="o">=</span> <span class="n">sg_primitive</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_best_primitive</span><span class="o">.</span><span class="n">inverse</span><span class="p">())</span>
                 <span class="c1"># best_subgroup above is the bravais type, so create thin copy here with the</span>
                 <span class="c1"># user-input space group instead</span>
                 <span class="n">best_subgroup</span> <span class="o">=</span> <span class="p">{</span>
@@ -229,6 +237,9 @@
 
             <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">best_subgroup</span> <span class="o">=</span> <span class="n">_map_space_group_to_input_cell</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">space_group</span><span class="o">.</span><span class="n">group</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_min</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">input_space_group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span>
 
