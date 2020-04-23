@@ -53,25 +53,43 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">random</span>
-<span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">tabulate</span>
 
 <span class="kn">import</span> <span class="nn">six</span>
 <span class="kn">import</span> <span class="nn">six.moves.cPickle</span> <span class="k">as</span> <span class="nn">pickle</span>
+
+<span class="kn">import</span> <span class="nn">dials.extensions</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration</span> <span class="kn">import</span> <span class="n">processor</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.filtering</span> <span class="kn">import</span> <span class="n">IceRingFilter</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.parallel_integrator</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">IntegratorProcessor</span><span class="p">,</span>
+    <span class="n">ReferenceCalculatorProcessor</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Processor2D</span><span class="p">,</span>
+    <span class="n">Processor3D</span><span class="p">,</span>
+    <span class="n">ProcessorFlat3D</span><span class="p">,</span>
+    <span class="n">ProcessorSingle2D</span><span class="p">,</span>
+    <span class="n">ProcessorStills</span><span class="p">,</span>
+    <span class="n">build_processor</span><span class="p">,</span>
+    <span class="n">job</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.report</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">IntegrationReport</span><span class="p">,</span>
+    <span class="n">ProfileModelReport</span><span class="p">,</span>
+    <span class="n">ProfileValidationReport</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration.validation</span> <span class="kn">import</span> <span class="n">ValidatedMultiExpProfileModeller</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.profile_model.modeller</span> <span class="kn">import</span> <span class="n">MultiExpProfileModeller</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.shoebox</span> <span class="kn">import</span> <span class="n">MaskCode</span>
+<span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">Sorry</span><span class="p">,</span> <span class="n">phil</span><span class="p">,</span> <span class="n">pprint</span><span class="p">,</span> <span class="n">tabulate</span>
+<span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">heading</span>
+<span class="kn">from</span> <span class="nn">dials.util.report</span> <span class="kn">import</span> <span class="n">Report</span>
 <span class="kn">from</span> <span class="nn">dials_algorithms_integration_integrator_ext</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">Executor</span><span class="p">,</span>
     <span class="n">JobList</span><span class="p">,</span>
     <span class="n">ReflectionManager</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">build_processor</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">Processor3D</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">ProcessorFlat3D</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">Processor2D</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">ProcessorSingle2D</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">ProcessorStills</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.integration.processor</span> <span class="kn">import</span> <span class="n">job</span>
-<span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
-<span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">phil</span>
-<span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">Sorry</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -110,8 +128,6 @@
 
 <span class="sd">    :return: The phil scope</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">import</span> <span class="nn">dials.extensions</span>
-
     <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
         <span class="sd">&quot;&quot;&quot;</span>
 
@@ -392,8 +408,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration</span> <span class="kn">import</span> <span class="n">processor</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">modelling</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">integration</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="n">Parameters</span><span class="o">.</span><span class="n">Filter</span><span class="p">()</span>
@@ -406,9 +420,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert the phil parameters</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration</span> <span class="kn">import</span> <span class="n">processor</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.filtering</span> <span class="kn">import</span> <span class="n">IceRingFilter</span>
-
         <span class="c1"># Init the parameters</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">()</span>
 
@@ -899,8 +910,6 @@
 <span class="sd">        :param frame: The frame to process</span>
 <span class="sd">        :param reflections: The reflections to process</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.shoebox</span> <span class="kn">import</span> <span class="n">MaskCode</span>
-
         <span class="c1"># Check if pixels are overloaded</span>
         <span class="n">reflections</span><span class="o">.</span><span class="n">is_overloaded</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
 
@@ -1002,16 +1011,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Integrate the data</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.report</span> <span class="kn">import</span> <span class="n">IntegrationReport</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.report</span> <span class="kn">import</span> <span class="n">ProfileModelReport</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.report</span> <span class="kn">import</span> <span class="n">ProfileValidationReport</span>
-        <span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">heading</span>
-        <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">pprint</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.profile_model.modeller</span> <span class="kn">import</span> <span class="n">MultiExpProfileModeller</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.validation</span> <span class="kn">import</span> <span class="p">(</span>
-            <span class="n">ValidatedMultiExpProfileModeller</span><span class="p">,</span>
-        <span class="p">)</span>
-
         <span class="c1"># Ensure we get the same random sample each time</span>
         <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
@@ -1266,8 +1265,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the report of the processing</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.util.report</span> <span class="kn">import</span> <span class="n">Report</span>
-
         <span class="n">result</span> <span class="o">=</span> <span class="n">Report</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">result</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span><span class="p">)</span>
@@ -1405,13 +1402,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Integrate the data</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.parallel_integrator</span> <span class="kn">import</span> <span class="p">(</span>
-            <span class="n">ReferenceCalculatorProcessor</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.parallel_integrator</span> <span class="kn">import</span> <span class="n">IntegratorProcessor</span>
-        <span class="kn">from</span> <span class="nn">dials.algorithms.integration.report</span> <span class="kn">import</span> <span class="n">IntegrationReport</span>
-        <span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">heading</span>
-
         <span class="c1"># Init the report</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1507,8 +1497,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the report of the processing</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.util.report</span> <span class="kn">import</span> <span class="n">Report</span>
-
         <span class="n">result</span> <span class="o">=</span> <span class="n">Report</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">result</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span><span class="p">)</span>
@@ -1550,9 +1538,6 @@
 <span class="sd">    :param reflections: The reflections to integrate</span>
 <span class="sd">    :return: An integrator object</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">import</span> <span class="nn">dials.extensions</span>
-    <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">Sorry</span>
-
     <span class="c1"># Check each experiment has an imageset</span>
     <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">imageset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
