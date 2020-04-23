@@ -82,7 +82,6 @@
     <span class="s2">&quot;Integrator3D&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Integrator3DThreaded&quot;</span><span class="p">,</span>
     <span class="s2">&quot;IntegratorExecutor&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IntegratorFactory&quot;</span><span class="p">,</span>
     <span class="s2">&quot;IntegratorFlat3D&quot;</span><span class="p">,</span>
     <span class="s2">&quot;IntegratorSingle2D&quot;</span><span class="p">,</span>
     <span class="s2">&quot;IntegratorStills&quot;</span><span class="p">,</span>
@@ -246,16 +245,6 @@
 <span class="sd">                  &quot;than or equal to zero indicates that this will not be used. A&quot;</span>
 <span class="sd">                  &quot;positive value is used as the minimum permissable value.&quot;</span>
 <span class="sd">          .type = float(value_min=0.0, value_max=1.0)</span>
-
-<span class="sd">        max_shoebox_overlap = 1.0</span>
-<span class="sd">          .type = float(value_min=0.0, value_max=1.0)</span>
-<span class="sd">          .help = &quot;Filter reflections whose shoeboxes are overlapped by greater&quot;</span>
-<span class="sd">                  &quot;than the requested amount. Note that this is not the&quot;</span>
-<span class="sd">                  &quot;percentage of the peak that is overlapped but rather the&quot;</span>
-<span class="sd">                  &quot;percentage of the shoebox (background and foreground). This&quot;</span>
-<span class="sd">                  &quot;can be useful when the detector is too close and many&quot;</span>
-<span class="sd">                  &quot;overlapping reflections are predicted at high resolution&quot;</span>
-<span class="sd">                  &quot;causing memory issues.&quot;</span>
 
 <span class="sd">        ice_rings = False</span>
 <span class="sd">          .help = &quot;Set the ice ring flags&quot;</span>
@@ -1549,88 +1538,76 @@
         <span class="k">return</span> <span class="n">tabulate</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="s2">&quot;firstrow&quot;</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="IntegratorFactory"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorFactory">[docs]</a><span class="k">class</span> <span class="nc">IntegratorFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">create_integrator</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A factory for creating integrators.</span>
+<span class="sd">    Create an integrator object with a given configuration.</span>
+
+<span class="sd">    :param params: The input phil parameters</span>
+<span class="sd">    :param experiments: The list of experiments</span>
+<span class="sd">    :param reflections: The reflections to integrate</span>
+<span class="sd">    :return: An integrator object</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">dials.extensions</span>
+    <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">Sorry</span>
 
-<div class="viewcode-block" id="IntegratorFactory.create"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.IntegratorFactory.create">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Create the integrator from the input configuration.</span>
+    <span class="c1"># Check each experiment has an imageset</span>
+    <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">imageset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">      One or more experiment does not contain an imageset. Access to the</span>
+<span class="sd">      image data is crucial for integration.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+            <span class="p">)</span>
 
-<span class="sd">        :param params: The input phil parameters</span>
-<span class="sd">        :param experiments: The list of experiments</span>
-<span class="sd">        :param reflections: The reflections to integrate</span>
-<span class="sd">        :return: The integrator class</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">import</span> <span class="nn">dials.extensions</span>
-        <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">Sorry</span>
-
-        <span class="c1"># Check each experiment has an imageset</span>
-        <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">imageset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span>
-                    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">          One or more experiment does not contain an imageset. Access to the</span>
-<span class="sd">          image data is crucial for integration.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-                <span class="p">)</span>
-
-        <span class="c1"># Read the mask in if necessary</span>
-        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
-            <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span> <span class="nb">str</span>
-        <span class="p">):</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
-                    <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
-                        <span class="n">infile</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;bytes&quot;</span>
-                    <span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
-
-        <span class="c1"># Set algorithms as reflection table defaults</span>
-        <span class="n">BackgroundAlgorithm</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">Background</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
-            <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">background</span><span class="o">.</span><span class="n">algorithm</span>
-        <span class="p">)</span>
-        <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="o">.</span><span class="n">background_algorithm</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span>
-            <span class="n">BackgroundAlgorithm</span><span class="p">,</span> <span class="n">params</span>
-        <span class="p">)</span>
-        <span class="n">CentroidAlgorithm</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">Centroid</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
-            <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">centroid</span><span class="o">.</span><span class="n">algorithm</span>
-        <span class="p">)</span>
-        <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="o">.</span><span class="n">centroid_algorithm</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span>
-            <span class="n">CentroidAlgorithm</span><span class="p">,</span> <span class="n">params</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Get the classes we need</span>
-        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
-                <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">=</span> <span class="s2">&quot;stills&quot;</span>
+    <span class="c1"># Read the mask in if necessary</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span> <span class="nb">str</span>
+    <span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;bytes&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">=</span> <span class="s2">&quot;3d&quot;</span>
-        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;3d&quot;</span><span class="p">:</span>
-            <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">Integrator3D</span>
-        <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;flat3d&quot;</span><span class="p">:</span>
-            <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">IntegratorFlat3D</span>
-        <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;2d&quot;</span><span class="p">:</span>
-            <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">Integrator2D</span>
-        <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;single2d&quot;</span><span class="p">:</span>
-            <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">IntegratorSingle2D</span>
-        <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;stills&quot;</span><span class="p">:</span>
-            <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">IntegratorStills</span>
-        <span class="k">elif</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;3d_threaded&quot;</span><span class="p">:</span>
-            <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="n">Integrator3DThreaded</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unknown integration type&quot;</span><span class="p">)</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
 
-        <span class="c1"># Remove scan if stills</span>
+    <span class="c1"># Set algorithms as reflection table defaults</span>
+    <span class="n">BackgroundAlgorithm</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">Background</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">background</span><span class="o">.</span><span class="n">algorithm</span>
+    <span class="p">)</span>
+    <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="o">.</span><span class="n">background_algorithm</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span>
+        <span class="n">BackgroundAlgorithm</span><span class="p">,</span> <span class="n">params</span>
+    <span class="p">)</span>
+    <span class="n">CentroidAlgorithm</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">Centroid</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">centroid</span><span class="o">.</span><span class="n">algorithm</span>
+    <span class="p">)</span>
+    <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="o">.</span><span class="n">centroid_algorithm</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span>
+        <span class="n">CentroidAlgorithm</span><span class="p">,</span> <span class="n">params</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Get the classes we need</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
-            <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
-                <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">=</span> <span class="s2">&quot;stills&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">=</span> <span class="s2">&quot;3d&quot;</span>
+    <span class="n">IntegratorClass</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;3d&quot;</span><span class="p">:</span> <span class="n">Integrator3D</span><span class="p">,</span>
+        <span class="s2">&quot;flat3d&quot;</span><span class="p">:</span> <span class="n">IntegratorFlat3D</span><span class="p">,</span>
+        <span class="s2">&quot;2d&quot;</span><span class="p">:</span> <span class="n">Integrator2D</span><span class="p">,</span>
+        <span class="s2">&quot;single2d&quot;</span><span class="p">:</span> <span class="n">IntegratorSingle2D</span><span class="p">,</span>
+        <span class="s2">&quot;stills&quot;</span><span class="p">:</span> <span class="n">IntegratorStills</span><span class="p">,</span>
+        <span class="s2">&quot;3d_threaded&quot;</span><span class="p">:</span> <span class="n">Integrator3DThreaded</span><span class="p">,</span>
+    <span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">IntegratorClass</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown integration type </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span><span class="p">)</span>
 
-        <span class="c1"># Return an instantiation of the class</span>
-        <span class="k">return</span> <span class="n">IntegratorClass</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span></div></div>
+    <span class="c1"># Remove scan if stills</span>
+    <span class="k">if</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
+            <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Return an instantiation of the class</span>
+    <span class="k">return</span> <span class="n">IntegratorClass</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 </pre></div>
 
           </div>
