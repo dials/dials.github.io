@@ -86,13 +86,9 @@
     <span class="s2">&quot;job&quot;</span><span class="p">,</span>
     <span class="s2">&quot;JobList&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Lookup&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;Manager&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;ManagerRot&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;ManagerStills&quot;</span><span class="p">,</span>
     <span class="s2">&quot;MultiProcessing&quot;</span><span class="p">,</span>
     <span class="s2">&quot;NullTask&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Parameters&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;Processor&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Processor2D&quot;</span><span class="p">,</span>
     <span class="s2">&quot;Processor3D&quot;</span><span class="p">,</span>
     <span class="s2">&quot;ProcessorFlat3D&quot;</span><span class="p">,</span>
@@ -258,14 +254,14 @@
     <span class="k">return</span> <span class="n">result</span><span class="p">,</span> <span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">messages</span><span class="p">()</span>
 
 
-<span class="k">class</span> <span class="nc">Processor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">_Processor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Processor interface class.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">manager</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialise the processor.</span>
 
-<span class="sd">        The processor requires a manager class implementing the Manager interface.</span>
+<span class="sd">        The processor requires a manager class implementing the _Manager interface.</span>
 <span class="sd">        This class executes all the workers in separate threads and accumulates the</span>
 <span class="sd">        results to expose to the user.</span>
 
@@ -354,6 +350,32 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">user_time</span> <span class="o">=</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span>
         <span class="n">result1</span><span class="p">,</span> <span class="n">result2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">result1</span><span class="p">,</span> <span class="n">result2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">time</span>
+
+
+<span class="k">class</span> <span class="nc">_ProcessorRot</span><span class="p">(</span><span class="n">_Processor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Processor interface class for rotation data only.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">manager</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialise the processor.</span>
+
+<span class="sd">        The processor requires a manager class implementing the _Manager interface.</span>
+<span class="sd">        This class executes all the workers in separate threads and accumulates the</span>
+<span class="sd">        results to expose to the user.</span>
+
+<span class="sd">        :param manager: The processing manager</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Ensure we have the correct type of data</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_sequences</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        An inappropriate processing algorithm may have been selected!</span>
+<span class="sd">         Trying to perform rotation processing when not all experiments</span>
+<span class="sd">         are indicated as rotation experiments.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+            <span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">_ProcessorRot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">Result</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -554,7 +576,7 @@
         <span class="k">return</span> <span class="n">result</span>
 
 
-<span class="k">class</span> <span class="nc">Manager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">_Manager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A class to manage processing book-keeping</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -720,7 +742,7 @@
 
     <span class="k">def</span> <span class="nf">compute_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Compute the jobs</span>
+<span class="sd">        Sets up a JobList() object in self.jobs</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">groups</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span>
             <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)),</span>
@@ -966,49 +988,7 @@
         <span class="k">return</span> <span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span><span class="n">block_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">task_table</span><span class="p">)</span>
 
 
-<span class="k">class</span> <span class="nc">ManagerRot</span><span class="p">(</span><span class="n">Manager</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Specialize the manager for oscillation data using the oscillation pre and</span>
-<span class="sd">    post processors.&quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Initialise the pre-processor, post-processor and manager.&quot;&quot;&quot;</span>
-
-        <span class="c1"># Ensure we have the correct type of data</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_sequences</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        An inappropriate processing algorithm may have been selected!</span>
-<span class="sd">         Trying to perform rotation processing when not all experiments</span>
-<span class="sd">         are indicated as rotation experiments.</span>
-<span class="sd">      &quot;&quot;&quot;</span>
-            <span class="p">)</span>
-
-        <span class="c1"># Initialise the manager</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">ManagerRot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
-
-
-<span class="k">class</span> <span class="nc">ManagerStills</span><span class="p">(</span><span class="n">Manager</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Specialize the manager for stills data using the stills pre and post</span>
-<span class="sd">    processors.&quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Initialise the pre-processor, post-processor and manager.&quot;&quot;&quot;</span>
-
-        <span class="c1"># Ensure we have the correct type of data</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        An inappropriate processing algorithm may have been selected!</span>
-<span class="sd">         Trying to perform stills processing when not all experiments</span>
-<span class="sd">         are indicated as stills experiments.</span>
-<span class="sd">      &quot;&quot;&quot;</span>
-            <span class="p">)</span>
-
-        <span class="c1"># Initialise the manager</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">ManagerStills</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
-
-
-<div class="viewcode-block" id="Processor3D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Processor3D">[docs]</a><span class="k">class</span> <span class="nc">Processor3D</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+<div class="viewcode-block" id="Processor3D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Processor3D">[docs]</a><span class="k">class</span> <span class="nc">Processor3D</span><span class="p">(</span><span class="n">_ProcessorRot</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Top level processor for 3D processing.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
@@ -1019,13 +999,13 @@
         <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># Create the processing manager</span>
-        <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerRot</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="n">_Manager</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
         <span class="c1"># Initialise the processor</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Processor3D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Processor3D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">manager</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="ProcessorFlat3D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProcessorFlat3D">[docs]</a><span class="k">class</span> <span class="nc">ProcessorFlat3D</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessorFlat3D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProcessorFlat3D">[docs]</a><span class="k">class</span> <span class="nc">ProcessorFlat3D</span><span class="p">(</span><span class="n">_ProcessorRot</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Top level processor for flat 3D processing.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
@@ -1036,13 +1016,13 @@
         <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># Create the processing manager</span>
-        <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerRot</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="n">_Manager</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
         <span class="c1"># Initialise the processor</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">ProcessorFlat3D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ProcessorFlat3D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">manager</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Processor2D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Processor2D">[docs]</a><span class="k">class</span> <span class="nc">Processor2D</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+<div class="viewcode-block" id="Processor2D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Processor2D">[docs]</a><span class="k">class</span> <span class="nc">Processor2D</span><span class="p">(</span><span class="n">_ProcessorRot</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Top level processor for 2D processing.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
@@ -1052,13 +1032,13 @@
         <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="c1"># Create the processing manager</span>
-        <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerRot</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="n">_Manager</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
         <span class="c1"># Initialise the processor</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Processor2D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Processor2D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">manager</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="ProcessorSingle2D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProcessorSingle2D">[docs]</a><span class="k">class</span> <span class="nc">ProcessorSingle2D</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessorSingle2D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProcessorSingle2D">[docs]</a><span class="k">class</span> <span class="nc">ProcessorSingle2D</span><span class="p">(</span><span class="n">_ProcessorRot</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Top level processor for still image processing.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
@@ -1071,13 +1051,13 @@
         <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># Create the processing manager</span>
-        <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerRot</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="n">_Manager</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
         <span class="c1"># Initialise the processor</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">ProcessorSingle2D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ProcessorSingle2D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">manager</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="ProcessorStills"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProcessorStills">[docs]</a><span class="k">class</span> <span class="nc">ProcessorStills</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+<div class="viewcode-block" id="ProcessorStills"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.ProcessorStills">[docs]</a><span class="k">class</span> <span class="nc">ProcessorStills</span><span class="p">(</span><span class="n">_Processor</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Top level processor for still image processing.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
@@ -1089,8 +1069,18 @@
         <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">partials</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span> <span class="o">=</span> <span class="kc">False</span>
 
+        <span class="c1"># Ensure we have the correct type of data</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_stills</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        An inappropriate processing algorithm may have been selected!</span>
+<span class="sd">         Trying to perform stills processing when not all experiments</span>
+<span class="sd">         are indicated as stills experiments.</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+            <span class="p">)</span>
+
         <span class="c1"># Create the processing manager</span>
-        <span class="n">manager</span> <span class="o">=</span> <span class="n">ManagerStills</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="n">_Manager</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
 
         <span class="c1"># Initialise the processor</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ProcessorStills</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span></div>
