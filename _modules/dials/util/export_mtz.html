@@ -55,6 +55,7 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span><span class="p">,</span> <span class="n">Counter</span>
 
 <span class="kn">import</span> <span class="nn">dials.util.ext</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.scaling.scaling_library</span> <span class="kn">import</span> <span class="n">determine_best_unit_cell</span>
 <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 <span class="kn">from</span> <span class="nn">dials.util.version</span> <span class="kn">import</span> <span class="n">dials_version</span>
 <span class="kn">from</span> <span class="nn">dials.util.filter_reflections</span> <span class="kn">import</span> <span class="n">filter_reflection_table</span>
@@ -500,6 +501,11 @@
     <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">):</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Ignoring multiple panels in output MTZ&quot;</span><span class="p">)</span>
 
+    <span class="n">best_unit_cell</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mtz</span><span class="o">.</span><span class="n">best_unit_cell</span>
+    <span class="k">if</span> <span class="n">best_unit_cell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">best_unit_cell</span> <span class="o">=</span> <span class="n">determine_best_unit_cell</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span>
+    <span class="n">integrated_data</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">best_unit_cell</span><span class="o">.</span><span class="n">d</span><span class="p">(</span><span class="n">integrated_data</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">])</span>
+
     <span class="c1"># Clean up the data with the passed in options</span>
     <span class="n">integrated_data</span> <span class="o">=</span> <span class="n">filter_reflection_table</span><span class="p">(</span>
         <span class="n">integrated_data</span><span class="p">,</span>
@@ -606,11 +612,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">experiment</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;ROT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span>
 
-    <span class="n">unit_cell</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_recalculated_unit_cell</span><span class="p">()</span>
-        <span class="ow">or</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
-    <span class="p">)</span>
-    <span class="n">mtz_writer</span><span class="o">.</span><span class="n">add_crystal</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">mtz</span><span class="o">.</span><span class="n">crystal_name</span><span class="p">,</span> <span class="n">unit_cell</span><span class="o">=</span><span class="n">unit_cell</span><span class="p">)</span>
+    <span class="n">mtz_writer</span><span class="o">.</span><span class="n">add_crystal</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">mtz</span><span class="o">.</span><span class="n">crystal_name</span><span class="p">,</span> <span class="n">unit_cell</span><span class="o">=</span><span class="n">best_unit_cell</span><span class="p">)</span>
     <span class="c1"># Note: add unit cell here as may have changed basis since creating mtz.</span>
     <span class="c1"># For multi-wave unmerged mtz, we add an empty dataset for each wavelength,</span>
     <span class="c1"># but only write the data into the final dataset (for unmerged the batches</span>
