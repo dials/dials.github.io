@@ -49,6 +49,7 @@
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
 <span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">sys</span>
@@ -58,6 +59,7 @@
 
 <span class="kn">import</span> <span class="nn">boost.python</span>
 <span class="kn">import</span> <span class="nn">cctbx.crystal</span>
+<span class="kn">import</span> <span class="nn">cctbx.sgtbx</span>
 <span class="kn">import</span> <span class="nn">cctbx.uctbx</span>
 <span class="kn">from</span> <span class="nn">libtbx.containers</span> <span class="kn">import</span> <span class="n">OrderedSet</span>
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
@@ -904,6 +906,35 @@
         <span class="kn">from</span> <span class="nn">.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentListFactory</span>
 
         <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_serialized_format</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">check_format</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">change_basis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">change_of_basis_ops</span><span class="p">,</span> <span class="n">in_place</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply change of basis operators to an ExperimentList</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            change_of_basis_ops: This can either be a single</span>
+<span class="sd">                cctbx.sgtbx.change_of_basis_op to be applied to all experiments, or a</span>
+<span class="sd">                list of operators, one per experiment.</span>
+<span class="sd">            in_place (bool): Apply the change of basis operations in-place to the</span>
+<span class="sd">                current ExperimentList. Default is to return a copy of the</span>
+<span class="sd">                ExperimentList.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The reindexed ExperimentList</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">change_of_basis_ops</span><span class="p">,</span> <span class="n">cctbx</span><span class="o">.</span><span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">):</span>
+            <span class="n">change_of_basis_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">change_of_basis_ops</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">change_of_basis_ops</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="p">(</span>
+            <span class="s2">&quot;Number of change_of_basis_ops (</span><span class="si">%i</span><span class="s2">) not equal to the number of experiments (</span><span class="si">%i</span><span class="s2">)&quot;</span>
+            <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">change_of_basis_ops</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">in_place</span><span class="p">:</span>
+            <span class="n">return_expts</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">return_expts</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">expt</span><span class="p">,</span> <span class="n">cb_op</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">return_expts</span><span class="p">,</span> <span class="n">change_of_basis_ops</span><span class="p">):</span>
+            <span class="n">expt</span><span class="o">.</span><span class="n">crystal</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">return_expts</span>
 </pre></div>
 
           </div>
