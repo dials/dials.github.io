@@ -54,7 +54,6 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">platform</span>
-<span class="kn">import</span> <span class="nn">resource</span>
 <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
 
 <span class="kn">import</span> <span class="nn">psutil</span>
@@ -78,6 +77,12 @@
     <span class="n">ReflectionManagerPerImage</span><span class="p">,</span>
     <span class="n">ShoeboxProcessor</span><span class="p">,</span>
 <span class="p">)</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">resource</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="c1"># resource does not exist on non-Linux, so can&#39;t float the import</span>
+    <span class="n">resource</span> <span class="o">=</span> <span class="kc">None</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;Block&quot;</span><span class="p">,</span>
@@ -832,7 +837,10 @@
         <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Memory required per process&quot;</span><span class="p">,</span> <span class="n">memory_required_per_process</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">)</span>
 
         <span class="c1"># Check if a ulimit applies</span>
-        <span class="n">rlimit</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="s2">&quot;RLIMIT_VMEM&quot;</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="s2">&quot;RLIMIT_AS&quot;</span><span class="p">))</span>
+        <span class="c1"># Note that resource may be None on non-Linux platforms.</span>
+        <span class="c1"># We can&#39;t use psutil as platform-independent solution in this instance due to</span>
+        <span class="c1"># https://github.com/conda-forge/psutil-feedstock/issues/47</span>
+        <span class="n">rlimit</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="s2">&quot;RLIMIT_VMEM&quot;</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="s2">&quot;RLIMIT_AS&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">rlimit</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">ulimit</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrlimit</span><span class="p">(</span><span class="n">rlimit</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
