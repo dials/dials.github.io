@@ -1,0 +1,908 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.stills_indexer &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../../../index.html/../../_modules/dials/algorithms/indexing/stills_indexer.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dials.algorithms.indexing.stills_indexer</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">libtbx</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">Experiment</span><span class="p">,</span> <span class="n">ExperimentList</span>
+<span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.indexer</span> <span class="kn">import</span> <span class="n">Indexer</span>
+<span class="kn">from</span> <span class="nn">dials.util.multi_dataset_handling</span> <span class="kn">import</span> <span class="n">generate_experiment_identifiers</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.known_orientation</span> <span class="kn">import</span> <span class="n">IndexerKnownOrientation</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.lattice_search</span> <span class="kn">import</span> <span class="n">BasisVectorSearch</span><span class="p">,</span> <span class="n">LatticeSearch</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.nave_parameters</span> <span class="kn">import</span> <span class="n">NaveParameters</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing</span> <span class="kn">import</span> <span class="n">DialsIndexError</span><span class="p">,</span> <span class="n">DialsIndexRefineError</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="calc_2D_rmsd_and_displacements"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.calc_2D_rmsd_and_displacements">[docs]</a><span class="k">def</span> <span class="nf">calc_2D_rmsd_and_displacements</span><span class="p">(</span><span class="n">reflections</span><span class="p">):</span>
+    <span class="n">displacements</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec2_double</span><span class="p">(</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">1</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec2_double</span><span class="p">(</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">rmsd</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">displacements</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">displacements</span><span class="p">)))</span>
+
+    <span class="k">return</span> <span class="n">rmsd</span><span class="p">,</span> <span class="n">displacements</span></div>
+
+
+<div class="viewcode-block" id="plot_displacements"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.plot_displacements">[docs]</a><span class="k">def</span> <span class="nf">plot_displacements</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+    <span class="n">rmsd</span><span class="p">,</span> <span class="n">displacements</span> <span class="o">=</span> <span class="n">calc_2D_rmsd_and_displacements</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+
+    <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">cv</span> <span class="ow">in</span> <span class="n">displacements</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">cv</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="o">-</span><span class="n">cv</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="s2">&quot;r.&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot; </span><span class="si">%d</span><span class="s2"> spots, r.m.s.d. </span><span class="si">%5.2f</span><span class="s2"> pixels&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">displacements</span><span class="p">),</span> <span class="n">rmsd</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">()</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">sz1</span><span class="p">,</span> <span class="n">sz2</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">item</span><span class="p">,</span> <span class="n">cv</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">predictions</span><span class="p">,</span> <span class="n">displacements</span><span class="p">):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">sz1</span> <span class="o">-</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]],</span> <span class="s2">&quot;r.&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">sz1</span> <span class="o">-</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]],</span> <span class="s2">&quot;g.&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mf">10.0</span> <span class="o">*</span> <span class="n">cv</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span>
+            <span class="p">[</span><span class="n">sz1</span> <span class="o">-</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">sz1</span> <span class="o">-</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mf">10.0</span> <span class="o">*</span> <span class="n">cv</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span>
+            <span class="s2">&quot;r-&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">0</span><span class="p">]])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()[</span><span class="mi">1</span><span class="p">]])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot; </span><span class="si">%d</span><span class="s2"> spots, r.m.s.d. </span><span class="si">%5.2f</span><span class="s2"> pixels&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">displacements</span><span class="p">),</span> <span class="n">rmsd</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">()</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="e_refine"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.e_refine">[docs]</a><span class="k">def</span> <span class="nf">e_refine</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="c1"># Stills-specific parameters we always want</span>
+    <span class="k">assert</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="ow">in</span> <span class="p">(</span>
+        <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">&quot;null&quot;</span><span class="p">,</span>
+    <span class="p">),</span> <span class="s2">&quot;Cannot index, set refinement.reflections.outlier.algorithm=null&quot;</span>  <span class="c1"># we do our own outlier rejection</span>
+
+    <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.refiner</span> <span class="kn">import</span> <span class="n">RefinerFactory</span>
+
+    <span class="n">refiner</span> <span class="o">=</span> <span class="n">RefinerFactory</span><span class="o">.</span><span class="n">from_parameters_data_experiments</span><span class="p">(</span>
+        <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span>
+    <span class="p">)</span>
+
+    <span class="n">refiner</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="n">ref_sel</span> <span class="o">=</span> <span class="n">refiner</span><span class="o">.</span><span class="n">selection_used_for_refinement</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">ref_sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">graph_verbose</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">refiner</span>
+
+    <span class="n">RR</span> <span class="o">=</span> <span class="n">refiner</span><span class="o">.</span><span class="n">predict_for_reflection_table</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+    <span class="n">plot_displacements</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">RR</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">refiner</span></div>
+
+
+<div class="viewcode-block" id="StillsIndexer"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexer">[docs]</a><span class="k">class</span> <span class="nc">StillsIndexer</span><span class="p">(</span><span class="n">Indexer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for indexing stills&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">):</span>
+            <span class="c1"># The stills_indexer provides its own outlier rejection</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">=</span> <span class="s2">&quot;null&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">StillsIndexer</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+<div class="viewcode-block" id="StillsIndexer.index"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexer.index">[docs]</a>    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># most of this is the same as dials.algorithms.indexing.indexer.indexer_base.index(), with some stills</span>
+        <span class="c1"># specific modifications (don&#39;t re-index after choose best orientation matrix, but use the indexing from</span>
+        <span class="c1"># choose best orientation matrix, also don&#39;t use macrocycles) of refinement after indexing.</span>
+        <span class="c1"># 2017 update: do accept multiple lattices per shot</span>
+
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">d_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">refinement_protocol</span><span class="o">.</span><span class="n">d_min_start</span>
+            <span class="n">max_lattices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">max_lattices</span>
+            <span class="k">if</span> <span class="n">max_lattices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_lattices</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">cutoff_fraction</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">recycle_unindexed_reflections_cutoff</span>
+                <span class="p">)</span>
+                <span class="n">d_spacings</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+                <span class="n">d_min_indexed</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">d_spacings</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indexed_reflections</span><span class="p">))</span>
+                <span class="n">min_reflections_for_indexing</span> <span class="o">=</span> <span class="n">cutoff_fraction</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">d_spacings</span> <span class="o">&gt;</span> <span class="n">d_min_indexed</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">crystal_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">d_spacings</span> <span class="o">&gt;</span> <span class="n">d_min_indexed</span><span class="p">)[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">crystal_ids</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_reflections_for_indexing</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Finish searching for more lattices: </span><span class="si">%i</span><span class="s2"> unindexed reflections remaining.&quot;</span>
+                        <span class="o">%</span> <span class="p">(</span><span class="n">min_reflections_for_indexing</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="k">break</span>
+
+            <span class="n">n_lattices_previous_cycle</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+
+            <span class="c1"># index multiple lattices per shot</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_lattices</span><span class="p">()</span>
+                <span class="n">generate_experiment_identifiers</span><span class="p">(</span><span class="n">new</span><span class="p">)</span>
+                <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">new</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">DialsIndexError</span><span class="p">(</span><span class="s2">&quot;No suitable lattice could be found.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_lattices</span><span class="p">()</span>
+                    <span class="n">generate_experiment_identifiers</span><span class="p">(</span><span class="n">new</span><span class="p">)</span>
+                    <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">new</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Indexing remaining reflections failed&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;Indexing remaining reflections failed, exception:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                    <span class="p">)</span>
+
+            <span class="c1"># reset reflection lattice flags</span>
+            <span class="c1"># the lattice a given reflection belongs to: a value of -1 indicates</span>
+            <span class="c1"># that a reflection doesn&#39;t belong to any lattice so far</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_reflections</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="n">n_lattices_previous_cycle</span><span class="p">:</span>
+                <span class="c1"># no more lattices found</span>
+                <span class="k">break</span>
+
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">refine_candidates_with_known_symmetry</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">known_symmetry</span><span class="o">.</span><span class="n">space_group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_apply_symmetry_post_indexing</span><span class="p">(</span>
+                    <span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="n">n_lattices_previous_cycle</span>
+                <span class="p">)</span>
+
+            <span class="c1"># discard nearly overlapping lattices on the same shot</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_have_similar_crystal_models</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+                <span class="k">break</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">indexed_reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">d_min</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="n">lengths</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+                <span class="n">isel</span> <span class="o">=</span> <span class="p">(</span><span class="n">lengths</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">d_min</span><span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+                <span class="n">sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">isel</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+                <span class="n">sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unindexed_reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+            <span class="n">reflections_for_refinement</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">indexed_reflections</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting refinement&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+                <span class="n">isoform_experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+                <span class="n">isoform_reflections</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">()</span>
+                <span class="c1"># Note, changes to params after initial indexing. Cannot use tie to target when fixing the unit cell.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">=</span> <span class="s2">&quot;null&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">fix</span> <span class="o">=</span> <span class="s2">&quot;cell&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">unit_cell</span><span class="o">.</span><span class="n">restraints</span><span class="o">.</span><span class="n">tie_to_target</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="p">[]</span>
+                <span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">expt_id</span><span class="p">,</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+                    <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections_for_refinement</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                        <span class="n">reflections_for_refinement</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">expt_id</span>
+                    <span class="p">)</span>
+                    <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="n">refiners</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">isoform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">:</span>
+                        <span class="n">iso_experiment</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">experiment</span><span class="p">)</span>
+                        <span class="n">crystal</span> <span class="o">=</span> <span class="n">iso_experiment</span><span class="o">.</span><span class="n">crystal</span>
+                        <span class="k">if</span> <span class="p">(</span>
+                            <span class="n">isoform</span><span class="o">.</span><span class="n">lookup_symbol</span>
+                            <span class="o">!=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span><span class="o">.</span><span class="n">type</span><span class="p">()</span><span class="o">.</span><span class="n">lookup_symbol</span><span class="p">()</span>
+                        <span class="p">):</span>
+                            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                                <span class="s2">&quot;Crystal isoform lookup_symbol </span><span class="si">%s</span><span class="s2"> does not match isoform </span><span class="si">%s</span><span class="s2"> lookup_symbol </span><span class="si">%s</span><span class="s2">&quot;</span>
+                                <span class="o">%</span> <span class="p">(</span>
+                                    <span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span><span class="o">.</span><span class="n">type</span><span class="p">()</span><span class="o">.</span><span class="n">lookup_symbol</span><span class="p">(),</span>
+                                    <span class="n">isoform</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                    <span class="n">isoform</span><span class="o">.</span><span class="n">lookup_symbol</span><span class="p">,</span>
+                                <span class="p">)</span>
+                            <span class="p">)</span>
+                            <span class="k">continue</span>
+                        <span class="n">crystal</span><span class="o">.</span><span class="n">set_B</span><span class="p">(</span><span class="n">isoform</span><span class="o">.</span><span class="n">cell</span><span class="o">.</span><span class="n">fractionalization_matrix</span><span class="p">())</span>
+
+                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Refining isoform </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">isoform</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                        <span class="n">refiners</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">e_refine</span><span class="p">(</span>
+                                <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">,</span>
+                                <span class="n">experiments</span><span class="o">=</span><span class="n">ExperimentList</span><span class="p">([</span><span class="n">iso_experiment</span><span class="p">]),</span>
+                                <span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
+                                <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">refiners</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">DialsIndexError</span><span class="p">(</span>
+                            <span class="s2">&quot;No isoforms had a lookup symbol that matched&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">positional_rmsds</span> <span class="o">=</span> <span class="p">[</span>
+                        <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">rmsds</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">P</span><span class="o">.</span><span class="n">rmsds</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">P</span> <span class="ow">in</span> <span class="n">refiners</span>
+                    <span class="p">]</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Positional rmsds for all isoforms:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">positional_rmsds</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">minrmsd_mm</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">positional_rmsds</span><span class="p">)</span>
+                    <span class="n">minindex</span> <span class="o">=</span> <span class="n">positional_rmsds</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">minrmsd_mm</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;The smallest rmsd is </span><span class="si">%5.1f</span><span class="s2"> um from isoform </span><span class="si">%s</span><span class="s2">&quot;</span>
+                        <span class="o">%</span> <span class="p">(</span>
+                            <span class="mf">1000.0</span> <span class="o">*</span> <span class="n">minrmsd_mm</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">rmsd_target_mm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;Asserting </span><span class="si">%f</span><span class="s2"> &lt; </span><span class="si">%f</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span>
+                                <span class="n">minrmsd_mm</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">rmsd_target_mm</span><span class="p">,</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                        <span class="k">assert</span> <span class="p">(</span>
+                            <span class="n">minrmsd_mm</span>
+                            <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">rmsd_target_mm</span>
+                        <span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Acceptable rmsd for isoform </span><span class="si">%s</span><span class="s2">.&quot;</span>
+                        <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;Rmsd gain over the other isoform </span><span class="si">%5.1f</span><span class="s2"> um.&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="mf">1000.0</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">positional_rmsds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">positional_rmsds</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+                        <span class="p">)</span>
+                    <span class="n">R</span> <span class="o">=</span> <span class="n">refiners</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span>
+                    <span class="c1"># Now one last check to see if direct beam is out of bounds</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">beam_restraint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+
+                        <span class="n">refined_beam</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span>
+                            <span class="n">R</span><span class="o">.</span><span class="n">get_experiments</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="o">.</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="o">.</span><span class="n">get_beam_centre_lab</span><span class="p">(</span><span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+                        <span class="p">)</span>
+                        <span class="n">known_beam</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">beam_restraint</span>
+                        <span class="p">)</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;Asserting difference in refined beam center and expected beam center </span><span class="si">%f</span><span class="s2"> &lt; </span><span class="si">%f</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span>
+                                <span class="p">(</span><span class="n">refined_beam</span> <span class="o">-</span> <span class="n">known_beam</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">(),</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">rmsd_target_mm</span><span class="p">,</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                        <span class="k">assert</span> <span class="p">(</span>
+                            <span class="p">(</span><span class="n">refined_beam</span> <span class="o">-</span> <span class="n">known_beam</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span>
+                            <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span><span class="n">minindex</span><span class="p">]</span><span class="o">.</span><span class="n">rmsd_target_mm</span>
+                        <span class="p">)</span>
+                        <span class="c1"># future--circle of confusion could be given as a separate length in mm instead of reusing rmsd_target</span>
+
+                    <span class="n">experiment</span> <span class="o">=</span> <span class="n">R</span><span class="o">.</span><span class="n">get_experiments</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">identified_isoform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">isoforms</span><span class="p">[</span>
+                        <span class="n">minindex</span>
+                    <span class="p">]</span><span class="o">.</span><span class="n">name</span>
+
+                    <span class="n">isoform_experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">experiment</span><span class="p">)</span>
+                    <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="n">expt_id</span><span class="p">)</span>
+                    <span class="n">isoform_reflections</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+                <span class="n">experiments</span> <span class="o">=</span> <span class="n">isoform_experiments</span>
+                <span class="n">reflections_for_refinement</span> <span class="o">=</span> <span class="n">isoform_reflections</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">refinement_protocol</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;repredict_only&quot;</span><span class="p">:</span>
+
+                <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.nave_parameters</span> <span class="kn">import</span> <span class="n">NaveParameters</span>
+                <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.prediction.managed_predictors</span> <span class="kn">import</span> <span class="p">(</span>
+                    <span class="n">ExperimentsPredictorFactory</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="n">refined_experiments</span><span class="p">,</span> <span class="n">refined_reflections</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">experiments</span><span class="p">,</span>
+                    <span class="n">reflections_for_refinement</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">ref_predictor</span> <span class="o">=</span> <span class="n">ExperimentsPredictorFactory</span><span class="o">.</span><span class="n">from_experiments</span><span class="p">(</span>
+                    <span class="n">experiments</span><span class="p">,</span>
+                    <span class="n">force_stills</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">spherical_relp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">spherical_relp_model</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">ref_predictor</span><span class="p">(</span><span class="n">refined_reflections</span><span class="p">)</span>
+                <span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;delpsical2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;delpsical.rad&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">expt_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">refined_experiments</span><span class="p">)):</span>
+                    <span class="n">refls</span> <span class="o">=</span> <span class="n">refined_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                        <span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">expt_id</span>
+                    <span class="p">)</span>
+                    <span class="n">nv</span> <span class="o">=</span> <span class="n">NaveParameters</span><span class="p">(</span>
+                        <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">,</span>
+                        <span class="n">experiments</span><span class="o">=</span><span class="n">refined_experiments</span><span class="p">[</span><span class="n">expt_id</span> <span class="p">:</span> <span class="n">expt_id</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
+                        <span class="n">reflections</span><span class="o">=</span><span class="n">refls</span><span class="p">,</span>
+                        <span class="n">refinery</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">experiments</span><span class="p">[</span><span class="n">expt_id</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span> <span class="o">=</span> <span class="n">nv</span><span class="p">()</span>
+                <span class="n">ref_predictor</span> <span class="o">=</span> <span class="n">ExperimentsPredictorFactory</span><span class="o">.</span><span class="n">from_experiments</span><span class="p">(</span>
+                    <span class="n">experiments</span><span class="p">,</span>
+                    <span class="n">force_stills</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">spherical_relp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">spherical_relp_model</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">ref_predictor</span><span class="p">(</span><span class="n">refined_reflections</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">refinement_protocol</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">refined_experiments</span><span class="p">,</span> <span class="n">refined_reflections</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">experiments</span><span class="p">,</span>
+                    <span class="n">reflections_for_refinement</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">refined_experiments</span><span class="p">,</span> <span class="n">refined_reflections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refine</span><span class="p">(</span>
+                        <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections_for_refinement</span>
+                    <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">DialsIndexRefineError</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Refinement failed:&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                    <span class="k">del</span> <span class="n">experiments</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">break</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_unit_cell_volume_sanity_check</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">refined_experiments</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span> <span class="o">=</span> <span class="n">refined_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                <span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">expt</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">):</span>
+                <span class="n">ref_sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;imageset_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">i</span>
+                <span class="p">)</span>
+                <span class="n">ref_sel</span> <span class="o">=</span> <span class="n">ref_sel</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">ref_sel</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i_expt</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">ref_sel</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]):</span>
+                    <span class="n">refined_expt</span> <span class="o">=</span> <span class="n">refined_experiments</span><span class="p">[</span><span class="n">i_expt</span><span class="p">]</span>
+                    <span class="n">expt</span><span class="o">.</span><span class="n">detector</span> <span class="o">=</span> <span class="n">refined_expt</span><span class="o">.</span><span class="n">detector</span>
+                    <span class="n">expt</span><span class="o">.</span><span class="n">beam</span> <span class="o">=</span> <span class="n">refined_expt</span><span class="o">.</span><span class="n">beam</span>
+                    <span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span> <span class="o">=</span> <span class="n">refined_expt</span><span class="o">.</span><span class="n">goniometer</span>
+                    <span class="n">expt</span><span class="o">.</span><span class="n">scan</span> <span class="o">=</span> <span class="n">refined_expt</span><span class="o">.</span><span class="n">scan</span>
+                    <span class="n">refined_expt</span><span class="o">.</span><span class="n">imageset</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">imageset</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s2">&quot;all&quot;</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fix</span> <span class="o">==</span> <span class="s2">&quot;all&quot;</span>
+            <span class="p">):</span>
+                <span class="c1"># Experimental geometry may have changed - re-map centroids to</span>
+                <span class="c1"># reciprocal space</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">map_centroids_to_reciprocal_space</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)</span>
+
+            <span class="c1"># update for next cycle</span>
+            <span class="n">experiments</span> <span class="o">=</span> <span class="n">refined_experiments</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span> <span class="o">=</span> <span class="n">refined_experiments</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DialsIndexRefineError</span><span class="p">(</span><span class="s2">&quot;None of the experiments could refine.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># discard experiments with zero reflections after refinement</span>
+        <span class="n">id_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">id_set</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="p">):</span>
+            <span class="n">filtered_refined_reflections</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">id_set</span><span class="p">:</span>
+                    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">old</span><span class="p">,</span> <span class="n">new</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">id_set</span><span class="p">),</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id_set</span><span class="p">))):</span>
+                <span class="n">subset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">old</span>
+                <span class="p">)</span>
+                <span class="n">subset</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">subset</span><span class="p">),</span> <span class="n">new</span><span class="p">)</span>
+                <span class="n">filtered_refined_reflections</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span> <span class="o">=</span> <span class="n">filtered_refined_reflections</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.compare_orientation_matrices</span> <span class="kn">import</span> <span class="p">(</span>
+                <span class="n">rotation_matrix_differences</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="n">rotation_matrix_differences</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">())</span>
+            <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Final refined crystal models:&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">crystal_model</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refined_experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()):</span>
+            <span class="n">n_indexed</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">experiments</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">crystal</span><span class="o">=</span><span class="n">crystal_model</span><span class="p">):</span>
+                <span class="n">n_indexed</span> <span class="o">+=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;model </span><span class="si">%i</span><span class="s2"> (</span><span class="si">%i</span><span class="s2"> reflections):&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_indexed</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">crystal_model</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="s2">&quot;xyzcal.mm&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span>
+        <span class="p">):</span>  <span class="c1"># won&#39;t be there if refine_all_candidates = False and no isoforms</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_xyzcal_mm_to_px</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="StillsIndexer.experiment_list_for_crystal"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexer.experiment_list_for_crystal">[docs]</a>    <span class="k">def</span> <span class="nf">experiment_list_for_crystal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">crystal</span><span class="p">):</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">imagesets</span><span class="p">():</span>
+            <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">Experiment</span><span class="p">(</span>
+                    <span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">,</span>
+                    <span class="n">beam</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(),</span>
+                    <span class="n">detector</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">(),</span>
+                    <span class="n">goniometer</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">(),</span>
+                    <span class="n">scan</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">(),</span>
+                    <span class="n">crystal</span><span class="o">=</span><span class="n">crystal</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">experiments</span></div>
+
+<div class="viewcode-block" id="StillsIndexer.choose_best_orientation_matrix"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexer.choose_best_orientation_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">choose_best_orientation_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">candidate_orientation_matrices</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Selecting the best orientation matrix&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+
+        <span class="k">class</span> <span class="nc">CandidateInfo</span><span class="p">(</span><span class="n">libtbx</span><span class="o">.</span><span class="n">group_args</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+        <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">icm</span><span class="p">,</span> <span class="n">cm</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">candidate_orientation_matrices</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">icm</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">basis_vector_combinations</span><span class="o">.</span><span class="n">max_refine</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="c1"># Index reflections in P1</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="n">refl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+            <span class="n">experiments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_list_for_crystal</span><span class="p">(</span><span class="n">cm</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_reflections</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">refl</span><span class="p">)</span>
+            <span class="n">indexed</span> <span class="o">=</span> <span class="n">refl</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">refl</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">indexed</span> <span class="o">=</span> <span class="n">indexed</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">indexed</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">indexed</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">indexed</span><span class="p">))</span>
+
+            <span class="c1"># If target symmetry supplied, try to apply it.  Then, apply the change of basis to the reflections</span>
+            <span class="c1"># indexed in P1 to the target setting</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">refine_candidates_with_known_symmetry</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">known_symmetry</span><span class="o">.</span><span class="n">space_group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">):</span>
+                <span class="n">new_crystal</span><span class="p">,</span> <span class="n">cb_op</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_symmetry_handler</span><span class="o">.</span><span class="n">apply_symmetry</span><span class="p">(</span><span class="n">cm</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">new_crystal</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Cannot convert to target symmetry, candidate </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">icm</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">cm</span> <span class="o">=</span> <span class="n">new_crystal</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
+                <span class="n">experiments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_list_for_crystal</span><span class="p">(</span><span class="n">cm</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">cb_op</span><span class="o">.</span><span class="n">is_identity_op</span><span class="p">():</span>
+                    <span class="n">indexed</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cb_op</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">indexed</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">refine_all_candidates</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;$$$ stills_indexer::choose_best_orientation_matrix, candidate </span><span class="si">%d</span><span class="s2"> initial outlier identification&quot;</span><span class="p">,</span>
+                        <span class="n">icm</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">acceptance_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identify_outliers</span><span class="p">(</span>
+                        <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">indexed</span>
+                    <span class="p">)</span>
+                    <span class="c1"># create a new &quot;indexed&quot; list with outliers thrown out:</span>
+                    <span class="n">indexed</span> <span class="o">=</span> <span class="n">indexed</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">acceptance_flags</span><span class="p">)</span>
+
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;$$$ stills_indexer::choose_best_orientation_matrix, candidate </span><span class="si">%d</span><span class="s2"> refinement before outlier rejection&quot;</span><span class="p">,</span>
+                        <span class="n">icm</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">R</span> <span class="o">=</span> <span class="n">e_refine</span><span class="p">(</span>
+                        <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+                        <span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
+                        <span class="n">reflections</span><span class="o">=</span><span class="n">indexed</span><span class="p">,</span>
+                        <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">ref_experiments</span> <span class="o">=</span> <span class="n">R</span><span class="o">.</span><span class="n">get_experiments</span><span class="p">()</span>
+
+                    <span class="c1"># try to improve the outcome with a second round of outlier rejection post-initial refinement:</span>
+                    <span class="n">acceptance_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identify_outliers</span><span class="p">(</span>
+                        <span class="n">params</span><span class="p">,</span> <span class="n">ref_experiments</span><span class="p">,</span> <span class="n">indexed</span>
+                    <span class="p">)</span>
+
+                    <span class="c1"># insert a round of Nave-outlier rejection on top of the r.m.s.d. rejection</span>
+                    <span class="n">nv0</span> <span class="o">=</span> <span class="n">NaveParameters</span><span class="p">(</span>
+                        <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+                        <span class="n">experiments</span><span class="o">=</span><span class="n">ref_experiments</span><span class="p">,</span>
+                        <span class="n">reflections</span><span class="o">=</span><span class="n">indexed</span><span class="p">,</span>
+                        <span class="n">refinery</span><span class="o">=</span><span class="n">R</span><span class="p">,</span>
+                        <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">nv0</span><span class="p">()</span>
+                    <span class="n">acceptance_flags_nv0</span> <span class="o">=</span> <span class="n">nv0</span><span class="o">.</span><span class="n">nv_acceptance_flags</span>
+                    <span class="n">indexed</span> <span class="o">=</span> <span class="n">indexed</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">acceptance_flags</span> <span class="o">&amp;</span> <span class="n">acceptance_flags_nv0</span><span class="p">)</span>
+
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;$$$ stills_indexer::choose_best_orientation_matrix, candidate </span><span class="si">%d</span><span class="s2"> after positional and delta-psi outlier rejection&quot;</span><span class="p">,</span>
+                        <span class="n">icm</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">R</span> <span class="o">=</span> <span class="n">e_refine</span><span class="p">(</span>
+                        <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+                        <span class="n">experiments</span><span class="o">=</span><span class="n">ref_experiments</span><span class="p">,</span>
+                        <span class="n">reflections</span><span class="o">=</span><span class="n">indexed</span><span class="p">,</span>
+                        <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">ref_experiments</span> <span class="o">=</span> <span class="n">R</span><span class="o">.</span><span class="n">get_experiments</span><span class="p">()</span>
+
+                    <span class="n">nv</span> <span class="o">=</span> <span class="n">NaveParameters</span><span class="p">(</span>
+                        <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span>
+                        <span class="n">experiments</span><span class="o">=</span><span class="n">ref_experiments</span><span class="p">,</span>
+                        <span class="n">reflections</span><span class="o">=</span><span class="n">indexed</span><span class="p">,</span>
+                        <span class="n">refinery</span><span class="o">=</span><span class="n">R</span><span class="p">,</span>
+                        <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">crystal_model</span> <span class="o">=</span> <span class="n">nv</span><span class="p">()</span>
+                    <span class="k">assert</span> <span class="p">(</span>
+                        <span class="nb">len</span><span class="p">(</span><span class="n">crystal_model</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+                    <span class="p">),</span> <span class="s2">&quot;$$$ stills_indexer::choose_best_orientation_matrix, Only one crystal at this stage&quot;</span>
+                    <span class="n">crystal_model</span> <span class="o">=</span> <span class="n">crystal_model</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+                    <span class="c1"># Drop candidates that after refinement can no longer be converted to the known target space group</span>
+                    <span class="k">if</span> <span class="p">(</span>
+                        <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">refine_candidates_with_known_symmetry</span>
+                        <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">known_symmetry</span><span class="o">.</span><span class="n">space_group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                    <span class="p">):</span>
+                        <span class="p">(</span>
+                            <span class="n">new_crystal</span><span class="p">,</span>
+                            <span class="n">cb_op_to_primitive</span><span class="p">,</span>
+                        <span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_symmetry_handler</span><span class="o">.</span><span class="n">apply_symmetry</span><span class="p">(</span><span class="n">crystal_model</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">new_crystal</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                                <span class="s2">&quot;P1 refinement yielded model diverged from target, candidate </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+                                <span class="n">icm</span><span class="p">,</span>
+                            <span class="p">)</span>
+                            <span class="k">continue</span>
+
+                    <span class="n">rmsd</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">calc_2D_rmsd_and_displacements</span><span class="p">(</span>
+                        <span class="n">R</span><span class="o">.</span><span class="n">predict_for_reflection_table</span><span class="p">(</span><span class="n">indexed</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Couldn&#39;t refine candidate </span><span class="si">%d</span><span class="s2">, </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="n">icm</span><span class="p">,</span>
+                        <span class="n">e</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;$$$ stills_indexer::choose_best_orientation_matrix, candidate </span><span class="si">%d</span><span class="s2"> done&quot;</span><span class="p">,</span>
+                        <span class="n">icm</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">CandidateInfo</span><span class="p">(</span>
+                            <span class="n">crystal</span><span class="o">=</span><span class="n">crystal_model</span><span class="p">,</span>
+                            <span class="n">green_curve_area</span><span class="o">=</span><span class="n">nv</span><span class="o">.</span><span class="n">green_curve_area</span><span class="p">,</span>
+                            <span class="n">ewald_proximal_volume</span><span class="o">=</span><span class="n">nv</span><span class="o">.</span><span class="n">ewald_proximal_volume</span><span class="p">(),</span>
+                            <span class="n">n_indexed</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">indexed</span><span class="p">),</span>
+                            <span class="n">rmsd</span><span class="o">=</span><span class="n">rmsd</span><span class="p">,</span>
+                            <span class="n">indexed</span><span class="o">=</span><span class="n">indexed</span><span class="p">,</span>
+                            <span class="n">experiments</span><span class="o">=</span><span class="n">ref_experiments</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.prediction.managed_predictors</span> <span class="kn">import</span> <span class="p">(</span>
+                    <span class="n">ExperimentsPredictorFactory</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="n">ref_predictor</span> <span class="o">=</span> <span class="n">ExperimentsPredictorFactory</span><span class="o">.</span><span class="n">from_experiments</span><span class="p">(</span>
+                    <span class="n">experiments</span><span class="p">,</span>
+                    <span class="n">force_stills</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">spherical_relp</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">spherical_relp_model</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">rmsd</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">calc_2D_rmsd_and_displacements</span><span class="p">(</span><span class="n">ref_predictor</span><span class="p">(</span><span class="n">indexed</span><span class="p">))</span>
+                <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">CandidateInfo</span><span class="p">(</span>
+                        <span class="n">crystal</span><span class="o">=</span><span class="n">cm</span><span class="p">,</span>
+                        <span class="n">n_indexed</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">indexed</span><span class="p">),</span>
+                        <span class="n">rmsd</span><span class="o">=</span><span class="n">rmsd</span><span class="p">,</span>
+                        <span class="n">indexed</span><span class="o">=</span><span class="n">indexed</span><span class="p">,</span>
+                        <span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DialsIndexError</span><span class="p">(</span><span class="s2">&quot;No suitable indexing solution found&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;**** ALL CANDIDATES:&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">XX</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">candidates</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">****Candidate </span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">XX</span><span class="p">)</span>
+            <span class="n">cc</span> <span class="o">=</span> <span class="n">XX</span><span class="o">.</span><span class="n">crystal</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cc</span><span class="p">,</span> <span class="s2">&quot;get_half_mosaicity_deg&quot;</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;  half mosaicity </span><span class="si">%5.2f</span><span class="s2"> deg.&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">cc</span><span class="o">.</span><span class="n">get_half_mosaicity_deg</span><span class="p">())</span>
+                <span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  domain size </span><span class="si">%.0f</span><span class="s2"> Ang.&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">cc</span><span class="o">.</span><span class="n">get_domain_size_ang</span><span class="p">()))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">**** BEST CANDIDATE:&quot;</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">c</span><span class="o">.</span><span class="n">rmsd</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">])</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[</span><span class="n">flex</span><span class="o">.</span><span class="n">min_index</span><span class="p">(</span><span class="n">results</span><span class="p">)]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">best</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">refine_all_candidates</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">best</span><span class="o">.</span><span class="n">rmsd</span> <span class="o">&gt;</span> <span class="n">params</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">rmsd_min_px</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">DialsIndexError</span><span class="p">(</span><span class="s2">&quot;RMSD too high, </span><span class="si">%f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">best</span><span class="o">.</span><span class="n">rmsd</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">flex</span><span class="o">.</span><span class="n">min_index</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">best</span><span class="o">.</span><span class="n">ewald_proximal_volume</span> <span class="o">&gt;</span> <span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">ewald_proximal_volume</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;Couldn&#39;t figure out which candidate is best; picked the one with the best RMSD.&quot;</span>
+                        <span class="p">)</span>
+
+        <span class="n">best</span><span class="o">.</span><span class="n">indexed</span><span class="p">[</span><span class="s2">&quot;entering&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">best</span><span class="o">.</span><span class="n">n_indexed</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">best</span><span class="o">.</span><span class="n">crystal</span><span class="p">,</span> <span class="n">best</span><span class="o">.</span><span class="n">n_indexed</span></div>
+
+<div class="viewcode-block" id="StillsIndexer.identify_outliers"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexer.identify_outliers">[docs]</a>    <span class="k">def</span> <span class="nf">identify_outliers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">indexed</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">params</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">candidate_outlier_rejection</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indexed</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;$$$ stills_indexer::identify_outliers&quot;</span><span class="p">)</span>
+        <span class="n">refiner</span> <span class="o">=</span> <span class="n">e_refine</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">indexed</span><span class="p">,</span> <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">RR</span> <span class="o">=</span> <span class="n">refiner</span><span class="o">.</span><span class="n">predict_for_reflection_table</span><span class="p">(</span><span class="n">indexed</span><span class="p">)</span>
+
+        <span class="n">px_sz</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span>
+
+        <span class="k">class</span> <span class="nc">Match</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+        <span class="n">matches</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">RR</span><span class="o">.</span><span class="n">rows</span><span class="p">():</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">Match</span><span class="p">()</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">x_obs</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">px_sz</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">y_obs</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzobs.px.value&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">px_sz</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">x_calc</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">px_sz</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">y_calc</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">px_sz</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">miller_index</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span>
+            <span class="n">matches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+
+        <span class="kn">from</span> <span class="nn">rstbx.phil.phil_preferences</span> <span class="kn">import</span> <span class="n">indexing_api_defs</span>
+        <span class="kn">import</span> <span class="nn">iotbx.phil</span>
+
+        <span class="n">hardcoded_phil</span> <span class="o">=</span> <span class="n">iotbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">input_string</span><span class="o">=</span><span class="n">indexing_api_defs</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span>
+
+        <span class="kn">from</span> <span class="nn">rstbx.indexing_api.outlier_procedure</span> <span class="kn">import</span> <span class="n">OutlierPlotPDF</span>
+
+        <span class="c1"># comment this in if PDF graph is desired:</span>
+        <span class="c1"># hardcoded_phil.indexing.outlier_detection.pdf = &quot;outlier.pdf&quot;</span>
+        <span class="c1"># new code for outlier rejection inline here</span>
+        <span class="k">if</span> <span class="n">hardcoded_phil</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">outlier_detection</span><span class="o">.</span><span class="n">pdf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hardcoded_phil</span><span class="o">.</span><span class="n">__inject__</span><span class="p">(</span>
+                <span class="s2">&quot;writer&quot;</span><span class="p">,</span> <span class="n">OutlierPlotPDF</span><span class="p">(</span><span class="n">hardcoded_phil</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">outlier_detection</span><span class="o">.</span><span class="n">pdf</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># execute Sauter and Poon (2010) algorithm</span>
+        <span class="kn">from</span> <span class="nn">rstbx.indexing_api</span> <span class="kn">import</span> <span class="n">outlier_detection</span>
+
+        <span class="n">od</span> <span class="o">=</span> <span class="n">outlier_detection</span><span class="o">.</span><span class="n">find_outliers_from_matches</span><span class="p">(</span>
+            <span class="n">matches</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">horizon_phil</span><span class="o">=</span><span class="n">hardcoded_phil</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">hardcoded_phil</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">outlier_detection</span><span class="o">.</span><span class="n">pdf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">od</span><span class="o">.</span><span class="n">make_graphs</span><span class="p">(</span><span class="n">canvas</span><span class="o">=</span><span class="n">hardcoded_phil</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="n">left_margin</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+            <span class="n">hardcoded_phil</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">showPage</span><span class="p">()</span>
+            <span class="n">hardcoded_phil</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">od</span><span class="o">.</span><span class="n">get_cache_status</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="StillsIndexer.refine"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexer.refine">[docs]</a>    <span class="k">def</span> <span class="nf">refine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+        <span class="n">acceptance_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identify_outliers</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span>
+        <span class="p">)</span>
+        <span class="c1"># create a new &quot;reflections&quot; list with outliers thrown out:</span>
+        <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">acceptance_flags</span><span class="p">)</span>
+
+        <span class="n">R</span> <span class="o">=</span> <span class="n">e_refine</span><span class="p">(</span>
+            <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">,</span>
+            <span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
+            <span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
+            <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ref_experiments</span> <span class="o">=</span> <span class="n">R</span><span class="o">.</span><span class="n">get_experiments</span><span class="p">()</span>
+
+        <span class="c1"># try to improve the outcome with a second round of outlier rejection post-initial refinement:</span>
+        <span class="n">acceptance_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identify_outliers</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">,</span> <span class="n">ref_experiments</span><span class="p">,</span> <span class="n">reflections</span>
+        <span class="p">)</span>
+
+        <span class="c1"># insert a round of Nave-outlier rejection on top of the r.m.s.d. rejection</span>
+        <span class="n">nv0</span> <span class="o">=</span> <span class="n">NaveParameters</span><span class="p">(</span>
+            <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">,</span>
+            <span class="n">experiments</span><span class="o">=</span><span class="n">ref_experiments</span><span class="p">,</span>
+            <span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
+            <span class="n">refinery</span><span class="o">=</span><span class="n">R</span><span class="p">,</span>
+            <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">nv0</span><span class="p">()</span>
+        <span class="n">acceptance_flags_nv0</span> <span class="o">=</span> <span class="n">nv0</span><span class="o">.</span><span class="n">nv_acceptance_flags</span>
+        <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">acceptance_flags</span> <span class="o">&amp;</span> <span class="n">acceptance_flags_nv0</span><span class="p">)</span>
+
+        <span class="n">R</span> <span class="o">=</span> <span class="n">e_refine</span><span class="p">(</span>
+            <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">,</span>
+            <span class="n">experiments</span><span class="o">=</span><span class="n">ref_experiments</span><span class="p">,</span>
+            <span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
+            <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ref_experiments</span> <span class="o">=</span> <span class="n">R</span><span class="o">.</span><span class="n">get_experiments</span><span class="p">()</span>
+
+        <span class="n">nv</span> <span class="o">=</span> <span class="n">NaveParameters</span><span class="p">(</span>
+            <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="p">,</span>
+            <span class="n">experiments</span><span class="o">=</span><span class="n">ref_experiments</span><span class="p">,</span>
+            <span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
+            <span class="n">refinery</span><span class="o">=</span><span class="n">R</span><span class="p">,</span>
+            <span class="n">graph_verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">nv</span><span class="p">()</span>
+        <span class="n">rmsd</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">calc_2D_rmsd_and_displacements</span><span class="p">(</span>
+            <span class="n">R</span><span class="o">.</span><span class="n">predict_for_reflection_table</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">matches</span> <span class="o">=</span> <span class="n">R</span><span class="o">.</span><span class="n">get_matches</span><span class="p">()</span>
+        <span class="n">xyzcal_mm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
+        <span class="n">xyzcal_mm</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s2">&quot;iobs&quot;</span><span class="p">],</span> <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;xyzcal.mm&quot;</span><span class="p">])</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzcal.mm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">xyzcal_mm</span>
+        <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s2">&quot;iobs&quot;</span><span class="p">],</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">used_in_refinement</span><span class="p">)</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;entering&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">set_domain_size_ang_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">ref_experiments</span><span class="p">:</span>
+                <span class="n">exp</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">set_domain_size_ang</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">set_domain_size_ang_value</span>
+                <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">set_mosaic_half_deg_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">ref_experiments</span><span class="p">:</span>
+                <span class="n">exp</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">set_half_mosaicity_deg</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">all_params</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">stills</span><span class="o">.</span><span class="n">set_mosaic_half_deg_value</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ref_experiments</span><span class="p">,</span> <span class="n">reflections</span></div></div>
+
+
+<span class="sd">&quot;&quot;&quot;Mixin class definitions that override the dials indexing class methods specific to stills&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="StillsIndexerKnownOrientation"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexerKnownOrientation">[docs]</a><span class="k">class</span> <span class="nc">StillsIndexerKnownOrientation</span><span class="p">(</span><span class="n">IndexerKnownOrientation</span><span class="p">,</span> <span class="n">StillsIndexer</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="StillsIndexerBasisVectorSearch"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexerBasisVectorSearch">[docs]</a><span class="k">class</span> <span class="nc">StillsIndexerBasisVectorSearch</span><span class="p">(</span><span class="n">StillsIndexer</span><span class="p">,</span> <span class="n">BasisVectorSearch</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="StillsIndexerLatticeSearch"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexerLatticeSearch">[docs]</a><span class="k">class</span> <span class="nc">StillsIndexerLatticeSearch</span><span class="p">(</span><span class="n">StillsIndexer</span><span class="p">,</span> <span class="n">LatticeSearch</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

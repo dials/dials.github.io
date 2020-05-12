@@ -1,0 +1,288 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>DPF3 Part 2: A question of centring &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Multi-lattice Tutorial" href="multi_lattice_tutorial.html" />
+    <link rel="prev" title="DPF3 Part 1: Correcting poor initial geometry" href="correcting_poor_initial_geometry_tutorial.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../index.html/../../documentation/tutorials/centring_vs_pseudocentring.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <a href="https://dials.github.io/dials-1.14/documentation/tutorials/centring_vs_pseudocentring.html" class="new-documentation">
+This tutorial requires a DIALS 2.0 installation.<br/>
+Please click here to go to the tutorial for DIALS 1.14.
+</a><div class="section" id="dpf3-part-2-a-question-of-centring">
+<h1>DPF3 Part 2: A question of centring<a class="headerlink" href="#dpf3-part-2-a-question-of-centring" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The second part of this tutorial continues from the results obtained in the
+<a class="reference internal" href="correcting_poor_initial_geometry_tutorial.html"><span class="doc">DPF3 Part 1: Correcting poor initial geometry</span></a> tutorial. You should work
+through that first to fix the incorrect beam centre recorded in the image
+headers and produce a correct indexing solution. Following those steps to the
+end will produce two files that we will take as the starting point here:</p>
+<ul class="simple">
+<li><code class="file docutils literal notranslate"><span class="pre">bravais_setting_5.expt</span></code> - the experimental geometry including a crystal
+model with a primitive orthorhombic lattice</li>
+<li><code class="file docutils literal notranslate"><span class="pre">indexed.refl</span></code> - the spot list from indexing</li>
+</ul>
+<p>Viewing these files using the <strong class="program">dials.image_viewer</strong> and the reciprocal
+lattice points in the <strong class="program">dials.reciprocal_lattice_viewer</strong> reveals the
+presence of split spots and minor lattices. Nevertheless, these do not cause
+great difficulties in processing. More thought is required when considering
+the issue of possible pseudocentring. The structure can be solved in more
+than one space group. In cases such as this, the true symmetry may not be
+known until late stages of refinement. Even then, it might not be completely
+clear. Here we will investigate some features of the images that warn us of
+the challenges that lie ahead.</p>
+<p>If we were to integrate this dataset using the oP solution from the first part
+and continue on to the <strong class="program">CCP4</strong> data reduction pipeline, we would see
+that <strong class="program">Pointless</strong> chooses the space group <span class="math notranslate nohighlight">\(P\,2_1\,2_1\,2_1\)</span> but
+warns that the <code class="docutils literal notranslate"><span class="pre">data</span> <span class="pre">were</span> <span class="pre">integrated</span> <span class="pre">on</span> <span class="pre">a</span> <span class="pre">primitive</span> <span class="pre">lattice,</span> <span class="pre">but</span> <span class="pre">may</span> <span class="pre">belong</span> <span class="pre">to</span>
+<span class="pre">a</span> <span class="pre">centered</span> <span class="pre">lattice</span></code>. Accordingly, <strong class="program">cTruncate</strong> finds strong evidence
+for translational NCS, for this basis along a vector of <span class="math notranslate nohighlight">\((0.0, 0.5,
+0.5)\)</span>. The fact that this vector corresponds to a half integral step along a
+face diagonal should lead us to question the space group assignment.</p>
+</div>
+<div class="section" id="questioning-the-lattice-symmetry">
+<h2>Questioning the lattice symmetry<a class="headerlink" href="#questioning-the-lattice-symmetry" title="Permalink to this headline">¶</a></h2>
+<p>It is always good advice to spend some time looking at the images and the
+reciprocal lattice before integrating a dataset. If we did so, we may notice the
+subtle features in the diffraction pattern that are the cause of the warnings
+from <strong class="program">Pointless</strong> and <strong class="program">cTruncate</strong>.</p>
+<p>First the reciprocal lattice:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.reciprocal_lattice_viewer bravais_setting_5.expt indexed.refl
+</pre></div>
+</div>
+<img alt="https://dials.github.io/images/centring_vs_pseudocentring/dpf3_oP_lo_res.png" src="https://dials.github.io/images/centring_vs_pseudocentring/dpf3_oP_lo_res.png" />
+<p>Here the view has been aligned almost down the long axis of the reciprocal
+cell, which is <span class="math notranslate nohighlight">\(a^\star\)</span> for this choice of basis vectors. We see the
+columns of reciprocal lattice points with Miller indices differing by
+<span class="math notranslate nohighlight">\(h\)</span> as lines of closely-spaced points. However, we can also see that
+the lengths of the lines alternate between long and short as we move, for
+example, in the <span class="math notranslate nohighlight">\(c^\star\)</span> direction. At this point should suspect a
+pseudocentred lattice.</p>
+<p>Now the image viewer:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.image_viewer bravais_setting_5.expt indexed.refl
+</pre></div>
+</div>
+<img alt="https://dials.github.io/images/centring_vs_pseudocentring/dpf3_oP_im5.png" src="https://dials.github.io/images/centring_vs_pseudocentring/dpf3_oP_im5.png" />
+<p>Here we have zoomed in on a region of the central module on the 5th image. The
+line of indexed spots have Miller indices in <span class="math notranslate nohighlight">\((3,-13,l)\)</span>. Looking closely
+we see that spots with even <span class="math notranslate nohighlight">\(l\)</span> are systematically weaker than spots with
+odd <span class="math notranslate nohighlight">\(l\)</span>. This fits the theory of a pseudocentred lattice, however we
+also see that the spot profile differs between the two sets.</p>
+<p>To investigate further we can enforce the centred lattice and see where that
+takes us…</p>
+</div>
+<div class="section" id="converting-to-a-centred-lattice">
+<span id="section-label-converting-to-centred"></span><h2>Converting to a centred lattice<a class="headerlink" href="#converting-to-a-centred-lattice" title="Permalink to this headline">¶</a></h2>
+<p>Although <strong class="program">dials.refine_bravais_settings</strong> did not give us a centred
+lattice as an option, it is easy to convert the current primitive solution.
+First, note that for the currently chosen basis, the centring operation should
+be on the A face, not the conventional C face:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.reindex bravais_setting_5.expt space_group=A222
+</pre></div>
+</div>
+<p>Here is part of the output:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>New crystal:
+Crystal:
+    Unit cell: (56.277, 99.550, 121.252, 90.000, 90.000, 90.000)
+    Space group: A 2 2 2
+</pre></div>
+</div>
+<p>We now have a face centred space group, which we can use to index the strong
+reflections as follows:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.index reindexed.expt strong.refl
+</pre></div>
+</div>
+<p>This produces a properly indexed spot list, but the space group is in an
+unconventional setting. We can fix this as follows:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.refine_bravais_settings indexed.expt indexed.refl
+</pre></div>
+</div>
+<p>Solution 5 is what we want:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>----------------------------------------------------------------------------------------------------------------
+Solution Metric fit  rmsd  min/max cc #spots lattice                                 unit_cell volume      cb_op
+----------------------------------------------------------------------------------------------------------------
+*      5     0.0000 0.071 0.736/0.839  20000      oC  99.51 121.24  56.27  90.00  90.00  90.00 678839  b-c,b+c,a
+*      4     0.0000 0.072 0.739/0.739  20000      mC  99.51 121.25  56.27  90.00  90.00  90.00 678994  b-c,b+c,a
+*      3     0.0000 0.071 0.736/0.736  20000      mC 121.23  99.49  56.26  90.00  90.02  90.00 678556 b+c,-b+c,a
+*      2     0.0000 0.069 0.839/0.839  20000      mP  78.35  56.24  78.39  90.00 101.24  90.00 338768    -c,-a,b
+*      1     0.0000 0.070         -/-  20000      aP  56.22  78.38  78.34  78.75  90.00  90.01 338557      a,b,c
+----------------------------------------------------------------------------------------------------------------
+</pre></div>
+</div>
+<p>The table tells us that the indexed spots need a change of basis to be
+consistent with the conventional oC lattice:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>dials.reindex indexed.refl change_of_basis_op=b-c,b+c,a
+</pre></div>
+</div>
+<p>This gives us <code class="file docutils literal notranslate"><span class="pre">reindexed.refl</span></code>. We can now pass this along with
+<code class="file docutils literal notranslate"><span class="pre">bravais_setting_5.expt</span></code> to refinement and then to integration.</p>
+</div>
+<div class="section" id="centred-or-pseudocentred">
+<h2>Centred or pseudocentred?<a class="headerlink" href="#centred-or-pseudocentred" title="Permalink to this headline">¶</a></h2>
+<p>We have two ways we can model this crystal:</p>
+<ul class="simple">
+<li>Primitive orthorhombic (<span class="math notranslate nohighlight">\(P 2_1 2_1 2_1\)</span>) with translational NCS
+mimicking centring on the C face</li>
+<li>C-centred orthorhombic (<span class="math notranslate nohighlight">\(C 2 2 2_1\)</span>), ignoring the systematically weak
+intensities</li>
+</ul>
+<p>The purpose of this exercise was mainly to demonstrate the use of DIALS
+viewers as diagnostic tools and some of the less commonly used options that
+allowed us to isolate the sub-lattice of strong reflections before integration.</p>
+<p>If we continued with integration of the <span class="math notranslate nohighlight">\(C 2 2 2_1\)</span> data and proceeded
+onwards to structure solution, model rebuilding and refinement, then we
+would have reproduced the structure presented by <a class="reference external" href="http://www.rcsb.org/pdb/explore/explore.do?structureId=5I3L">PDB entry 5I3L</a>. Refinement
+of this structure with isotropic B-factors against the <span class="math notranslate nohighlight">\(C 2 2 2_1\)</span> data
+integrated with DIALS results in an R-cryst of 0.18 and an R-free of 0.21.</p>
+<p>On the contrary, if we had chosen the primitive lattice and included the
+systematically weak reflections in integration, the structure solution
+process would not have been straightforward and the results would be
+ambiguous, even if we would have used e.g. chain A of the PDB entry 5I3L as
+the search model for molecular replacement. Firstly, there would have been
+several different molecular replacement solutions with almost equal scores
+and subsequent refinement would favour <span class="math notranslate nohighlight">\(P 2_1 2_1 2_1\)</span> with a small
+margin of only a few percent in R factors compared to other solutions in
+space groups  <span class="math notranslate nohighlight">\(P 2 2 2_1\)</span> and  <span class="math notranslate nohighlight">\(P 2_1 2_1 2\)</span>. In all these
+solutions the pseudo-translation vector relating two dimers would deviate by
+no more than 0.2 Angstroms from <span class="math notranslate nohighlight">\((b+c)/2\)</span> (this corresponds to the
+crystallographic translation <span class="math notranslate nohighlight">\((a+b)/2\)</span> in <span class="math notranslate nohighlight">\(C 2 2 2_1\)</span>). We did
+not try to rebuild the <span class="math notranslate nohighlight">\(P 2_1 2_1 2_1\)</span> solution but instead superposed
+two copies of the entire PDB entry 5I3L onto the two dimers forming its
+asymmetric unit. We ended up with R-cryst of 0.27 and R-free of 0.29, which
+are considerably worse than the values for the <span class="math notranslate nohighlight">\(C 2 2 2_1\)</span> structure.</p>
+<p>There could be several reasons for poor refinement statistics in <span class="math notranslate nohighlight">\(P
+2_1 2_1 2_1\)</span>: the space group assignment was incorrect, the refinement
+program had problems with the weak structure amplitudes, or the crystal was
+partially disordered or has undergone a phase transition during data
+collection and it was not possible in the first place to describe the weak
+reflections with a single crystal structure. In any case, the ‘thorough’
+<span class="math notranslate nohighlight">\(P 2_1 2_1 2_1\)</span> model gives no improvement in density or refinement
+statistics and provides no new structural information and we conclude that
+it should not be used for structural analysis. Ultimately it is true that
+for a real crystal any space group assignment is only an approximation.</p>
+</div>
+<div class="section" id="conclusions">
+<h2>Conclusions<a class="headerlink" href="#conclusions" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Diffraction data may display a sub-lattice of weak spots (pseudocentring)
+indicating pseudo-translation in the crystal structure and, possibly, some
+degree of crystal disorder.</li>
+<li>In many cases the weak reflections are not as weak as in this example and
+their intensities grow or oscillate with resolution. In those cases, good
+maps and refinement statistics can only be obtained by refinement against
+all the available data. It is important then to make sure that indexing
+picks up all the spots, strong and weak.</li>
+<li>In many other cases, similar to the current example, the weak spots have no
+practical meaning and should be excluded. Ideally this should be done
+before the integration, which we did here in the section
+<a class="reference internal" href="#section-label-converting-to-centred"><span class="std std-ref">Converting to a centred lattice</span></a>.</li>
+<li>Use the DIALS viewers to make sure you know what to expect from your data!</li>
+</ul>
+<div class="section" id="acknowledgements">
+<h3>Acknowledgements<a class="headerlink" href="#acknowledgements" title="Permalink to this headline">¶</a></h3>
+<p>Thanks to Wolfram Tempel for making this dataset available and inspiring
+the writing of this tutorial. Thanks also to Andrey Lebedev for detailed
+analysis of the primitive versus the centred lattice structures.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

@@ -1,0 +1,494 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.symmetry &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../../index.html/../../_modules/dials/algorithms/symmetry.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dials.algorithms.symmetry</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="sd">&quot;&quot;&quot;Methods for symmetry determination.</span>
+
+<span class="sd">This module provides a base class for symmetry determination algorithms.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="n">cStringIO</span> <span class="k">as</span> <span class="n">StringIO</span>
+
+<span class="kn">import</span> <span class="nn">libtbx</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">adptbx</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">sgtbx</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">uctbx</span>
+<span class="kn">from</span> <span class="nn">cctbx.sgtbx.lattice_symmetry</span> <span class="kn">import</span> <span class="n">metric_subgroups</span>
+<span class="kn">from</span> <span class="nn">mmtbx</span> <span class="kn">import</span> <span class="n">scaling</span>
+<span class="kn">from</span> <span class="nn">mmtbx.scaling</span> <span class="kn">import</span> <span class="n">absolute_scaling</span>
+<span class="kn">from</span> <span class="nn">mmtbx.scaling</span> <span class="kn">import</span> <span class="n">matthews</span>
+
+<span class="kn">from</span> <span class="nn">dials.util.resolutionizer</span> <span class="kn">import</span> <span class="n">Resolutionizer</span><span class="p">,</span> <span class="n">phil_defaults</span>
+
+
+<div class="viewcode-block" id="symmetry_base"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base">[docs]</a><span class="k">class</span> <span class="nc">symmetry_base</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class for symmetry analysis.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">intensities</span><span class="p">,</span>
+        <span class="n">normalisation</span><span class="o">=</span><span class="s2">&quot;ml_aniso&quot;</span><span class="p">,</span>
+        <span class="n">lattice_symmetry_max_delta</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+        <span class="n">d_min</span><span class="o">=</span><span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">,</span>
+        <span class="n">min_i_mean_over_sigma_mean</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+        <span class="n">min_cc_half</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
+        <span class="n">relative_length_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">absolute_angle_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">best_monoclinic_beta</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sa">u</span><span class="sd">&quot;&quot;&quot;Initialise a symmetry_base object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">          intensities (cctbx.miller.array): The intensities on which to perform</span>
+<span class="sd">            symmetry anaylsis.</span>
+<span class="sd">          normalisation (str): The normalisation method to use. Possible choices are</span>
+<span class="sd">            &#39;kernel&#39;, &#39;quasi&#39;, &#39;ml_iso&#39; and &#39;ml_aniso&#39;. Set to None to switch off</span>
+<span class="sd">            normalisation altogether.</span>
+<span class="sd">          lattice_symmetry_max_delta (float): The maximum value of delta for</span>
+<span class="sd">            determining the lattice symmetry using the algorithm of Le Page (1982).</span>
+<span class="sd">          d_min (float): Optional resolution cutoff to be applied to the input</span>
+<span class="sd">            intensities. If set to :data:`libtbx.Auto` then d_min will be</span>
+<span class="sd">            automatically determined according to the parameters</span>
+<span class="sd">            ``min_i_mean_over_sigma_mean`` and ``min_cc_half``.</span>
+<span class="sd">          min_i_mean_over_sigma_mean (float): minimum value of |I|/|sigma(I)| for</span>
+<span class="sd">            automatic determination of resolution cutoff.</span>
+<span class="sd">          min_cc_half (float): minimum value of CC½ for automatic determination of</span>
+<span class="sd">            resolution cutoff.</span>
+<span class="sd">          relative_length_tolerance (float): Relative length tolerance in checking</span>
+<span class="sd">            consistency of input unit cells against the median unit cell.</span>
+<span class="sd">          absolute_angle_tolerance (float): Absolute angle tolerance in checking</span>
+<span class="sd">            consistency of input unit cells against the median unit cell.</span>
+<span class="sd">          best_monoclinic_beta (bool): If True, then for monoclinic centered cells, I2</span>
+<span class="sd">            will be preferred over C2 if it gives a more oblique cell (i.e. smaller</span>
+<span class="sd">            beta angle).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_intensities</span> <span class="o">=</span> <span class="n">intensities</span>
+
+        <span class="n">uc_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">)]</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_intensities</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">parameters</span><span class="p">()):</span>
+                <span class="n">uc_params</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">median_unit_cell</span> <span class="o">=</span> <span class="n">uctbx</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">[</span><span class="n">flex</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">uc_params</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_unit_cell_consistency</span><span class="p">(</span>
+            <span class="n">relative_length_tolerance</span><span class="p">,</span> <span class="n">absolute_angle_tolerance</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_intensities</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_intensities</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+                <span class="n">d</span><span class="p">,</span> <span class="n">assert_is_similar_symmetry</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span>
+            <span class="n">unit_cell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">median_unit_cell</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">set_observation_type_xray_intensity</span><span class="p">()</span>
+        <span class="n">sys_absent_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">sys_absent_flags</span><span class="p">(</span><span class="n">integral_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">~</span><span class="n">sys_absent_flags</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">~</span><span class="n">sys_absent_flags</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_symmetry_max_delta</span> <span class="o">=</span> <span class="n">lattice_symmetry_max_delta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subgroups</span> <span class="o">=</span> <span class="n">metric_subgroups</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">(),</span>
+            <span class="n">max_delta</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lattice_symmetry_max_delta</span><span class="p">,</span>
+            <span class="n">bravais_types_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">best_monoclinic_beta</span><span class="o">=</span><span class="n">best_monoclinic_beta</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subgroups</span><span class="o">.</span><span class="n">cb_op_inp_minimum</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_min</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span><span class="n">space_group_info</span><span class="o">=</span><span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">(</span><span class="s2">&quot;P1&quot;</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">map_to_asu</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">set_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">info</span><span class="p">())</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_group</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subgroups</span><span class="o">.</span><span class="n">result_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;subsym&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span><span class="o">.</span><span class="n">make_tidy</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patterson_group</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lattice_group</span><span class="o">.</span><span class="n">build_derived_patterson_group</span><span class="p">()</span><span class="o">.</span><span class="n">make_tidy</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Patterson group: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">patterson_group</span><span class="o">.</span><span class="n">info</span><span class="p">())</span>
+
+        <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patterson_group</span><span class="o">.</span><span class="n">epsilon</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">indices</span><span class="p">())</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+        <span class="c1"># Correct SDs by &quot;typical&quot; SD factors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_correct_sigmas</span><span class="p">(</span><span class="n">sd_fac</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">sd_b</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">sd_add</span><span class="o">=</span><span class="mf">0.03</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_normalise</span><span class="p">(</span><span class="n">normalisation</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resolution_filter</span><span class="p">(</span><span class="n">d_min</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_check_unit_cell_consistency</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">relative_length_tolerance</span><span class="p">,</span> <span class="n">absolute_angle_tolerance</span>
+    <span class="p">):</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_intensities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">relative_length_tolerance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="n">absolute_angle_tolerance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">d</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">is_similar_to</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">median_unit_cell</span><span class="p">,</span>
+                    <span class="n">relative_length_tolerance</span><span class="p">,</span>
+                    <span class="n">absolute_angle_tolerance</span><span class="p">,</span>
+                <span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Incompatible unit cell: </span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">d</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span>
+                        <span class="o">+</span> <span class="s2">&quot;      median unit cell: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">median_unit_cell</span>
+                    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_normalise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;kernel&quot;</span><span class="p">:</span>
+            <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_normalisation</span>
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;quasi&quot;</span><span class="p">:</span>
+            <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quasi_normalisation</span>
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;ml_iso&quot;</span><span class="p">:</span>
+            <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml_iso_normalisation</span>
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;ml_aniso&quot;</span><span class="p">:</span>
+            <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml_aniso_normalisation</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Normalising intensities for dataset </span><span class="si">%i</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">normalise</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">normalised_intensities</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+                    <span class="n">normalise</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
+                <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="n">normalised_intensities</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">info</span><span class="p">()</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">set_observation_type_xray_intensity</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_correct_sigmas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sd_fac</span><span class="p">,</span> <span class="n">sd_b</span><span class="p">,</span> <span class="n">sd_add</span><span class="p">):</span>
+        <span class="c1"># sd&#39; = SDfac * Sqrt(sd^2 + SdB * I + (SDadd * I)^2)</span>
+        <span class="n">variance</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">sigmas</span><span class="p">())</span>
+        <span class="n">si2</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">sd_add</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">())</span>
+        <span class="n">ssc</span> <span class="o">=</span> <span class="n">variance</span> <span class="o">+</span> <span class="n">sd_b</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">+</span> <span class="n">si2</span>
+        <span class="n">MINVARINFRAC</span> <span class="o">=</span> <span class="mf">0.1</span>
+        <span class="n">ssc</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">ssc</span> <span class="o">&lt;</span> <span class="n">MINVARINFRAC</span> <span class="o">*</span> <span class="n">variance</span><span class="p">,</span> <span class="n">MINVARINFRAC</span> <span class="o">*</span> <span class="n">variance</span><span class="p">)</span>
+        <span class="n">sd</span> <span class="o">=</span> <span class="n">sd_fac</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">ssc</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span><span class="n">sigmas</span><span class="o">=</span><span class="n">sd</span><span class="p">)</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">info</span><span class="p">()</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="symmetry_base.kernel_normalisation"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base.kernel_normalisation">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">kernel_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Kernel normalisation of the input intensities.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">          intensities (cctbx.miller.array): The intensities to be normalised.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">          cctbx.miller.array: The normalised intensities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">normalisation</span> <span class="o">=</span> <span class="n">absolute_scaling</span><span class="o">.</span><span class="n">kernel_normalisation</span><span class="p">(</span>
+            <span class="n">intensities</span><span class="p">,</span> <span class="n">auto_kernel</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">normalised_miller</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">info</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="symmetry_base.quasi_normalisation"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base.quasi_normalisation">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">quasi_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Quasi-normalisation of the input intensities.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">          intensities (cctbx.miller.array): The intensities to be normalised.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">          cctbx.miller.array: The normalised intensities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># handle negative reflections to minimise effect on mean I values.</span>
+        <span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="c1"># set up binning objects</span>
+        <span class="k">if</span> <span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">20000</span><span class="p">:</span>
+            <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">20</span>
+        <span class="k">elif</span> <span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">15000</span><span class="p">:</span>
+            <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">15</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="n">d_star_sq</span> <span class="o">=</span> <span class="n">intensities</span><span class="o">.</span><span class="n">d_star_sq</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">)</span> <span class="o">-</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_refl_shells</span>
+        <span class="n">intensities</span><span class="o">.</span><span class="n">setup_binner_d_star_sq_step</span><span class="p">(</span><span class="n">d_star_sq_step</span><span class="o">=</span><span class="n">step</span><span class="p">)</span>
+
+        <span class="n">normalisations</span> <span class="o">=</span> <span class="n">intensities</span><span class="o">.</span><span class="n">intensity_quasi_normalisations</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">intensities</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">/</span> <span class="n">normalisations</span><span class="o">.</span><span class="n">data</span><span class="p">()),</span>
+            <span class="n">sigmas</span><span class="o">=</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">sigmas</span><span class="p">()</span> <span class="o">/</span> <span class="n">normalisations</span><span class="o">.</span><span class="n">data</span><span class="p">()),</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="symmetry_base.ml_aniso_normalisation"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base.ml_aniso_normalisation">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">ml_aniso_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Anisotropic maximum-likelihood normalisation of the input intensities.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">          intensities (cctbx.miller.array): The intensities to be normalised.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">          cctbx.miller.array: The normalised intensities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">symmetry_base</span><span class="o">.</span><span class="n">_ml_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">,</span> <span class="n">aniso</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="symmetry_base.ml_iso_normalisation"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base.ml_iso_normalisation">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">ml_iso_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Isotropic maximum-likelihood normalisation of the input intensities.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">          intensities (cctbx.miller.array): The intensities to be normalised.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">          cctbx.miller.array: The normalised intensities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">symmetry_base</span><span class="o">.</span><span class="n">_ml_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">,</span> <span class="n">aniso</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_ml_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">,</span> <span class="n">aniso</span><span class="p">):</span>
+        <span class="c1"># estimate number of residues per unit cell</span>
+        <span class="n">mr</span> <span class="o">=</span> <span class="n">matthews</span><span class="o">.</span><span class="n">matthews_rupp</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">())</span>
+        <span class="n">n_residues</span> <span class="o">=</span> <span class="n">mr</span><span class="o">.</span><span class="n">n_residues</span>
+
+        <span class="c1"># estimate B-factor and scale factors for normalisation</span>
+        <span class="k">if</span> <span class="n">aniso</span><span class="p">:</span>
+            <span class="n">normalisation</span> <span class="o">=</span> <span class="n">absolute_scaling</span><span class="o">.</span><span class="n">ml_aniso_absolute_scaling</span><span class="p">(</span>
+                <span class="n">intensities</span><span class="p">,</span> <span class="n">n_residues</span><span class="o">=</span><span class="n">n_residues</span>
+            <span class="p">)</span>
+            <span class="n">u_star</span> <span class="o">=</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">u_star</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">normalisation</span> <span class="o">=</span> <span class="n">absolute_scaling</span><span class="o">.</span><span class="n">ml_iso_absolute_scaling</span><span class="p">(</span>
+                <span class="n">intensities</span><span class="p">,</span> <span class="n">n_residues</span><span class="o">=</span><span class="n">n_residues</span>
+            <span class="p">)</span>
+            <span class="n">u_star</span> <span class="o">=</span> <span class="n">adptbx</span><span class="o">.</span><span class="n">b_as_u</span><span class="p">(</span>
+                <span class="n">adptbx</span><span class="o">.</span><span class="n">u_iso_as_u_star</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">b_wilson</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># record output in log file</span>
+        <span class="k">if</span> <span class="n">aniso</span><span class="p">:</span>
+            <span class="n">b_cart</span> <span class="o">=</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">b_cart</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ML estimate of overall B_cart value:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sd">&quot;&quot;&quot;\</span>
+<span class="sd">  %5.2f, %5.2f, %5.2f</span>
+<span class="sd">  %12.2f, %5.2f</span>
+<span class="sd">  %19.2f&quot;&quot;&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">b_cart</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">b_cart</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">b_cart</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">b_cart</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">b_cart</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">b_cart</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ML estimate of overall B value:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;   </span><span class="si">%5.2f</span><span class="s2"> A**2&quot;</span> <span class="o">%</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">b_wilson</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ML estimate of  -log of scale factor:&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  </span><span class="si">%5.2f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">normalisation</span><span class="o">.</span><span class="n">p_scale</span><span class="p">))</span>
+
+        <span class="n">s</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">mr</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">out</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">normalisation</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">out</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+
+        <span class="c1"># apply scales</span>
+        <span class="k">return</span> <span class="n">intensities</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">scaling</span><span class="o">.</span><span class="n">ml_normalise_aniso</span><span class="p">(</span>
+                <span class="n">intensities</span><span class="o">.</span><span class="n">indices</span><span class="p">(),</span>
+                <span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span>
+                <span class="n">normalisation</span><span class="o">.</span><span class="n">p_scale</span><span class="p">,</span>
+                <span class="n">intensities</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span>
+                <span class="n">u_star</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">sigmas</span><span class="o">=</span><span class="n">scaling</span><span class="o">.</span><span class="n">ml_normalise_aniso</span><span class="p">(</span>
+                <span class="n">intensities</span><span class="o">.</span><span class="n">indices</span><span class="p">(),</span>
+                <span class="n">intensities</span><span class="o">.</span><span class="n">sigmas</span><span class="p">(),</span>
+                <span class="n">normalisation</span><span class="o">.</span><span class="n">p_scale</span><span class="p">,</span>
+                <span class="n">intensities</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span>
+                <span class="n">u_star</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_resolution_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d_min</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Estimation of resolution for Laue group analysis</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">d_min</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="n">min_i_mean_over_sigma_mean</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">min_cc_half</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="n">d_min</span> <span class="o">=</span> <span class="n">resolution_filter_from_array</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;High resolution limit set to: </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">d_min</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">d_min</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">resolution_filter_selection</span><span class="p">(</span><span class="n">d_min</span><span class="o">=</span><span class="n">d_min</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">info</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Selecting </span><span class="si">%i</span><span class="s2"> reflections with d &gt; </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">d_min</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="resolution_filter_from_array"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.resolution_filter_from_array">[docs]</a><span class="k">def</span> <span class="nf">resolution_filter_from_array</span><span class="p">(</span><span class="n">intensities</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run the resolution filter using miller array data format.&quot;&quot;&quot;</span>
+    <span class="n">rparams</span> <span class="o">=</span> <span class="n">phil_defaults</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span><span class="o">.</span><span class="n">resolutionizer</span>
+    <span class="n">rparams</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">rparams</span><span class="o">.</span><span class="n">plot</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">resolutionizer</span> <span class="o">=</span> <span class="n">Resolutionizer</span><span class="p">(</span><span class="n">intensities</span><span class="p">,</span> <span class="n">rparams</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_resolution_filter</span><span class="p">(</span><span class="n">resolutionizer</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="resolution_filter_from_reflections_experiments"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.resolution_filter_from_reflections_experiments">[docs]</a><span class="k">def</span> <span class="nf">resolution_filter_from_reflections_experiments</span><span class="p">(</span>
+    <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run the resolution filter using native dials data formats.&quot;&quot;&quot;</span>
+    <span class="n">rparams</span> <span class="o">=</span> <span class="n">phil_defaults</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span><span class="o">.</span><span class="n">resolutionizer</span>
+    <span class="n">rparams</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">rparams</span><span class="o">.</span><span class="n">plot</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">resolutionizer</span> <span class="o">=</span> <span class="n">Resolutionizer</span><span class="o">.</span><span class="n">from_reflections_and_experiments</span><span class="p">(</span>
+        <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">rparams</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">_resolution_filter</span><span class="p">(</span><span class="n">resolutionizer</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_resolution_filter</span><span class="p">(</span><span class="n">resolutionizer</span><span class="p">,</span> <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Use a resolutionizer to perform filtering for symmetry analysis.&quot;&quot;&quot;</span>
+    <span class="n">d_min_isigi</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">d_min_cc_half</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">min_i_mean_over_sigma_mean</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">d_min_isigi</span> <span class="o">=</span> <span class="n">resolutionizer</span><span class="o">.</span><span class="n">resolution_i_mean_over_sigma_mean</span><span class="p">(</span>
+                <span class="n">min_i_mean_over_sigma_mean</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;I/σ(I) resolution filter failed with the following error:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s2">&quot;Resolution estimate from &lt;I&gt;/&lt;σ(I)&gt; &gt; </span><span class="si">%.1f</span><span class="s2"> : </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">min_i_mean_over_sigma_mean</span><span class="p">,</span>
+                <span class="n">d_min_isigi</span><span class="p">,</span>
+            <span class="p">)</span>
+    <span class="k">if</span> <span class="n">min_cc_half</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">d_min_cc_half</span> <span class="o">=</span> <span class="n">resolutionizer</span><span class="o">.</span><span class="n">resolution_cc_half</span><span class="p">(</span><span class="n">min_cc_half</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;CC½ resolution filter failed with the following error:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s2">&quot;Resolution estimate from CC½ &gt; </span><span class="si">%.2f</span><span class="s2">: </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">min_cc_half</span><span class="p">,</span> <span class="n">d_min_cc_half</span>
+            <span class="p">)</span>
+    <span class="n">valid_d_mins</span> <span class="o">=</span> <span class="nb">list</span><span class="p">({</span><span class="n">d_min_cc_half</span><span class="p">,</span> <span class="n">d_min_isigi</span><span class="p">}</span><span class="o">.</span><span class="n">difference</span><span class="p">({</span><span class="mi">0</span><span class="p">}))</span>
+    <span class="k">if</span> <span class="n">valid_d_mins</span><span class="p">:</span>
+        <span class="n">d_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">valid_d_mins</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">d_min</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

@@ -1,0 +1,389 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.symmetry &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../../../index.html/../../_modules/dials/algorithms/indexing/symmetry.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dials.algorithms.indexing.symmetry</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">scitbx.matrix</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">sgtbx</span>
+<span class="kn">from</span> <span class="nn">cctbx.crystal_orientation</span> <span class="kn">import</span> <span class="n">crystal_orientation</span>
+<span class="kn">from</span> <span class="nn">cctbx.sgtbx</span> <span class="kn">import</span> <span class="n">change_of_basis_op</span><span class="p">,</span> <span class="n">subgroups</span>
+<span class="kn">from</span> <span class="nn">cctbx.sgtbx.bravais_types</span> <span class="kn">import</span> <span class="n">bravais_lattice</span>
+<span class="kn">from</span> <span class="nn">rstbx.dps_core.lepage</span> <span class="kn">import</span> <span class="n">iotbx_converter</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+
+<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="n">Crystal</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="metric_supergroup"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.symmetry.metric_supergroup">[docs]</a><span class="k">def</span> <span class="nf">metric_supergroup</span><span class="p">(</span><span class="n">group</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">type</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">expand_addl_generators_of_euclidean_normalizer</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">build_derived_acentric_group</span><span class="p">()</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="find_matching_symmetry"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.symmetry.find_matching_symmetry">[docs]</a><span class="k">def</span> <span class="nf">find_matching_symmetry</span><span class="p">(</span><span class="n">unit_cell</span><span class="p">,</span> <span class="n">target_space_group</span><span class="p">,</span> <span class="n">max_delta</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+    <span class="n">cs</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span><span class="n">unit_cell</span><span class="o">=</span><span class="n">unit_cell</span><span class="p">,</span> <span class="n">space_group</span><span class="o">=</span><span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group</span><span class="p">())</span>
+    <span class="n">target_bravais_t</span> <span class="o">=</span> <span class="n">bravais_lattice</span><span class="p">(</span>
+        <span class="n">group</span><span class="o">=</span><span class="n">target_space_group</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">reference_setting</span><span class="p">()</span><span class="o">.</span><span class="n">group</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="n">best_subgroup</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">best_angular_difference</span> <span class="o">=</span> <span class="mf">1e8</span>
+
+    <span class="c1"># code based on cctbx/sgtbx/lattice_symmetry.py but optimised to only</span>
+    <span class="c1"># look at subgroups with the correct bravais type</span>
+
+    <span class="n">input_symmetry</span> <span class="o">=</span> <span class="n">cs</span>
+    <span class="c1"># Get cell reduction operator</span>
+    <span class="n">cb_op_inp_minimum</span> <span class="o">=</span> <span class="n">input_symmetry</span><span class="o">.</span><span class="n">change_of_basis_op_to_minimum_cell</span><span class="p">()</span>
+
+    <span class="c1"># New symmetry object with changed basis</span>
+    <span class="n">minimum_symmetry</span> <span class="o">=</span> <span class="n">input_symmetry</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_inp_minimum</span><span class="p">)</span>
+
+    <span class="c1"># Get highest symmetry compatible with lattice</span>
+    <span class="n">lattice_group</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">lattice_symmetry_group</span><span class="p">(</span>
+        <span class="n">minimum_symmetry</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span>
+        <span class="n">max_delta</span><span class="o">=</span><span class="n">max_delta</span><span class="p">,</span>
+        <span class="n">enforce_max_delta_for_generated_two_folds</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Get list of sub-spacegroups</span>
+    <span class="n">subgrs</span> <span class="o">=</span> <span class="n">subgroups</span><span class="o">.</span><span class="n">subgroups</span><span class="p">(</span><span class="n">lattice_group</span><span class="o">.</span><span class="n">info</span><span class="p">())</span><span class="o">.</span><span class="n">groups_parent_setting</span><span class="p">()</span>
+
+    <span class="c1"># Order sub-groups</span>
+    <span class="n">sort_values</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">subgrs</span><span class="p">:</span>
+        <span class="n">order_z</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">order_z</span><span class="p">()</span>
+        <span class="n">space_group_number</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group_type</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">number</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">space_group_number</span> <span class="o">&lt;=</span> <span class="mi">230</span>
+        <span class="n">sort_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">order_z</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">+</span> <span class="n">space_group_number</span><span class="p">)</span>
+    <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">sort_values</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i_subgr</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">:</span>
+        <span class="n">acentric_subgroup</span> <span class="o">=</span> <span class="n">subgrs</span><span class="p">[</span><span class="n">i_subgr</span><span class="p">]</span>
+        <span class="n">acentric_supergroup</span> <span class="o">=</span> <span class="n">metric_supergroup</span><span class="p">(</span><span class="n">acentric_subgroup</span><span class="p">)</span>
+        <span class="c1"># Make symmetry object: unit-cell + space-group</span>
+        <span class="c1"># The unit cell is potentially modified to be exactly compatible</span>
+        <span class="c1"># with the space group symmetry.</span>
+        <span class="n">subsym</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span>
+            <span class="n">unit_cell</span><span class="o">=</span><span class="n">minimum_symmetry</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span>
+            <span class="n">space_group</span><span class="o">=</span><span class="n">acentric_subgroup</span><span class="p">,</span>
+            <span class="n">assert_is_compatible_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># Convert subgroup to reference setting</span>
+        <span class="n">cb_op_minimum_ref</span> <span class="o">=</span> <span class="n">subsym</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">()</span><span class="o">.</span><span class="n">type</span><span class="p">()</span><span class="o">.</span><span class="n">cb_op</span><span class="p">()</span>
+        <span class="n">ref_subsym</span> <span class="o">=</span> <span class="n">subsym</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_minimum_ref</span><span class="p">)</span>
+        <span class="c1"># Ignore unwanted groups</span>
+        <span class="n">bravais_t</span> <span class="o">=</span> <span class="n">bravais_lattice</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="n">ref_subsym</span><span class="o">.</span><span class="n">space_group</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">bravais_t</span> <span class="o">!=</span> <span class="n">target_bravais_t</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Choose best setting for monoclinic and orthorhombic systems</span>
+        <span class="n">cb_op_best_cell</span> <span class="o">=</span> <span class="n">ref_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_best_cell</span><span class="p">(</span>
+            <span class="n">best_monoclinic_beta</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+
+        <span class="n">best_subsym</span> <span class="o">=</span> <span class="n">ref_subsym</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_best_cell</span><span class="p">)</span>
+        <span class="c1"># Total basis transformation</span>
+        <span class="n">cb_op_best_cell</span> <span class="o">=</span> <span class="n">change_of_basis_op</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">cb_op_best_cell</span><span class="p">),</span> <span class="n">stop_chars</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">r_den</span><span class="o">=</span><span class="mi">144</span><span class="p">,</span> <span class="n">t_den</span><span class="o">=</span><span class="mi">144</span>
+        <span class="p">)</span>
+        <span class="n">cb_op_minimum_ref</span> <span class="o">=</span> <span class="n">change_of_basis_op</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">cb_op_minimum_ref</span><span class="p">),</span> <span class="n">stop_chars</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">r_den</span><span class="o">=</span><span class="mi">144</span><span class="p">,</span> <span class="n">t_den</span><span class="o">=</span><span class="mi">144</span>
+        <span class="p">)</span>
+        <span class="n">cb_op_inp_minimum</span> <span class="o">=</span> <span class="n">change_of_basis_op</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">cb_op_inp_minimum</span><span class="p">),</span> <span class="n">stop_chars</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">r_den</span><span class="o">=</span><span class="mi">144</span><span class="p">,</span> <span class="n">t_den</span><span class="o">=</span><span class="mi">144</span>
+        <span class="p">)</span>
+        <span class="n">cb_op_inp_best</span> <span class="o">=</span> <span class="n">cb_op_best_cell</span> <span class="o">*</span> <span class="n">cb_op_minimum_ref</span> <span class="o">*</span> <span class="n">cb_op_inp_minimum</span>
+        <span class="c1"># Use identity change-of-basis operator if possible</span>
+        <span class="k">if</span> <span class="n">best_subsym</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span><span class="o">.</span><span class="n">is_similar_to</span><span class="p">(</span><span class="n">input_symmetry</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()):</span>
+            <span class="n">cb_op_corr</span> <span class="o">=</span> <span class="n">cb_op_inp_best</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">best_subsym_corr</span> <span class="o">=</span> <span class="n">best_subsym</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_corr</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Unsuitable value for rational rotation matrix.&quot;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">best_subsym_corr</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span> <span class="o">==</span> <span class="n">best_subsym</span><span class="o">.</span><span class="n">space_group</span><span class="p">():</span>
+                    <span class="n">cb_op_inp_best</span> <span class="o">=</span> <span class="n">cb_op_corr</span> <span class="o">*</span> <span class="n">cb_op_inp_best</span>
+
+        <span class="n">max_angular_difference</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">lattice_symmetry_find_max_delta</span><span class="p">(</span>
+            <span class="n">reduced_cell</span><span class="o">=</span><span class="n">minimum_symmetry</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span> <span class="n">space_group</span><span class="o">=</span><span class="n">acentric_supergroup</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">max_angular_difference</span> <span class="o">&lt;</span> <span class="n">best_angular_difference</span><span class="p">:</span>
+            <span class="n">best_angular_difference</span> <span class="o">=</span> <span class="n">max_angular_difference</span>
+            <span class="n">best_subgroup</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;subsym&quot;</span><span class="p">:</span> <span class="n">subsym</span><span class="p">,</span>
+                <span class="s2">&quot;ref_subsym&quot;</span><span class="p">:</span> <span class="n">ref_subsym</span><span class="p">,</span>
+                <span class="s2">&quot;best_subsym&quot;</span><span class="p">:</span> <span class="n">best_subsym</span><span class="p">,</span>
+                <span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">:</span> <span class="n">cb_op_inp_best</span><span class="p">,</span>
+                <span class="s2">&quot;max_angular_difference&quot;</span><span class="p">:</span> <span class="n">max_angular_difference</span><span class="p">,</span>
+            <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">best_subgroup</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">best_subgroup</span></div>
+
+
+<div class="viewcode-block" id="SymmetryHandler"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.symmetry.SymmetryHandler">[docs]</a><span class="k">class</span> <span class="nc">SymmetryHandler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unit_cell</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">space_group</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_delta</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_delta</span> <span class="o">=</span> <span class="n">max_delta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_ref</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_best</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">target_space_group</span> <span class="o">=</span> <span class="n">space_group</span>
+        <span class="k">if</span> <span class="n">target_space_group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_space_group</span> <span class="o">=</span> <span class="n">target_space_group</span><span class="o">.</span><span class="n">build_derived_patterson_group</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">unit_cell</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="n">space_group</span>
+            <span class="p">),</span> <span class="s2">&quot;space_group must be provided in combination with unit_cell&quot;</span>
+
+            <span class="k">if</span> <span class="n">target_space_group</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_inp</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span>
+                    <span class="n">unit_cell</span><span class="o">=</span><span class="n">unit_cell</span><span class="p">,</span> <span class="n">space_group</span><span class="o">=</span><span class="n">target_space_group</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_ref</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_inp</span><span class="o">.</span><span class="n">change_of_basis_op_to_reference_setting</span><span class="p">()</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_inp</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_ref</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_best</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span><span class="o">.</span><span class="n">change_of_basis_op_to_best_cell</span><span class="p">()</span>
+                    <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_ref</span>
+                <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">target_space_group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_inp</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span><span class="n">space_group</span><span class="o">=</span><span class="n">target_space_group</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_ref</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">target_space_group</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">change_of_basis_op_to_reference_setting</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span>
+                <span class="n">space_group</span><span class="o">=</span><span class="n">target_space_group</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_ref</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">cb_op_reference_to_primitive</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span><span class="o">.</span><span class="n">change_of_basis_op_to_primitive_setting</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">unit_cell</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span>
+                <span class="n">cb_op_reference_to_primitive</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span>
+                <span class="n">space_group</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span>
+                    <span class="n">cb_op_reference_to_primitive</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_ref_inp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_ref</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_primitive_inp</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_ref_inp</span> <span class="o">*</span> <span class="n">cb_op_reference_to_primitive</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;Target symmetry (reference setting):</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_reference_setting</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;Target symmetry (primitive cell):</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;cb_op primitive-&gt;input: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_primitive_inp</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SymmetryHandler.apply_symmetry"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.symmetry.SymmetryHandler.apply_symmetry">[docs]</a>    <span class="k">def</span> <span class="nf">apply_symmetry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">crystal_model</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Apply symmetry constraints to a crystal model.</span>
+
+<span class="sd">        Returns the crystal model (with symmetry constraints applied) in the same</span>
+<span class="sd">        setting as provided as input. The cb_op returned by the method is</span>
+<span class="sd">        that necessary to transform that model to the user-provided</span>
+<span class="sd">        target symmetry.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            crystal_model (dxtbx.model.Crystal): The input crystal model to which to</span>
+<span class="sd">              apply symmetry constraints.</span>
+
+<span class="sd">        Returns: (dxtbx.model.Crystal, cctbx.sgtbx.change_of_basis_op):</span>
+<span class="sd">        The crystal model with symmetry constraints applied, and the change_of_basis_op</span>
+<span class="sd">        that transforms the returned model to the user-specified target symmetry.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">()</span>
+
+        <span class="n">target_space_group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span>
+
+        <span class="n">A</span> <span class="o">=</span> <span class="n">crystal_model</span><span class="o">.</span><span class="n">get_A</span><span class="p">()</span>
+
+        <span class="n">max_delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_delta</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="n">iotbx_converter</span><span class="p">(</span><span class="n">crystal_model</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">(),</span> <span class="n">max_delta</span><span class="o">=</span><span class="n">max_delta</span><span class="p">)</span>
+        <span class="n">target_sg_ref</span> <span class="o">=</span> <span class="n">target_space_group</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">reference_setting</span><span class="p">()</span><span class="o">.</span><span class="n">group</span><span class="p">()</span>
+        <span class="n">best_angular_difference</span> <span class="o">=</span> <span class="mf">1e8</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">bravais_lattice</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="n">target_sg_ref</span><span class="p">)</span> <span class="o">!=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;bravais&quot;</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;max_angular_difference&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">best_angular_difference</span><span class="p">:</span>
+                <span class="n">best_angular_difference</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;max_angular_difference&quot;</span><span class="p">]</span>
+                <span class="n">best_subgroup</span> <span class="o">=</span> <span class="n">item</span>
+
+        <span class="k">if</span> <span class="n">best_subgroup</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+        <span class="n">cb_op_inp_best</span> <span class="o">=</span> <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">]</span>
+        <span class="n">best_subsym</span> <span class="o">=</span> <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;best_subsym&quot;</span><span class="p">]</span>
+        <span class="n">ref_subsym</span> <span class="o">=</span> <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;ref_subsym&quot;</span><span class="p">]</span>
+        <span class="n">cb_op_ref_best</span> <span class="o">=</span> <span class="n">ref_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_best_cell</span><span class="p">()</span>
+        <span class="n">cb_op_best_ref</span> <span class="o">=</span> <span class="n">cb_op_ref_best</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+        <span class="n">cb_op_inp_ref</span> <span class="o">=</span> <span class="n">cb_op_best_ref</span> <span class="o">*</span> <span class="n">cb_op_inp_best</span>
+        <span class="n">cb_op_ref_inp</span> <span class="o">=</span> <span class="n">cb_op_inp_ref</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+
+        <span class="n">orient</span> <span class="o">=</span> <span class="n">crystal_orientation</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">orient_ref</span> <span class="o">=</span> <span class="n">orient</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span>
+            <span class="n">scitbx</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">((</span><span class="n">cb_op_inp_ref</span><span class="p">)</span><span class="o">.</span><span class="n">c</span><span class="p">()</span><span class="o">.</span><span class="n">as_double_array</span><span class="p">()[</span><span class="mi">0</span><span class="p">:</span><span class="mi">9</span><span class="p">])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="n">constrain_orient</span> <span class="o">=</span> <span class="n">orient_ref</span><span class="o">.</span><span class="n">constrain</span><span class="p">(</span><span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;system&quot;</span><span class="p">])</span>
+        <span class="n">direct_matrix</span> <span class="o">=</span> <span class="n">constrain_orient</span><span class="o">.</span><span class="n">direct_matrix</span><span class="p">()</span>
+
+        <span class="n">a</span> <span class="o">=</span> <span class="n">scitbx</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">direct_matrix</span><span class="p">[:</span><span class="mi">3</span><span class="p">])</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">scitbx</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">direct_matrix</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">scitbx</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">direct_matrix</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">9</span><span class="p">])</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Crystal</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">space_group</span><span class="o">=</span><span class="n">target_sg_ref</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">target_sg_ref</span><span class="o">.</span><span class="n">is_compatible_unit_cell</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">())</span>
+
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_ref_inp</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_best</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Then the unit cell has been provided: this is the cb_op to map to the</span>
+            <span class="c1"># user-provided input unit cell</span>
+            <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_best</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span> <span class="o">*</span> <span class="n">cb_op_inp_best</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_ref_inp</span><span class="o">.</span><span class="n">is_identity_op</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_symmetry_inp</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span> <span class="o">==</span> <span class="n">best_subsym</span><span class="o">.</span><span class="n">space_group</span><span class="p">():</span>
+                <span class="c1"># Handle where e.g. the user has requested I2 instead of the reference C2</span>
+                <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">cb_op_inp_best</span>
+            <span class="c1"># The user has specified a setting that is not the reference setting</span>
+            <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_ref_inp</span> <span class="o">*</span> <span class="n">cb_op_inp_ref</span>
+        <span class="c1"># Default to reference setting</span>
+        <span class="c1"># This change of basis op will ensure that we get the best beta angle without</span>
+        <span class="c1"># changing the centring (e.g. from C2 to I2)</span>
+        <span class="n">cb_op_ref_best</span> <span class="o">=</span> <span class="n">ref_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_best_cell</span><span class="p">(</span>
+            <span class="n">best_monoclinic_beta</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">cb_op_ref_best</span> <span class="o">*</span> <span class="n">cb_op_inp_ref</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

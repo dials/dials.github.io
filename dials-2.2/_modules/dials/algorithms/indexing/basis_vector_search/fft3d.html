@@ -1,0 +1,395 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.basis_vector_search.fft3d &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../../../../index.html/../../_modules/dials/algorithms/indexing/basis_vector_search/fft3d.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dials.algorithms.indexing.basis_vector_search.fft3d</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">crystal</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">uctbx</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">xray</span>
+<span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">libtbx</span>
+<span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">phil</span>
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">fftpack</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+
+<span class="kn">from</span> <span class="nn">dials.algorithms</span> <span class="kn">import</span> <span class="n">indexing</span>
+<span class="kn">import</span> <span class="nn">dials_algorithms_indexing_ext</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Strategy</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">is_approximate_integer_multiple</span><span class="p">,</span> <span class="n">group_vectors</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">fft3d_phil_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">b_iso = Auto</span>
+<span class="s2">    .type = float(value_min=0)</span>
+<span class="s2">    .expert_level = 2</span>
+<span class="s2">rmsd_cutoff = 15</span>
+<span class="s2">    .type = float(value_min=0)</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">peak_search = *flood_fill clean</span>
+<span class="s2">    .type = choice</span>
+<span class="s2">    .expert_level = 2</span>
+<span class="s2">peak_volume_cutoff = 0.15</span>
+<span class="s2">    .type = float</span>
+<span class="s2">    .expert_level = 2</span>
+<span class="s2">reciprocal_space_grid {</span>
+<span class="s2">    n_points = 256</span>
+<span class="s2">        .type = int(value_min=0)</span>
+<span class="s2">        .expert_level = 1</span>
+<span class="s2">    d_min = Auto</span>
+<span class="s2">        .type = float(value_min=0)</span>
+<span class="s2">        .help = &quot;The high resolution limit in Angstrom for spots to include in &quot;</span>
+<span class="s2">                &quot;the initial indexing.&quot;</span>
+<span class="s2">    }</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="FFT3D"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.basis_vector_search.FFT3D">[docs]</a><span class="k">class</span> <span class="nc">FFT3D</span><span class="p">(</span><span class="n">Strategy</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Basis vector search using a 3D FFT.</span>
+
+<span class="sd">    See:</span>
+<span class="sd">        Bricogne, G. (1986). Proceedings of the EEC Cooperative Workshop on Position-Sensitive Detector Software (Phase III), p. 28. Paris: LURE.</span>
+<span class="sd">        Campbell, J. W. (1998). J. Appl. Cryst. 31, 407-413.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">fft3d_phil_str</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_cell</span><span class="p">,</span> <span class="n">min_cell</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Construct an FFT3D object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            max_cell (float): An estimate of the maximum cell dimension of the primitive</span>
+<span class="sd">                cell.</span>
+<span class="sd">            n_points (int): The size of the fft3d grid.</span>
+<span class="sd">            d_min (float): The high resolution limit in Angstrom for spots to include in</span>
+<span class="sd">                the initial indexing. If `Auto` then calculated as</span>
+<span class="sd">                `d_min = 5 * max_cell/n_points`.</span>
+<span class="sd">            b_iso (float): Apply an isotropic b_factor weight to the points when doing</span>
+<span class="sd">                the FFT. If `Auto` then calculated as</span>
+<span class="sd">                `b_iso = -4 * d_min ** 2 * math.log(0.05)`.</span>
+<span class="sd">            rmsd_cutoff (float): RMSD cutoff applied to the transformed real-space map</span>
+<span class="sd">                prior to performing the peak search.</span>
+<span class="sd">            peak_volume_cutoff (float): Only include peaks that are larger than this</span>
+<span class="sd">                fraction of the volume of the largest peak in the transformed real-space</span>
+<span class="sd">                map.</span>
+<span class="sd">            min_cell (float): A conservative lower bound on the minimum possible</span>
+<span class="sd">                primitive unit cell dimension.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FFT3D</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">max_cell</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">n_points</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_gridding</span> <span class="o">=</span> <span class="n">fftpack</span><span class="o">.</span><span class="n">adjust_gridding_triple</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">n_points</span><span class="p">,</span> <span class="n">n_points</span><span class="p">,</span> <span class="n">n_points</span><span class="p">),</span> <span class="n">max_prime</span><span class="o">=</span><span class="mi">5</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gridding</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_min_cell</span> <span class="o">=</span> <span class="n">min_cell</span>
+
+<div class="viewcode-block" id="FFT3D.find_basis_vectors"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.basis_vector_search.FFT3D.find_basis_vectors">[docs]</a>    <span class="k">def</span> <span class="nf">find_basis_vectors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reciprocal_lattice_vectors</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Find a list of likely basis vectors.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            reciprocal_lattice_vectors (scitbx.array_family.flex.vec3_double):</span>
+<span class="sd">                The list of reciprocal lattice vectors to search for periodicity.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A tuple containing the list of basis vectors and a flex.bool array</span>
+<span class="sd">            identifying which reflections were used in indexing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+            <span class="c1"># rough calculation of suitable d_min based on max cell</span>
+            <span class="c1"># see also Campbell, J. (1998). J. Appl. Cryst., 31(3), 407-413.</span>
+            <span class="c1"># fft_cell should be greater than twice max_cell, so say:</span>
+            <span class="c1">#   fft_cell = 2.5 * max_cell</span>
+            <span class="c1"># then:</span>
+            <span class="c1">#   fft_cell = n_points * d_min/2</span>
+            <span class="c1">#   2.5 * max_cell = n_points * d_min/2</span>
+            <span class="c1"># a little bit of rearrangement:</span>
+            <span class="c1">#   d_min = 5 * max_cell/n_points</span>
+
+            <span class="n">max_cell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_cell</span>
+            <span class="n">d_min</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">max_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_points</span>
+            <span class="n">d_spacings</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">reciprocal_lattice_vectors</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+            <span class="n">d_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">d_min</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">d_spacings</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting d_min: </span><span class="si">%.2f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">d_min</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">d_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">d_min</span>
+
+        <span class="n">grid_real</span><span class="p">,</span> <span class="n">used_in_indexing</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fft</span><span class="p">(</span><span class="n">reciprocal_lattice_vectors</span><span class="p">,</span> <span class="n">d_min</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sites</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_peaks</span><span class="p">(</span><span class="n">grid_real</span><span class="p">,</span> <span class="n">d_min</span><span class="p">)</span>
+
+        <span class="c1"># hijack the xray.structure class to facilitate calculation of distances</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">crystal_symmetry</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span>
+            <span class="n">unit_cell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_fft_cell</span><span class="p">,</span> <span class="n">space_group_symbol</span><span class="o">=</span><span class="s2">&quot;P1&quot;</span>
+        <span class="p">)</span>
+        <span class="n">xs</span> <span class="o">=</span> <span class="n">xray</span><span class="o">.</span><span class="n">structure</span><span class="p">(</span><span class="n">crystal_symmetry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sites</span><span class="p">):</span>
+            <span class="n">xs</span><span class="o">.</span><span class="n">add_scatterer</span><span class="p">(</span><span class="n">xray</span><span class="o">.</span><span class="n">scatterer</span><span class="p">(</span><span class="s2">&quot;C</span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="n">site</span><span class="o">=</span><span class="n">site</span><span class="p">))</span>
+
+        <span class="n">xs</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_mod_short</span><span class="p">()</span>
+        <span class="n">sites_cart</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_cart</span><span class="p">()</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">sc</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="k">for</span> <span class="n">sc</span> <span class="ow">in</span> <span class="n">sites_cart</span><span class="p">])</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span>
+        <span class="n">xs</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">volumes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+
+        <span class="n">vectors</span> <span class="o">=</span> <span class="n">xs</span><span class="o">.</span><span class="n">sites_cart</span><span class="p">()</span>
+        <span class="n">norms</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="n">sel</span> <span class="o">=</span> <span class="p">(</span><span class="n">norms</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_cell</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">norms</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_cell</span><span class="p">))</span>
+        <span class="n">vectors</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+        <span class="n">vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vectors</span><span class="p">]</span>
+        <span class="n">volumes</span> <span class="o">=</span> <span class="n">volumes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+
+        <span class="n">vector_groups</span> <span class="o">=</span> <span class="n">group_vectors</span><span class="p">(</span><span class="n">vectors</span><span class="p">,</span> <span class="n">volumes</span><span class="p">)</span>
+        <span class="n">vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">mean</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">vector_groups</span><span class="p">]</span>
+        <span class="n">volumes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">weights</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">vector_groups</span><span class="p">)</span>
+
+        <span class="c1"># sort by peak size</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">volumes</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">volumes</span> <span class="o">=</span> <span class="n">volumes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">volume</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">vectors</span><span class="p">,</span> <span class="n">volumes</span><span class="p">)):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">(),</span> <span class="n">volume</span><span class="p">))</span>
+
+        <span class="c1"># sort by length</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vectors</span><span class="p">)</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span>
+
+        <span class="c1"># exclude vectors that are (approximately) integer multiples of a shorter</span>
+        <span class="c1"># vector</span>
+        <span class="n">unique_vectors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">unique_volumes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">vectors</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+            <span class="n">is_unique</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v_u</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_vectors</span><span class="p">):</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">unique_volumes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">volumes</span><span class="p">[</span><span class="n">p</span><span class="p">])</span> <span class="ow">and</span> <span class="n">is_approximate_integer_multiple</span><span class="p">(</span>
+                    <span class="n">v_u</span><span class="p">,</span> <span class="n">v</span>
+                <span class="p">):</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;rejecting </span><span class="si">%s</span><span class="s2">: integer multiple of </span><span class="si">%s</span><span class="s2">&quot;</span>
+                        <span class="o">%</span> <span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">length</span><span class="p">(),</span> <span class="n">v_u</span><span class="o">.</span><span class="n">length</span><span class="p">())</span>
+                    <span class="p">)</span>
+                    <span class="n">is_unique</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="n">is_unique</span><span class="p">:</span>
+                <span class="n">unique_vectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="n">unique_volumes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">volumes</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+
+        <span class="c1"># re-sort by peak volume</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">unique_volumes</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">unique_vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">candidate_basis_vectors</span><span class="p">,</span> <span class="n">used_in_indexing</span></div>
+
+    <span class="k">def</span> <span class="nf">_fft</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reciprocal_lattice_vectors</span><span class="p">,</span> <span class="n">d_min</span><span class="p">):</span>
+
+        <span class="p">(</span>
+            <span class="n">reciprocal_space_grid</span><span class="p">,</span>
+            <span class="n">used_in_indexing</span><span class="p">,</span>
+        <span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map_centroids_to_reciprocal_space_grid</span><span class="p">(</span>
+            <span class="n">reciprocal_lattice_vectors</span><span class="p">,</span> <span class="n">d_min</span>
+        <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Number of centroids used: </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">((</span><span class="n">reciprocal_space_grid</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+        <span class="p">)</span>
+
+        <span class="c1"># gb_to_bytes = 1073741824</span>
+        <span class="c1"># bytes_to_gb = 1/gb_to_bytes</span>
+        <span class="c1"># (128**3)*8*2*bytes_to_gb</span>
+        <span class="c1"># 0.03125</span>
+        <span class="c1"># (256**3)*8*2*bytes_to_gb</span>
+        <span class="c1"># 0.25</span>
+        <span class="c1"># (512**3)*8*2*bytes_to_gb</span>
+        <span class="c1"># 2.0</span>
+
+        <span class="n">fft</span> <span class="o">=</span> <span class="n">fftpack</span><span class="o">.</span><span class="n">complex_to_complex_3d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_gridding</span><span class="p">)</span>
+        <span class="n">grid_complex</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">complex_double</span><span class="p">(</span>
+            <span class="n">reals</span><span class="o">=</span><span class="n">reciprocal_space_grid</span><span class="p">,</span>
+            <span class="n">imags</span><span class="o">=</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">reciprocal_space_grid</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">grid_transformed</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">grid_complex</span><span class="p">)</span>
+        <span class="n">grid_real</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">grid_transformed</span><span class="p">))</span>
+        <span class="k">del</span> <span class="n">grid_transformed</span>
+
+        <span class="k">return</span> <span class="n">grid_real</span><span class="p">,</span> <span class="n">used_in_indexing</span>
+
+    <span class="k">def</span> <span class="nf">_map_centroids_to_reciprocal_space_grid</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">reciprocal_lattice_vectors</span><span class="p">,</span> <span class="n">d_min</span>
+    <span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;FFT gridding: (</span><span class="si">%i</span><span class="s2">,</span><span class="si">%i</span><span class="s2">,</span><span class="si">%i</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gridding</span><span class="p">)</span>
+
+        <span class="n">grid</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_gridding</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">b_iso</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">b_iso</span> <span class="o">=</span> <span class="o">-</span><span class="mi">4</span> <span class="o">*</span> <span class="n">d_min</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting b_iso = </span><span class="si">%.1f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">b_iso</span><span class="p">)</span>
+        <span class="n">used_in_indexing</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">reciprocal_lattice_vectors</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">dials_algorithms_indexing_ext</span><span class="o">.</span><span class="n">map_centroids_to_reciprocal_space_grid</span><span class="p">(</span>
+            <span class="n">grid</span><span class="p">,</span>
+            <span class="n">reciprocal_lattice_vectors</span><span class="p">,</span>
+            <span class="n">used_in_indexing</span><span class="p">,</span>  <span class="c1"># do we really need this?</span>
+            <span class="n">d_min</span><span class="p">,</span>
+            <span class="n">b_iso</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">b_iso</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">grid</span><span class="p">,</span> <span class="n">used_in_indexing</span>
+
+    <span class="k">def</span> <span class="nf">_find_peaks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grid_real</span><span class="p">,</span> <span class="n">d_min</span><span class="p">):</span>
+        <span class="n">grid_real_binary</span> <span class="o">=</span> <span class="n">grid_real</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+        <span class="n">rmsd</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+            <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span>
+                    <span class="n">grid_real_binary</span><span class="o">.</span><span class="n">as_1d</span><span class="p">()</span> <span class="o">-</span> <span class="n">flex</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">grid_real_binary</span><span class="o">.</span><span class="n">as_1d</span><span class="p">())</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">grid_real_binary</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
+            <span class="n">grid_real_binary</span> <span class="o">&lt;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">rmsd_cutoff</span><span class="p">)</span> <span class="o">*</span> <span class="n">rmsd</span><span class="p">,</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="n">grid_real_binary</span><span class="o">.</span><span class="n">as_1d</span><span class="p">()</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">grid_real_binary</span><span class="o">.</span><span class="n">as_1d</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">grid_real_binary</span> <span class="o">=</span> <span class="n">grid_real_binary</span><span class="o">.</span><span class="n">iround</span><span class="p">()</span>
+        <span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">masks</span>
+
+        <span class="c1"># real space FFT grid dimensions</span>
+        <span class="n">cell_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_points</span> <span class="o">*</span> <span class="n">d_min</span> <span class="o">/</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fft_cell</span> <span class="o">=</span> <span class="n">uctbx</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(</span><span class="n">cell_lengths</span> <span class="o">+</span> <span class="p">[</span><span class="mi">90</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="n">flood_fill</span> <span class="o">=</span> <span class="n">masks</span><span class="o">.</span><span class="n">flood_fill</span><span class="p">(</span><span class="n">grid_real_binary</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fft_cell</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">n_voids</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="c1"># Require at least peak at origin and one peak for each basis vector</span>
+            <span class="k">raise</span> <span class="n">indexing</span><span class="o">.</span><span class="n">DialsIndexError</span><span class="p">(</span>
+                <span class="s2">&quot;Indexing failed: fft3d peak search failed to find sufficient number of peaks.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># the peak at the origin might have a significantly larger volume than the</span>
+        <span class="c1"># rest so exclude any anomalously large peaks from determining minimum volume</span>
+        <span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="kn">import</span> <span class="n">five_number_summary</span>
+
+        <span class="n">outliers</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">flood_fill</span><span class="o">.</span><span class="n">n_voids</span><span class="p">(),</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">grid_points_per_void</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span>
+        <span class="n">min_x</span><span class="p">,</span> <span class="n">q1_x</span><span class="p">,</span> <span class="n">med_x</span><span class="p">,</span> <span class="n">q3_x</span><span class="p">,</span> <span class="n">max_x</span> <span class="o">=</span> <span class="n">five_number_summary</span><span class="p">(</span><span class="n">grid_points_per_void</span><span class="p">)</span>
+        <span class="n">iqr_multiplier</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="n">iqr_x</span> <span class="o">=</span> <span class="n">q3_x</span> <span class="o">-</span> <span class="n">q1_x</span>
+        <span class="n">cut_x</span> <span class="o">=</span> <span class="n">iqr_multiplier</span> <span class="o">*</span> <span class="n">iqr_x</span>
+        <span class="n">outliers</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">grid_points_per_void</span><span class="o">.</span><span class="n">as_double</span><span class="p">()</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">q3_x</span> <span class="o">+</span> <span class="n">cut_x</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># print q3_x + cut_x, outliers.count(True)</span>
+        <span class="n">isel</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">grid_points_per_void</span>
+            <span class="o">&gt;</span> <span class="nb">int</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">.</span><span class="n">peak_volume_cutoff</span>
+                <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">grid_points_per_void</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">~</span><span class="n">outliers</span><span class="p">))</span>
+            <span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span>
+
+        <span class="n">sites</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">centres_of_mass_frac</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+        <span class="n">volumes</span> <span class="o">=</span> <span class="n">flood_fill</span><span class="o">.</span><span class="n">grid_points_per_void</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sites</span><span class="p">,</span> <span class="n">volumes</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

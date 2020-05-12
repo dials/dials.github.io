@@ -1,0 +1,706 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dxtbx.imageset &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../index.html/../../_modules/dxtbx/imageset.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dxtbx.imageset</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">from</span> <span class="nn">builtins</span> <span class="kn">import</span> <span class="nb">range</span>
+
+<span class="kn">import</span> <span class="nn">boost.python</span>
+
+<span class="kn">import</span> <span class="nn">dxtbx.format.image</span>  <span class="c1"># noqa: F401, import dependency for unpickling</span>
+<span class="kn">import</span> <span class="nn">dxtbx.format.Registry</span>
+<span class="kn">from</span> <span class="nn">dxtbx.sequence_filenames</span> <span class="kn">import</span> <span class="n">group_files_by_imageset</span><span class="p">,</span> <span class="n">template_image_range</span>
+<span class="kn">from</span> <span class="nn">dxtbx_imageset_ext</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ExternalLookup</span><span class="p">,</span>
+    <span class="n">ExternalLookupItemBool</span><span class="p">,</span>
+    <span class="n">ExternalLookupItemDouble</span><span class="p">,</span>
+    <span class="n">ImageGrid</span><span class="p">,</span>
+    <span class="n">ImageSequence</span><span class="p">,</span>
+    <span class="n">ImageSet</span><span class="p">,</span>
+    <span class="n">ImageSetData</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">ext</span> <span class="o">=</span> <span class="n">boost</span><span class="o">.</span><span class="n">python</span><span class="o">.</span><span class="n">import_ext</span><span class="p">(</span><span class="s2">&quot;dxtbx_ext&quot;</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;ExternalLookup&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ExternalLookupItemBool&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ExternalLookupItemDouble&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ImageGrid&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ImageSet&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ImageSetData&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ImageSetFactory&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ImageSetLazy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ImageSequence&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;MemReader&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="MemReader"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.MemReader">[docs]</a><span class="k">class</span> <span class="nc">MemReader</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A reader for data already loaded in memory&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_images</span> <span class="o">=</span> <span class="n">images</span>
+
+<div class="viewcode-block" id="MemReader.paths"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.MemReader.paths">[docs]</a>    <span class="k">def</span> <span class="nf">paths</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s2">&quot;&quot;</span> <span class="k">for</span> <span class="n">im</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_images</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="MemReader.identifiers"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.MemReader.identifiers">[docs]</a>    <span class="k">def</span> <span class="nf">identifiers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">paths</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_images</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MemReader.read"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.MemReader.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="n">format_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_images</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">format_instance</span><span class="o">.</span><span class="n">get_raw_data</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MemReader.is_single_file_reader"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.MemReader.is_single_file_reader">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">is_single_file_reader</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="MemReader.master_path"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.MemReader.master_path">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">master_path</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span></div></div>
+
+
+<span class="nd">@boost</span><span class="o">.</span><span class="n">python</span><span class="o">.</span><span class="n">inject_into</span><span class="p">(</span><span class="n">ImageSet</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">_</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to inject additional methods into the imageset class</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get an item from the image set stream.</span>
+
+<span class="sd">        If the item is an index, read and return the image at the given index.</span>
+<span class="sd">        Otherwise, if the item is a slice, then create a new ImageSet object</span>
+<span class="sd">        with the given number of array indices from the slice.</span>
+
+<span class="sd">        Params:</span>
+<span class="sd">            item The index or slice</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            An image or new ImageSet object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">start</span> <span class="ow">or</span> <span class="mi">0</span>
+            <span class="n">stop</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">stop</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">step</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">step</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s2">&quot;Step must be 1&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">partial_set</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_corrected_data</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Iterate over the array indices and read each image in turn.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">get_vendortype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the vendor information.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">get_vendor</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_format_class</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get format class name&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the parameters&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">get_params</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_detectorbase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A function to be injected into the imageset to get the detectorbase instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">has_single_file_reader</span><span class="p">():</span>
+            <span class="n">format_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">()</span><span class="o">.</span><span class="n">get_instance</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">get_master_path</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">format_instance</span><span class="o">.</span><span class="n">get_detectorbase</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">()[</span><span class="n">index</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">format_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">()</span><span class="o">.</span><span class="n">get_instance</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span><span class="n">index</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">format_instance</span><span class="o">.</span><span class="n">get_detectorbase</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">reader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the reader</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">reader</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">masker</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the masker</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">masker</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">paths</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the list of paths</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))]</span>
+
+
+<div class="viewcode-block" id="ImageSetLazy"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetLazy">[docs]</a><span class="k">class</span> <span class="nc">ImageSetLazy</span><span class="p">(</span><span class="n">ImageSet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Lazy ImageSet class that doesn&#39;t necessitate setting the models ahead of time.</span>
+<span class="sd">    Only when a particular model (like detector or beam) for an image is requested,</span>
+<span class="sd">    it sets the model using the format class and then returns the model</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_item_from_parent_or_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item_name</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Obtain an $item_name (eg. detector, beam, ...) of the given index from</span>
+<span class="sd">        the parent class using get_detector, get_beam, ...</span>
+<span class="sd">        If the parent class returns None then lookup the item using the format</span>
+<span class="sd">        class (if defined) and store a local reference to the item using</span>
+<span class="sd">        self.set_detector, set_beam, ..</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">super</span><span class="p">(</span><span class="n">ImageSetLazy</span><span class="p">,</span> <span class="bp">self</span><span class="p">),</span> <span class="s2">&quot;get_&quot;</span> <span class="o">+</span> <span class="n">item_name</span><span class="p">)(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># If check_format=False was used, then _current_instance_ will not be set, so assume a None is correct</span>
+            <span class="n">format_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">()</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="nb">hasattr</span><span class="p">(</span><span class="n">format_class</span><span class="p">,</span> <span class="s2">&quot;_current_instance_&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">format_class</span><span class="o">.</span><span class="n">_current_instance_</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">):</span>
+                <span class="n">format_instance</span> <span class="o">=</span> <span class="n">format_class</span><span class="o">.</span><span class="n">_current_instance_</span>
+                <span class="n">getter_function</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">format_instance</span><span class="p">,</span> <span class="s2">&quot;get_&quot;</span> <span class="o">+</span> <span class="n">item_name</span><span class="p">)</span>
+                <span class="n">item</span> <span class="o">=</span> <span class="n">getter_function</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">()[</span><span class="n">index</span><span class="p">])</span>
+                <span class="n">setter_function</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;set_&quot;</span> <span class="o">+</span> <span class="n">item_name</span><span class="p">)</span>
+                <span class="n">setter_function</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">item</span>
+
+<div class="viewcode-block" id="ImageSetLazy.get_detector"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetLazy.get_detector">[docs]</a>    <span class="k">def</span> <span class="nf">get_detector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_item_from_parent_or_format</span><span class="p">(</span><span class="s2">&quot;detector&quot;</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageSetLazy.get_beam"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetLazy.get_beam">[docs]</a>    <span class="k">def</span> <span class="nf">get_beam</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_item_from_parent_or_format</span><span class="p">(</span><span class="s2">&quot;beam&quot;</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageSetLazy.get_goniometer"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetLazy.get_goniometer">[docs]</a>    <span class="k">def</span> <span class="nf">get_goniometer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_item_from_parent_or_format</span><span class="p">(</span><span class="s2">&quot;goniometer&quot;</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageSetLazy.get_scan"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetLazy.get_scan">[docs]</a>    <span class="k">def</span> <span class="nf">get_scan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_item_from_parent_or_format</span><span class="p">(</span><span class="s2">&quot;scan&quot;</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_load_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># Sets the list for detector, beam etc before being accessed by functions in imageset.h</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_detector</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ImageSetLazy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">indices</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">()[</span><span class="n">item</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_models</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">ImageSetLazy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ImageSetLazy.get_corrected_data"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetLazy.get_corrected_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_corrected_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_models</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">ImageSetLazy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_corrected_data</span><span class="p">(</span><span class="n">index</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageSetLazy.get_gain"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetLazy.get_gain">[docs]</a>    <span class="k">def</span> <span class="nf">get_gain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_models</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">ImageSetLazy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_gain</span><span class="p">(</span><span class="n">index</span><span class="p">)</span></div></div>
+
+
+<span class="nd">@boost</span><span class="o">.</span><span class="n">python</span><span class="o">.</span><span class="n">inject_into</span><span class="p">(</span><span class="n">ImageSequence</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">_</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get an item from the sequence stream.</span>
+
+<span class="sd">        If the item is an index, read and return the image at the given index.</span>
+<span class="sd">        Otherwise, if the item is a slice, then create a new Sequence object</span>
+<span class="sd">        with the given number of array indices from the slice.</span>
+
+<span class="sd">        Params:</span>
+<span class="sd">            item The index or slice</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            An image or new Sequence object</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_batch_offset</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">step</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s2">&quot;Sequences must be sequential&quot;</span><span class="p">)</span>
+
+            <span class="c1"># nasty workaround for https://github.com/dials/dials/issues/1153</span>
+            <span class="c1"># slices with -1 in them are meaningful :-/ so grab the original</span>
+            <span class="c1"># constructor arguments of the slice object.</span>
+            <span class="c1"># item.start and item.stop may have been compromised at this point.</span>
+            <span class="k">if</span> <span class="n">offset</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">step</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">__reduce__</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">start</span> <span class="o">-=</span> <span class="n">offset</span>
+                <span class="k">if</span> <span class="n">stop</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">stop</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">stop</span> <span class="o">-=</span> <span class="n">offset</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">partial_set</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">start</span> <span class="ow">or</span> <span class="mi">0</span>
+                <span class="n">stop</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">stop</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">+</span> <span class="n">offset</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">partial_set</span><span class="p">(</span><span class="n">start</span> <span class="o">-</span> <span class="n">offset</span><span class="p">,</span> <span class="n">stop</span> <span class="o">-</span> <span class="n">offset</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_corrected_data</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the template&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">get_template</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_analyse_files</span><span class="p">(</span><span class="n">filenames</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Group images by filename into image sets.</span>
+
+<span class="sd">    Params:</span>
+<span class="sd">        filenames The list of filenames</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A list of (template, [indices], is_sequence)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Analyse filenames to figure out how many imagesets we have</span>
+    <span class="n">filelist_per_imageset</span> <span class="o">=</span> <span class="n">group_files_by_imageset</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_indices_sequential_ge_zero</span><span class="p">(</span><span class="n">indices</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determine if indices are sequential.&quot;&quot;&quot;</span>
+        <span class="n">prev</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">prev</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">curr</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="k">if</span> <span class="n">curr</span> <span class="o">!=</span> <span class="n">prev</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="n">prev</span> <span class="o">=</span> <span class="n">curr</span>
+
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_is_imageset_a_sequence</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return True/False if the imageset is a sequence or not.</span>
+
+<span class="sd">        Where more than 1 image that follow sequential numbers are given</span>
+<span class="sd">        the images are catagorised as belonging to a sequence, otherwise they</span>
+<span class="sd">        belong to an image set.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_indices_sequential_ge_zero</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+
+    <span class="c1"># Label each group as either an imageset or a sequence.</span>
+    <span class="n">file_groups</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">template</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="n">filelist_per_imageset</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+        <span class="c1"># Check if this imageset is a sequence</span>
+        <span class="n">is_sequence</span> <span class="o">=</span> <span class="n">_is_imageset_a_sequence</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
+
+        <span class="c1"># Append the items to the group list</span>
+        <span class="n">file_groups</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">is_sequence</span><span class="p">))</span>
+
+    <span class="c1"># Return the groups of files</span>
+    <span class="k">return</span> <span class="n">file_groups</span>
+
+
+<span class="c1"># FIXME Lots of duplication in this class, need to tidy up</span>
+<div class="viewcode-block" id="ImageSetFactory"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetFactory">[docs]</a><span class="k">class</span> <span class="nc">ImageSetFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Factory to create imagesets and sequences.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ImageSetFactory.new"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetFactory.new">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span> <span class="n">check_headers</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ignore_unknown</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an imageset or sequence</span>
+
+<span class="sd">        Params:</span>
+<span class="sd">            filenames A list of filenames</span>
+<span class="sd">            check_headers Check the headers to ensure all images are valid</span>
+<span class="sd">            ignore_unknown Ignore unknown formats</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of imagesets</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Ensure we have enough images</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">filenames</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">filenames</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;unknown argument passed to ImageSetFactory&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Analyse the filenames and group the images into imagesets.</span>
+        <span class="n">filelist_per_imageset</span> <span class="o">=</span> <span class="n">_analyse_files</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+
+        <span class="c1"># For each file list denoting an image set, create the imageset</span>
+        <span class="c1"># and return as a list of imagesets. N.B sequences and image sets are</span>
+        <span class="c1"># returned in the same list.</span>
+        <span class="n">imagesetlist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">filelist</span> <span class="ow">in</span> <span class="n">filelist_per_imageset</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">filelist</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="n">iset</span> <span class="o">=</span> <span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">_create_sequence</span><span class="p">(</span><span class="n">filelist</span><span class="p">,</span> <span class="n">check_headers</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">iset</span> <span class="o">=</span> <span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">_create_imageset</span><span class="p">(</span><span class="n">filelist</span><span class="p">,</span> <span class="n">check_headers</span><span class="p">)</span>
+                <span class="n">imagesetlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">iset</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">ignore_unknown</span><span class="p">:</span>
+                    <span class="k">raise</span>
+
+        <span class="c1"># Return the imageset list</span>
+        <span class="k">return</span> <span class="n">imagesetlist</span></div>
+
+<div class="viewcode-block" id="ImageSetFactory.from_template"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetFactory.from_template">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_template</span><span class="p">(</span>
+        <span class="n">template</span><span class="p">,</span>
+        <span class="n">image_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">check_headers</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">goniometer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">scan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a new sequence from a template.</span>
+
+<span class="sd">        Params:</span>
+<span class="sd">            template The template argument</span>
+<span class="sd">            image_range The image range</span>
+<span class="sd">            check_headers Check the headers to ensure all images are valid</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of sequences</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">check_format</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">check_headers</span>
+
+        <span class="c1"># Check the template is valid</span>
+        <span class="k">if</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;master&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid template&quot;</span><span class="p">)</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+
+            <span class="c1"># Get the template format</span>
+            <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
+
+            <span class="c1"># Get the template image range</span>
+            <span class="k">if</span> <span class="n">image_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">image_range</span> <span class="o">=</span> <span class="n">template_image_range</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
+
+            <span class="c1"># Set the image range</span>
+            <span class="n">array_range</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+            <span class="c1"># Create the sequence file list</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">array_range</span><span class="p">]</span>
+
+        <span class="c1"># Import here as Format and Imageset have cyclic dependencies</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.format.Format</span> <span class="kn">import</span> <span class="n">Format</span>
+
+        <span class="c1"># Get the format class</span>
+        <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
+            <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">format_class</span> <span class="o">=</span> <span class="n">Format</span>
+
+        <span class="c1"># Create the sequence object</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span>
+            <span class="n">as_sequence</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
+            <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
+            <span class="n">goniometer</span><span class="o">=</span><span class="n">goniometer</span><span class="p">,</span>
+            <span class="n">scan</span><span class="o">=</span><span class="n">scan</span><span class="p">,</span>
+            <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Return the sequence</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">sequence</span><span class="p">]</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_create_imageset</span><span class="p">(</span><span class="n">filelist</span><span class="p">,</span> <span class="n">check_headers</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an image set&quot;&quot;&quot;</span>
+        <span class="c1"># Extract info from filelist</span>
+        <span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">is_sequence</span> <span class="o">=</span> <span class="n">filelist</span>
+
+        <span class="c1"># Get the template format</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
+
+        <span class="c1"># Sort the filenames</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+
+        <span class="c1"># Get the format object</span>
+        <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># Create and return the imageset</span>
+        <span class="k">return</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span> <span class="n">as_imageset</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_create_sequence</span><span class="p">(</span><span class="n">filelist</span><span class="p">,</span> <span class="n">check_headers</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a sequence&quot;&quot;&quot;</span>
+        <span class="c1"># Extract info from filelist</span>
+        <span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">is_sequence</span> <span class="o">=</span> <span class="n">filelist</span>
+
+        <span class="c1"># Get the template format</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
+
+        <span class="c1"># Sort the filenames</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+
+        <span class="c1"># Get the format object</span>
+        <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># Get the template format</span>
+        <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
+
+        <span class="c1"># Set the image range</span>
+        <span class="n">array_range</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
+
+        <span class="c1"># Create the sequence file list</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">array_range</span><span class="p">]</span>
+
+        <span class="n">sequence</span> <span class="o">=</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
+            <span class="n">filenames</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span> <span class="n">as_sequence</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Return the sequence</span>
+        <span class="k">return</span> <span class="n">sequence</span>
+
+<div class="viewcode-block" id="ImageSetFactory.make_imageset"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetFactory.make_imageset">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_imageset</span><span class="p">(</span>
+        <span class="n">filenames</span><span class="p">,</span>
+        <span class="n">format_class</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">single_file_indices</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an image set&quot;&quot;&quot;</span>
+        <span class="c1"># Import here as Format and Imageset have cyclic dependencies</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.format.Format</span> <span class="kn">import</span> <span class="n">Format</span>
+
+        <span class="c1"># So does FormatMultiImage</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.format.FormatMultiImage</span> <span class="kn">import</span> <span class="n">FormatMultiImage</span>
+
+        <span class="c1"># Get the format object</span>
+        <span class="k">if</span> <span class="n">format_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
+                <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span>
+                    <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">single_file_indices</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">single_file_indices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">format_class</span> <span class="o">=</span> <span class="n">Format</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">format_class</span> <span class="o">=</span> <span class="n">FormatMultiImage</span>
+
+        <span class="k">return</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">single_file_indices</span><span class="o">=</span><span class="n">single_file_indices</span><span class="p">,</span>
+            <span class="n">as_imageset</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+            <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageSetFactory.make_sequence"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetFactory.make_sequence">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_sequence</span><span class="p">(</span>
+        <span class="n">template</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">,</span>
+        <span class="n">format_class</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">goniometer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">scan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a sequence&quot;&quot;&quot;</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+
+        <span class="c1"># Get the template format</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">template_format</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
+
+        <span class="c1"># Sort the filenames</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+
+        <span class="c1"># Set the image range</span>
+        <span class="n">array_range</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">array_range</span> <span class="o">==</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+            <span class="n">scan</span><span class="o">.</span><span class="n">set_batch_offset</span><span class="p">(</span><span class="n">array_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># Get the format object and reader</span>
+        <span class="k">if</span> <span class="n">format_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Import here as Format and Imageset have cyclic dependencies</span>
+            <span class="kn">from</span> <span class="nn">dxtbx.format.Format</span> <span class="kn">import</span> <span class="n">Format</span>
+
+            <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
+                <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span>
+                    <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">format_class</span> <span class="o">=</span> <span class="n">Format</span>
+
+        <span class="n">sequence</span> <span class="o">=</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
+            <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
+            <span class="n">goniometer</span><span class="o">=</span><span class="n">goniometer</span><span class="p">,</span>
+            <span class="n">scan</span><span class="o">=</span><span class="n">scan</span><span class="p">,</span>
+            <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+            <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span>
+            <span class="n">as_sequence</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
+            <span class="n">single_file_indices</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">*</span><span class="n">array_range</span><span class="p">)),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Return the sequence</span>
+        <span class="k">return</span> <span class="n">sequence</span></div>
+
+<div class="viewcode-block" id="ImageSetFactory.imageset_from_anyset"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetFactory.imageset_from_anyset">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">imageset_from_anyset</span><span class="p">(</span><span class="n">imageset</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a new ImageSet object from an imageset object. Converts ImageSequence to ImageSet.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSetLazy</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ImageSetLazy</span><span class="p">(</span><span class="n">imageset</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">imageset</span><span class="o">.</span><span class="n">indices</span><span class="p">())</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSet</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ImageSet</span><span class="p">(</span><span class="n">imageset</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">imageset</span><span class="o">.</span><span class="n">indices</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unrecognized imageset type: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">imageset</span><span class="p">)))</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

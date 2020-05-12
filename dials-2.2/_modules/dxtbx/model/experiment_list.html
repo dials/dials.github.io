@@ -1,0 +1,873 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dxtbx.model.experiment_list &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../../index.html/../../_modules/dxtbx/model/experiment_list.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dxtbx.model.experiment_list</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">errno</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">builtins</span> <span class="kn">import</span> <span class="nb">range</span>
+
+<span class="kn">import</span> <span class="nn">pkg_resources</span>
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">import</span> <span class="nn">six.moves.cPickle</span> <span class="k">as</span> <span class="nn">pickle</span>
+
+<span class="kn">from</span> <span class="nn">dxtbx.datablock</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BeamComparison</span><span class="p">,</span>
+    <span class="n">DataBlockFactory</span><span class="p">,</span>
+    <span class="n">DataBlockTemplateImporter</span><span class="p">,</span>
+    <span class="n">DetectorComparison</span><span class="p">,</span>
+    <span class="n">GoniometerComparison</span><span class="p">,</span>
+    <span class="n">SequenceDiff</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dxtbx.format.FormatMultiImage</span> <span class="kn">import</span> <span class="n">FormatMultiImage</span>
+<span class="kn">from</span> <span class="nn">dxtbx.format.image</span> <span class="kn">import</span> <span class="n">ImageBool</span><span class="p">,</span> <span class="n">ImageDouble</span>
+<span class="kn">from</span> <span class="nn">dxtbx.imageset</span> <span class="kn">import</span> <span class="n">ImageGrid</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">,</span> <span class="n">ImageSet</span><span class="p">,</span> <span class="n">ImageSetFactory</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BeamFactory</span><span class="p">,</span>
+    <span class="n">CrystalFactory</span><span class="p">,</span>
+    <span class="n">DetectorFactory</span><span class="p">,</span>
+    <span class="n">Experiment</span><span class="p">,</span>
+    <span class="n">ExperimentList</span><span class="p">,</span>
+    <span class="n">GoniometerFactory</span><span class="p">,</span>
+    <span class="n">ProfileModelFactory</span><span class="p">,</span>
+    <span class="n">ScanFactory</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dxtbx.sequence_filenames</span> <span class="kn">import</span> <span class="n">template_image_range</span>
+<span class="kn">from</span> <span class="nn">dxtbx.serialize</span> <span class="kn">import</span> <span class="n">xds</span>
+<span class="kn">from</span> <span class="nn">dxtbx.serialize.filename</span> <span class="kn">import</span> <span class="n">resolve_path</span>
+<span class="kn">from</span> <span class="nn">dxtbx.serialize.load</span> <span class="kn">import</span> <span class="n">_decode_dict</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;BeamComparison&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DetectorComparison&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ExperimentListFactory&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;GoniometerComparison&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SequenceDiff&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">InvalidExperimentListError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Indicates an error whilst validating the experiment list.</span>
+
+<span class="sd">    This means that there is some structural problem that prevents the given data</span>
+<span class="sd">    from representing a well-formed experiment list. This doesn&#39;t indicate e.g.</span>
+<span class="sd">    some problem with the data or model consistency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+<span class="k">class</span> <span class="nc">ExperimentListDict</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A helper class for serializing the experiment list to dictionary (needed</span>
+<span class="sd">    to save the experiment list to JSON format.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialise. Copy the dictionary.&quot;&quot;&quot;</span>
+        <span class="c1"># Basic check: This is a dict-like object. This can happen if e.g. we</span>
+        <span class="c1"># were passed a DataBlock list instead of an ExperimentList dictionary</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;get&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">InvalidExperimentListError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected dictionary, not </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_obj</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span> <span class="o">=</span> <span class="n">check_format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_directory</span> <span class="o">=</span> <span class="n">directory</span>
+
+        <span class="c1"># If this doesn&#39;t claim to be an ExperimentList, don&#39;t even try</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;__id__&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;ExperimentList&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidExperimentListError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected __id__ &#39;ExperimentList&#39;, but found </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;__id__&quot;</span><span class="p">))</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Extract lists of models referenced by experiments</span>
+        <span class="c1"># Go through all the imagesets and make sure the dictionary</span>
+        <span class="c1"># references by an index rather than a file path.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lookups</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">model</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_models</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">function</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="p">(</span><span class="s2">&quot;beam&quot;</span><span class="p">,</span> <span class="n">BeamFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;detector&quot;</span><span class="p">,</span> <span class="n">DetectorFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;goniometer&quot;</span><span class="p">,</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;scan&quot;</span><span class="p">,</span> <span class="n">ScanFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;crystal&quot;</span><span class="p">,</span> <span class="n">CrystalFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;profile&quot;</span><span class="p">,</span> <span class="n">ProfileModelFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;imageset&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">),</span>
+                <span class="p">(</span><span class="s2">&quot;scaling_model&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scaling_model_from_dict</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_extract_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">from_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper function. Extract the models.</span>
+
+<span class="sd">        if name == imageset: Extract imageset objects from the source.</span>
+
+<span class="sd">        This function does resolving of an (old) method of imageset lookup</span>
+<span class="sd">        e.g. it was valid to have a string as the imageset value in an</span>
+<span class="sd">        experiment instead of an int - in which case the imageset was</span>
+<span class="sd">        loaded from the named file in the target directory.</span>
+
+<span class="sd">        If any experiments point to a file in this way, the imageset is</span>
+<span class="sd">        loaded and the experiment is rewritted with an integer pointing</span>
+<span class="sd">        to the new ImageSet in the returned list.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">                The ordered list of serialized-ImageSet dictionaries</span>
+<span class="sd">                that the Experiment list points to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Extract all the model list</span>
+        <span class="n">mlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">[])</span>
+
+        <span class="c1"># Convert the model from dictionary to concreate</span>
+        <span class="c1"># python class for the model.</span>
+        <span class="n">mlist</span> <span class="o">=</span> <span class="p">[</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">mlist</span><span class="p">]</span>
+
+        <span class="c1"># Dictionaries for file mappings</span>
+        <span class="n">mmap</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># For each experiment, check the model is not specified by</span>
+        <span class="c1"># a path, if it is then get the dictionary of the model</span>
+        <span class="c1"># and insert it into the list. Replace the path reference</span>
+        <span class="c1"># with an index</span>
+        <span class="k">for</span> <span class="n">eobj</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_obj</span><span class="p">[</span><span class="s2">&quot;experiment&quot;</span><span class="p">]:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">eobj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mmap</span><span class="p">:</span>
+                    <span class="n">mmap</span><span class="p">[</span><span class="n">value</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mlist</span><span class="p">)</span>
+                    <span class="n">mlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">from_dict</span><span class="p">(</span><span class="n">_experimentlist_from_file</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_directory</span><span class="p">))</span>
+                    <span class="p">)</span>
+                <span class="n">eobj</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">mmap</span><span class="p">[</span><span class="n">value</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;expected int or str, got </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+
+        <span class="c1"># Return the model list</span>
+        <span class="k">return</span> <span class="n">mlist</span>
+
+    <span class="k">def</span> <span class="nf">_load_pickle_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset_data</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="c1"># type: (Dict, str) -&gt; Tuple[Optional[str], Any]</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read a filename from an imageset dict and load if required.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            imageset_data: The dictionary holding imageset information</span>
+<span class="sd">            param: The key name to lookup in the imageset dictionary</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A tuple of (filename, data) where data has been loaded from</span>
+<span class="sd">            the pickle file. If there is no key entry then (None, None)</span>
+<span class="sd">            is returned. If the configuration parameter check_format is</span>
+<span class="sd">            False then (filename, None) will be returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">imageset_data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="kc">None</span>
+
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">resolve_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">[</span><span class="n">param</span><span class="p">],</span> <span class="n">directory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_directory</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span> <span class="ow">and</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">filename</span><span class="p">,</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;bytes&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">filename</span><span class="p">,</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">filename</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_imageset_from_imageset_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset_data</span><span class="p">,</span> <span class="n">models</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Make an imageset from imageset_data - help with refactor decode. &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">imageset_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s2">&quot;params&quot;</span> <span class="ow">in</span> <span class="n">imageset_data</span><span class="p">:</span>
+            <span class="n">format_kwargs</span> <span class="o">=</span> <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">format_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">beam</span> <span class="o">=</span> <span class="n">models</span><span class="p">[</span><span class="s2">&quot;beam&quot;</span><span class="p">]</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">models</span><span class="p">[</span><span class="s2">&quot;detector&quot;</span><span class="p">]</span>
+        <span class="n">goniometer</span> <span class="o">=</span> <span class="n">models</span><span class="p">[</span><span class="s2">&quot;goniometer&quot;</span><span class="p">]</span>
+        <span class="n">scan</span> <span class="o">=</span> <span class="n">models</span><span class="p">[</span><span class="s2">&quot;scan&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Load the external lookup data</span>
+        <span class="n">mask_filename</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_pickle_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">)</span>
+        <span class="n">gain_filename</span><span class="p">,</span> <span class="n">gain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_pickle_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="s2">&quot;gain&quot;</span><span class="p">)</span>
+        <span class="n">pedestal_filename</span><span class="p">,</span> <span class="n">pedestal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_pickle_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="s2">&quot;pedestal&quot;</span><span class="p">)</span>
+        <span class="n">dx_filename</span><span class="p">,</span> <span class="n">dx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_pickle_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="s2">&quot;dx&quot;</span><span class="p">)</span>
+        <span class="n">dy_filename</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_pickle_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="s2">&quot;dy&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ImageSet&quot;</span><span class="p">:</span>
+            <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_stills</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ImageGrid&quot;</span><span class="p">:</span>
+            <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_grid</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ImageSequence&quot;</span>
+            <span class="ow">or</span> <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ImageSweep&quot;</span>
+        <span class="p">):</span>
+            <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_sequence</span><span class="p">(</span>
+                <span class="n">imageset_data</span><span class="p">,</span>
+                <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
+                <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
+                <span class="n">goniometer</span><span class="o">=</span><span class="n">goniometer</span><span class="p">,</span>
+                <span class="n">scan</span><span class="o">=</span><span class="n">scan</span><span class="p">,</span>
+                <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;MemImageSet&quot;</span><span class="p">:</span>
+            <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_mem_imageset</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unknown imageset type&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">imageset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Set the external lookup</span>
+            <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">ImageBool</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">ImageBool</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">gain</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">gain</span> <span class="o">=</span> <span class="n">ImageDouble</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">gain</span> <span class="o">=</span> <span class="n">ImageDouble</span><span class="p">(</span><span class="n">gain</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pedestal</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">pedestal</span> <span class="o">=</span> <span class="n">ImageDouble</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pedestal</span> <span class="o">=</span> <span class="n">ImageDouble</span><span class="p">(</span><span class="n">pedestal</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">dx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dx</span> <span class="o">=</span> <span class="n">ImageDouble</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dx</span> <span class="o">=</span> <span class="n">ImageDouble</span><span class="p">(</span><span class="n">dx</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">dy</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dy</span> <span class="o">=</span> <span class="n">ImageDouble</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dy</span> <span class="o">=</span> <span class="n">ImageDouble</span><span class="p">(</span><span class="n">dy</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">mask</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
+                    <span class="n">mask</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">mask</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">m1</span><span class="p">,</span> <span class="n">m2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
+                        <span class="n">m1</span> <span class="o">&amp;=</span> <span class="n">m2</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+                    <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">ImageBool</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">mask</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">mask_filename</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">gain</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">gain</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">gain</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">gain_filename</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">pedestal</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">pedestal</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">pedestal</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">pedestal_filename</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dx</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">dx</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dx</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">dx_filename</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dy</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">dy</span>
+            <span class="n">imageset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dy</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">dy_filename</span>
+
+            <span class="c1"># Update the imageset models</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">):</span>
+                <span class="n">imageset</span><span class="o">.</span><span class="n">set_beam</span><span class="p">(</span><span class="n">beam</span><span class="p">)</span>
+                <span class="n">imageset</span><span class="o">.</span><span class="n">set_detector</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span>
+                <span class="n">imageset</span><span class="o">.</span><span class="n">set_goniometer</span><span class="p">(</span><span class="n">goniometer</span><span class="p">)</span>
+                <span class="n">imageset</span><span class="o">.</span><span class="n">set_scan</span><span class="p">(</span><span class="n">scan</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="p">(</span><span class="n">ImageSet</span><span class="p">,</span> <span class="n">ImageGrid</span><span class="p">)):</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)):</span>
+                    <span class="n">imageset</span><span class="o">.</span><span class="n">set_beam</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                    <span class="n">imageset</span><span class="o">.</span><span class="n">set_detector</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                    <span class="n">imageset</span><span class="o">.</span><span class="n">set_goniometer</span><span class="p">(</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                    <span class="n">imageset</span><span class="o">.</span><span class="n">set_scan</span><span class="p">(</span><span class="n">scan</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+
+            <span class="n">imageset</span><span class="o">.</span><span class="n">update_detector_px_mm_data</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">imageset</span>
+
+    <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decode the dictionary into a list of experiments.&quot;&quot;&quot;</span>
+        <span class="c1"># Extract all the experiments - first find all scans belonging to</span>
+        <span class="c1"># same imageset</span>
+
+        <span class="n">eobj_scan</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">eobj</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_obj</span><span class="p">[</span><span class="s2">&quot;experiment&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;imageset&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">imageset_ref</span> <span class="o">=</span> <span class="n">eobj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;imageset&quot;</span><span class="p">)</span>
+            <span class="n">scan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;scan&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">imageset_ref</span> <span class="ow">in</span> <span class="n">eobj_scan</span><span class="p">:</span>
+                <span class="c1"># if there is no scan, or scan is identical, move on, else</span>
+                <span class="c1"># make a scan which encompasses both scans</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">scan</span> <span class="ow">or</span> <span class="n">scan</span> <span class="o">==</span> <span class="n">eobj_scan</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]:</span>
+                    <span class="k">continue</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="n">eobj_scan</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
+                <span class="n">j</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">==</span> <span class="n">j</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="n">eobj_scan</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]</span> <span class="o">+=</span> <span class="n">scan</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># make a new bigger scan</span>
+                    <span class="n">o</span> <span class="o">=</span> <span class="n">eobj_scan</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()</span>
+                    <span class="k">assert</span> <span class="n">o</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">scan</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">scan</span><span class="p">)</span>
+                    <span class="n">scan</span><span class="o">.</span><span class="n">set_image_range</span><span class="p">((</span><span class="nb">min</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">j</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">max</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">j</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
+                    <span class="n">scan</span><span class="o">.</span><span class="n">set_oscillation</span><span class="p">((</span><span class="nb">min</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">o</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+                    <span class="n">eobj_scan</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]</span> <span class="o">=</span> <span class="n">scan</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">eobj_scan</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">scan</span><span class="p">)</span>
+
+        <span class="c1"># Map of imageset/scan pairs</span>
+        <span class="n">imagesets</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># For every experiment, use the given input to create</span>
+        <span class="c1"># a sensible experiment.</span>
+        <span class="n">el</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">eobj</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_obj</span><span class="p">[</span><span class="s2">&quot;experiment&quot;</span><span class="p">]:</span>
+
+            <span class="c1"># Get the models</span>
+            <span class="n">identifier</span> <span class="o">=</span> <span class="n">eobj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;identifier&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">beam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;beam&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+            <span class="n">detector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;detector&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+            <span class="n">goniometer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;goniometer&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+            <span class="n">scan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;scan&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+            <span class="n">crystal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;crystal&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+            <span class="n">profile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;profile&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+            <span class="n">scaling_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;scaling_model&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+
+            <span class="n">models</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;beam&quot;</span><span class="p">:</span> <span class="n">beam</span><span class="p">,</span>
+                <span class="s2">&quot;detector&quot;</span><span class="p">:</span> <span class="n">detector</span><span class="p">,</span>
+                <span class="s2">&quot;goniometer&quot;</span><span class="p">:</span> <span class="n">goniometer</span><span class="p">,</span>
+                <span class="s2">&quot;scan&quot;</span><span class="p">:</span> <span class="n">scan</span><span class="p">,</span>
+                <span class="s2">&quot;crystal&quot;</span><span class="p">:</span> <span class="n">crystal</span><span class="p">,</span>
+                <span class="s2">&quot;profile&quot;</span><span class="p">:</span> <span class="n">profile</span><span class="p">,</span>
+                <span class="s2">&quot;scaling_model&quot;</span><span class="p">:</span> <span class="n">scaling_model</span><span class="p">,</span>
+            <span class="p">}</span>
+
+            <span class="n">imageset_ref</span> <span class="o">=</span> <span class="n">eobj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;imageset&quot;</span><span class="p">)</span>
+
+            <span class="c1"># If not already cached, load this imageset</span>
+            <span class="k">if</span> <span class="n">imageset_ref</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">imagesets</span><span class="p">:</span>
+                <span class="n">imageset_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_model</span><span class="p">(</span><span class="s2">&quot;imageset&quot;</span><span class="p">,</span> <span class="n">eobj</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">imageset_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># Create the imageset from the input data</span>
+                    <span class="n">models</span><span class="p">[</span><span class="s2">&quot;scan&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">eobj_scan</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]</span>
+                    <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_imageset_from_imageset_data</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="n">models</span><span class="p">)</span>
+                    <span class="n">imagesets</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]</span> <span class="o">=</span> <span class="n">imageset</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Even if we have an empty entry, this counts as a load</span>
+                    <span class="n">imagesets</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1"># Append the experiment</span>
+            <span class="n">el</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">Experiment</span><span class="p">(</span>
+                    <span class="n">imageset</span><span class="o">=</span><span class="n">imagesets</span><span class="p">[</span><span class="n">imageset_ref</span><span class="p">],</span>
+                    <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
+                    <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
+                    <span class="n">goniometer</span><span class="o">=</span><span class="n">goniometer</span><span class="p">,</span>
+                    <span class="n">scan</span><span class="o">=</span><span class="n">scan</span><span class="p">,</span>
+                    <span class="n">crystal</span><span class="o">=</span><span class="n">crystal</span><span class="p">,</span>
+                    <span class="n">profile</span><span class="o">=</span><span class="n">profile</span><span class="p">,</span>
+                    <span class="n">scaling_model</span><span class="o">=</span><span class="n">scaling_model</span><span class="p">,</span>
+                    <span class="n">identifier</span><span class="o">=</span><span class="n">identifier</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Return the experiment list</span>
+        <span class="k">return</span> <span class="n">el</span>
+
+    <span class="k">def</span> <span class="nf">_make_mem_imageset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Can&#39;t make a mem imageset from dict.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_make_stills</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make a still imageset.&quot;&quot;&quot;</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">resolve_path</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_directory</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">imageset</span><span class="p">[</span><span class="s2">&quot;images&quot;</span><span class="p">]</span>
+        <span class="p">]</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s2">&quot;single_file_indices&quot;</span> <span class="ow">in</span> <span class="n">imageset</span><span class="p">:</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">imageset</span><span class="p">[</span><span class="s2">&quot;single_file_indices&quot;</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">make_imageset</span><span class="p">(</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>
+            <span class="n">check_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span><span class="p">,</span>
+            <span class="n">single_file_indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_make_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make a still imageset.&quot;&quot;&quot;</span>
+        <span class="n">grid_size</span> <span class="o">=</span> <span class="n">imageset</span><span class="p">[</span><span class="s2">&quot;grid_size&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">ImageGrid</span><span class="o">.</span><span class="n">from_imageset</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_make_stills</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">),</span> <span class="n">grid_size</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_make_sequence</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">imageset</span><span class="p">,</span>
+        <span class="n">beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">goniometer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">scan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make an image sequence.&quot;&quot;&quot;</span>
+        <span class="c1"># Get the template format</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="n">resolve_path</span><span class="p">(</span><span class="n">imageset</span><span class="p">[</span><span class="s2">&quot;template&quot;</span><span class="p">],</span> <span class="n">directory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_directory</span><span class="p">)</span>
+
+        <span class="c1"># Get the number of images (if no scan is given we&#39;ll try</span>
+        <span class="c1"># to find all the images matching the template</span>
+        <span class="k">if</span> <span class="n">scan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">i0</span><span class="p">,</span> <span class="n">i1</span> <span class="o">=</span> <span class="n">template_image_range</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">i0</span><span class="p">,</span> <span class="n">i1</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
+
+        <span class="n">format_class</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;single_file_indices&quot;</span> <span class="ow">in</span> <span class="n">imageset</span><span class="p">:</span>
+                <span class="n">format_class</span> <span class="o">=</span> <span class="n">FormatMultiImage</span>
+
+        <span class="c1"># Make a sequence from the input data</span>
+        <span class="k">return</span> <span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">make_sequence</span><span class="p">(</span>
+            <span class="n">template</span><span class="p">,</span>
+            <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">i0</span><span class="p">,</span> <span class="n">i1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)),</span>
+            <span class="n">format_class</span><span class="o">=</span><span class="n">format_class</span><span class="p">,</span>
+            <span class="n">check_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span><span class="p">,</span>
+            <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
+            <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
+            <span class="n">goniometer</span><span class="o">=</span><span class="n">goniometer</span><span class="p">,</span>
+            <span class="n">scan</span><span class="o">=</span><span class="n">scan</span><span class="p">,</span>
+            <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_lookup_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">experiment_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find a model by looking up its index from a dictionary</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): The model name e.g. &#39;beam&#39;, &#39;detector&#39;</span>
+<span class="sd">            experiment_dict (Dict[str, int]):</span>
+<span class="sd">                The experiment dictionary. experiment_dict[name] must</span>
+<span class="sd">                exist and be not None to retrieve a model. If this key</span>
+<span class="sd">                exists, then there *must* be an item with this index</span>
+<span class="sd">                in the ExperimentListDict internal model stores.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Optional[Any]:</span>
+<span class="sd">                A model by looking up the index pointed to by</span>
+<span class="sd">                experiment_dict[name]. If not present or empty,</span>
+<span class="sd">                then None is returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">experiment_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookups</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">experiment_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]]</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_scaling_model_from_dict</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the scaling model from a dictionary.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">entry_point</span> <span class="ow">in</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">iter_entry_points</span><span class="p">(</span><span class="s2">&quot;dxtbx.scaling_model_ext&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">entry_point</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="n">entry_point</span><span class="o">.</span><span class="n">load</span><span class="p">()</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_experimentlist_from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Load a model dictionary from a file.&quot;&quot;&quot;</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">resolve_path</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">_decode_dict</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s2">&quot;unable to read file, </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ExperimentListFactory"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory">[docs]</a><span class="k">class</span> <span class="nc">ExperimentListFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class to help instantiate experiment lists.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_args"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_args">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unhandled</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Try to load experiment from any recognised format.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Create a list for unhandled arguments</span>
+        <span class="k">if</span> <span class="n">unhandled</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+        <span class="c1">## First try as image files</span>
+        <span class="c1"># experiments = ExperimentListFactory.from_datablock(</span>
+        <span class="c1"># DataBlockFactory.from_args(args, verbose, unhandled1))</span>
+
+        <span class="c1"># Try to load from serialized formats</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                    <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_serialized_format</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Loaded experiments from </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Could not load experiments from </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)))</span>
+                <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="c1"># Return the experiments</span>
+        <span class="k">return</span> <span class="n">experiments</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_filenames"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_filenames">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_filenames</span><span class="p">(</span>
+        <span class="n">filenames</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">unhandled</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">compare_beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">compare_detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">compare_goniometer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">scan_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a list of data blocks from a list of directory or file names.&quot;&quot;&quot;</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">DataBlockFactory</span><span class="o">.</span><span class="n">from_filenames</span><span class="p">(</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="n">unhandled</span><span class="o">=</span><span class="n">unhandled</span><span class="p">,</span>
+            <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
+            <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
+            <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
+            <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">,</span>
+            <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+        <span class="p">):</span>
+            <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_datablock_and_crystal</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">load_models</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">experiments</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_imageset_and_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_imageset_and_crystal">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_imageset_and_crystal</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load an experiment list from an imageset and crystal.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_sequence_and_crystal</span><span class="p">(</span>
+                <span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_stills_and_crystal</span><span class="p">(</span>
+                <span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_sequence_and_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_sequence_and_crystal">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_sequence_and_crystal</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an experiment list from sequence and crystal.&quot;&quot;&quot;</span>
+
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">)</span>
+
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">load_models</span><span class="p">:</span>
+            <span class="c1"># if imagesequence is still images, make one experiment for each</span>
+            <span class="c1"># all referencing into the same image set</span>
+            <span class="k">if</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">is_still</span><span class="p">():</span>
+                <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+                    <span class="n">subset</span> <span class="o">=</span> <span class="n">imageset</span><span class="p">[</span><span class="n">j</span> <span class="p">:</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                    <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">Experiment</span><span class="p">(</span>
+                            <span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">,</span>
+                            <span class="n">beam</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(),</span>
+                            <span class="n">detector</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">(),</span>
+                            <span class="n">goniometer</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">(),</span>
+                            <span class="n">scan</span><span class="o">=</span><span class="n">subset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">(),</span>
+                            <span class="n">crystal</span><span class="o">=</span><span class="n">crystal</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">Experiment</span><span class="p">(</span>
+                        <span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">,</span>
+                        <span class="n">beam</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(),</span>
+                        <span class="n">detector</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">(),</span>
+                        <span class="n">goniometer</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">(),</span>
+                        <span class="n">scan</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">(),</span>
+                        <span class="n">crystal</span><span class="o">=</span><span class="n">crystal</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">experiments</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ExperimentList</span><span class="p">([</span><span class="n">Experiment</span><span class="p">(</span><span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="o">=</span><span class="n">crystal</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_stills_and_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_stills_and_crystal">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_stills_and_crystal</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an experiment list from stills and crystal.&quot;&quot;&quot;</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">load_models</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)):</span>
+                <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">Experiment</span><span class="p">(</span>
+                        <span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
+                        <span class="n">beam</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_beam</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                        <span class="n">detector</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_detector</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                        <span class="n">goniometer</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                        <span class="n">scan</span><span class="o">=</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_scan</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                        <span class="n">crystal</span><span class="o">=</span><span class="n">crystal</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">)):</span>
+                <span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">Experiment</span><span class="p">(</span><span class="n">imageset</span><span class="o">=</span><span class="n">imageset</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="n">crystal</span><span class="o">=</span><span class="n">crystal</span><span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">experiments</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_datablock_and_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_datablock_and_crystal">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_datablock_and_crystal</span><span class="p">(</span><span class="n">datablock</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load an experiment list from a datablock.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Initialise the experiment list</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+
+        <span class="c1"># If we have a list, loop through</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">datablock</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">datablock</span><span class="p">:</span>
+                <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                    <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_datablock_and_crystal</span><span class="p">(</span>
+                        <span class="n">db</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">experiments</span>
+
+        <span class="c1"># Add all the imagesets</span>
+        <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="n">datablock</span><span class="o">.</span><span class="n">extract_imagesets</span><span class="p">():</span>
+            <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_imageset_and_crystal</span><span class="p">(</span>
+                    <span class="n">imageset</span><span class="p">,</span> <span class="n">crystal</span><span class="p">,</span> <span class="n">load_models</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check the list is consistent</span>
+        <span class="k">assert</span> <span class="n">experiments</span><span class="o">.</span><span class="n">is_consistent</span><span class="p">()</span>
+
+        <span class="c1"># Return the experiments</span>
+        <span class="k">return</span> <span class="n">experiments</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_dict"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_dict">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load an experiment list from a dictionary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            obj (dict):</span>
+<span class="sd">                Dictionary containing either ExperimentList or DataBlock</span>
+<span class="sd">                structure.</span>
+<span class="sd">            check_format (bool):</span>
+<span class="sd">                If True, the file will be read to verify metadata.</span>
+<span class="sd">            directory (str):</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ExperimentList: The dictionary converted</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">DataBlockFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span>
+                <span class="n">obj</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span>
+            <span class="p">):</span>
+                <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                    <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_datablock_and_crystal</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">experiments</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Decode the experiments from the dictionary</span>
+        <span class="k">if</span> <span class="n">experiments</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListDict</span><span class="p">(</span>
+                <span class="n">obj</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+
+        <span class="c1"># Check the list is consistent</span>
+        <span class="k">assert</span> <span class="n">experiments</span><span class="o">.</span><span class="n">is_consistent</span><span class="p">()</span>
+
+        <span class="c1"># Return the experiments</span>
+        <span class="k">return</span> <span class="n">experiments</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_json"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_json">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_json</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load an experiment list from JSON.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">_decode_dict</span><span class="p">),</span>
+            <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
+            <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_json_file"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_json_file">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_json_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load an experiment list from a json file.&quot;&quot;&quot;</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span>
+                <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_pickle_file"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_pickle_file">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_pickle_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decode an experiment list from a pickle file.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">ExperimentList</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_xds"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_xds">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_xds</span><span class="p">(</span><span class="n">xds_inp</span><span class="p">,</span> <span class="n">xds_other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate an experiment list from XDS files.&quot;&quot;&quot;</span>
+        <span class="c1"># Get the sequence from the XDS files</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="n">xds</span><span class="o">.</span><span class="n">to_imageset</span><span class="p">(</span><span class="n">xds_inp</span><span class="p">,</span> <span class="n">xds_other</span><span class="p">)</span>
+
+        <span class="c1"># Get the crystal from the XDS files</span>
+        <span class="n">crystal</span> <span class="o">=</span> <span class="n">xds</span><span class="o">.</span><span class="n">to_crystal</span><span class="p">(</span><span class="n">xds_other</span><span class="p">)</span>
+
+        <span class="c1"># Create the experiment list</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_imageset_and_crystal</span><span class="p">(</span><span class="n">sequence</span><span class="p">,</span> <span class="n">crystal</span><span class="p">)</span>
+
+        <span class="c1"># Set the crystal in the experiment list</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+
+        <span class="c1"># Return the experiment list</span>
+        <span class="k">return</span> <span class="n">experiments</span></div>
+
+<div class="viewcode-block" id="ExperimentListFactory.from_serialized_format"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/experiment_list.html#dxtbx.model.experiment_list.ExperimentListFactory.from_serialized_format">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_serialized_format</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Try to load the experiment list from a serialized format.&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;__fspath__&quot;</span><span class="p">):</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">__fspath__</span><span class="p">()</span>  <span class="c1"># unwrap PEP-519-style objects</span>
+
+        <span class="c1"># First try as a JSON file</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_json_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">check_format</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">IOError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># In an ideal Python 3 world this would be much more simply FileNotFoundError</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="n">errno</span><span class="o">.</span><span class="n">ENOENT</span><span class="p">:</span>
+                <span class="k">raise</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="c1"># Now try as a pickle file</span>
+        <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_pickle_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">ExperimentListTemplateImporter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class to import an experiment list from a template.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">templates</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">importer</span> <span class="o">=</span> <span class="n">DataBlockTemplateImporter</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">importer</span><span class="o">.</span><span class="n">datablocks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_datablock_and_crystal</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

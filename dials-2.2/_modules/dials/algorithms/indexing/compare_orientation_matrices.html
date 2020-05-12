@@ -1,0 +1,193 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.compare_orientation_matrices &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../../../index.html/../../_modules/dials/algorithms/indexing/compare_orientation_matrices.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dials.algorithms.indexing.compare_orientation_matrices</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+<span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="kn">import</span> <span class="n">r3_rotation_axis_and_angle_from_matrix</span>
+
+
+<div class="viewcode-block" id="difference_rotation_matrix_axis_angle"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.compare_orientation_matrices.difference_rotation_matrix_axis_angle">[docs]</a><span class="k">def</span> <span class="nf">difference_rotation_matrix_axis_angle</span><span class="p">(</span><span class="n">crystal_a</span><span class="p">,</span> <span class="n">crystal_b</span><span class="p">,</span> <span class="n">target_angle</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">sgtbx</span>
+
+    <span class="c1"># assert crystal_a.get_space_group() == crystal_b.get_space_group()</span>
+    <span class="n">space_group</span> <span class="o">=</span> <span class="n">crystal_b</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span>
+    <span class="n">best_R_ab</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">best_cb_op</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">best_axis</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">best_angle</span> <span class="o">=</span> <span class="mf">1e8</span>
+    <span class="c1"># iterate over space group ops to find smallest differences</span>
+    <span class="k">for</span> <span class="n">i_op</span><span class="p">,</span> <span class="n">op</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">space_group</span><span class="o">.</span><span class="n">build_derived_laue_group</span><span class="p">()</span><span class="o">.</span><span class="n">all_ops</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="n">op</span><span class="o">.</span><span class="n">r</span><span class="p">()</span><span class="o">.</span><span class="n">determinant</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">op</span><span class="o">.</span><span class="n">t</span><span class="p">()</span><span class="o">.</span><span class="n">is_zero</span><span class="p">():</span>
+            <span class="k">continue</span>
+        <span class="n">cb_op</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">(</span><span class="n">op</span><span class="o">.</span><span class="n">inverse</span><span class="p">())</span>
+        <span class="n">crystal_b_sym</span> <span class="o">=</span> <span class="n">crystal_b</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
+        <span class="n">U_a</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">crystal_a</span><span class="o">.</span><span class="n">get_U</span><span class="p">())</span>
+        <span class="n">U_b</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">crystal_b_sym</span><span class="o">.</span><span class="n">get_U</span><span class="p">())</span>
+        <span class="k">assert</span> <span class="n">U_a</span><span class="o">.</span><span class="n">is_r3_rotation_matrix</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="n">U_b</span><span class="o">.</span><span class="n">is_r3_rotation_matrix</span><span class="p">()</span>
+        <span class="c1"># the rotation matrix to transform from U_a to U_b</span>
+        <span class="n">R_ab</span> <span class="o">=</span> <span class="n">U_b</span> <span class="o">*</span> <span class="n">U_a</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+        <span class="n">axis_angle</span> <span class="o">=</span> <span class="n">r3_rotation_axis_and_angle_from_matrix</span><span class="p">(</span><span class="n">R_ab</span><span class="p">)</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="n">axis_angle</span><span class="o">.</span><span class="n">axis</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">axis_angle</span><span class="o">.</span><span class="n">angle</span><span class="p">()</span> <span class="o">*</span> <span class="mf">180.0</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+        <span class="k">for</span> <span class="n">sign</span> <span class="ow">in</span> <span class="p">(</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sign</span> <span class="o">*</span> <span class="n">angle</span> <span class="o">-</span> <span class="n">target_angle</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">abs</span><span class="p">(</span><span class="n">best_angle</span> <span class="o">-</span> <span class="n">target_angle</span><span class="p">):</span>
+                <span class="n">best_angle</span> <span class="o">=</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">angle</span>
+                <span class="n">best_axis</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">sign</span> <span class="o">*</span> <span class="n">a</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">axis</span><span class="p">)</span>
+                <span class="n">best_R_ab</span> <span class="o">=</span> <span class="n">R_ab</span> <span class="k">if</span> <span class="n">sign</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">R_ab</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+                <span class="n">best_cb_op</span> <span class="o">=</span> <span class="n">cb_op</span> <span class="k">if</span> <span class="n">sign</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">cb_op</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">best_R_ab</span><span class="p">,</span> <span class="n">best_axis</span><span class="p">,</span> <span class="n">best_angle</span><span class="p">,</span> <span class="n">best_cb_op</span></div>
+
+
+<div class="viewcode-block" id="rotation_matrix_differences"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.compare_orientation_matrices.rotation_matrix_differences">[docs]</a><span class="k">def</span> <span class="nf">rotation_matrix_differences</span><span class="p">(</span>
+    <span class="n">crystal_models</span><span class="p">,</span> <span class="n">miller_indices</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">comparison</span><span class="o">=</span><span class="s2">&quot;pairwise&quot;</span>
+<span class="p">):</span>
+    <span class="k">assert</span> <span class="n">comparison</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;pairwise&quot;</span><span class="p">,</span> <span class="s2">&quot;sequential&quot;</span><span class="p">),</span> <span class="n">comparison</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">crystal_models</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">crystal_models</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">comparison</span> <span class="o">==</span> <span class="s2">&quot;sequential&quot;</span> <span class="ow">and</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">R_ij</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="n">cb_op</span> <span class="o">=</span> <span class="n">difference_rotation_matrix_axis_angle</span><span class="p">(</span>
+                <span class="n">crystal_models</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">crystal_models</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Change of basis op: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">cb_op</span><span class="p">)</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="s2">&quot;Rotation matrix to transform crystal </span><span class="si">%i</span><span class="s2"> to crystal </span><span class="si">%i</span><span class="s2">:&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">R_ij</span><span class="o">.</span><span class="n">mathematica_form</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%.3f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">one_row_per_line</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">(</span><span class="s2">&quot;Rotation of </span><span class="si">%.3f</span><span class="s2"> degrees &quot;</span> <span class="o">%</span> <span class="n">angle</span><span class="p">)</span>
+                <span class="o">+</span> <span class="p">(</span><span class="s2">&quot;about axis (</span><span class="si">%.3f</span><span class="s2">, </span><span class="si">%.3f</span><span class="s2">, </span><span class="si">%.3f</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">miller_indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">hkl</span> <span class="ow">in</span> <span class="n">miller_indices</span><span class="p">:</span>
+                    <span class="n">cm_i</span> <span class="o">=</span> <span class="n">crystal_models</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="n">cm_j</span> <span class="o">=</span> <span class="n">crystal_models</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
+                    <span class="n">A_i</span> <span class="o">=</span> <span class="n">cm_i</span><span class="o">.</span><span class="n">get_A</span><span class="p">()</span>
+                    <span class="n">A_j</span> <span class="o">=</span> <span class="n">cm_j</span><span class="o">.</span><span class="n">get_A</span><span class="p">()</span>
+                    <span class="n">a_star_i</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">A_i</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span>
+                    <span class="n">b_star_i</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">A_i</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span>
+                    <span class="n">c_star_i</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">A_i</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">9</span><span class="p">])</span>
+                    <span class="n">a_star_j</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">A_j</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span>
+                    <span class="n">b_star_j</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">A_j</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span>
+                    <span class="n">c_star_j</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">A_j</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">9</span><span class="p">])</span>
+
+                    <span class="n">v_i</span> <span class="o">=</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">a_star_i</span> <span class="o">+</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">b_star_i</span> <span class="o">+</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">c_star_i</span>
+                    <span class="n">v_j</span> <span class="o">=</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">a_star_j</span> <span class="o">+</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">b_star_j</span> <span class="o">+</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">c_star_j</span>
+
+                    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="p">(</span><span class="s2">&quot;(</span><span class="si">%i</span><span class="s2">,</span><span class="si">%i</span><span class="s2">,</span><span class="si">%i</span><span class="s2">): &quot;</span> <span class="o">%</span> <span class="n">hkl</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">%.2f</span><span class="s2"> deg&quot;</span> <span class="o">%</span> <span class="n">v_i</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">v_j</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+                    <span class="p">)</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

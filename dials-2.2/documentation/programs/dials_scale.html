@@ -1,0 +1,702 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.scale &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="dials.export" href="dials_export.html" />
+    <link rel="prev" title="dials.symmetry" href="dials_symmetry.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../index.html/../../documentation/programs/dials_scale.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <div class="section" id="dials-scale">
+<h1>dials.scale<a class="headerlink" href="#dials-scale" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This program performs scaling on integrated datasets, which attempts to improve
+the internal consistency of the reflection intensities by correcting for
+various experimental effects. By default, a physically motivated scaling model
+is used, with a scale, decay (B-factor) and absorption correction.
+If the input files contain multiple datasets, all data will be scaled against
+a common target of unique reflection intensities.</p>
+<p>The program outputs one scaled.refl file, which contains updated reflection
+intensities, variances and per-refelction scale factors, and one scaled.expt
+containing the scaling models. These values can then be used to merge the data
+with dials.merge for downstream structural solution. Alternatively, the
+scaled.expt and scaled.refl files can be passed back to dials.scale, and
+further scaling will be performed, starting from where the previous job finished.</p>
+<p>A scaling.html file is also generated, containing interactive plots of merging
+statistics and scaling model plots.</p>
+<p>Example use cases</p>
+<p>Regular single-sequence scaling, with no absorption correction:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">scale</span> <span class="n">integrated</span><span class="o">.</span><span class="n">refl</span> <span class="n">integrated</span><span class="o">.</span><span class="n">expt</span> <span class="n">physical</span><span class="o">.</span><span class="n">absorption_correction</span><span class="o">=</span><span class="kc">False</span>
+</pre></div>
+</div>
+<p>Scaling multiple datasets, specifying a resolution limit:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">scale</span> <span class="mi">1</span><span class="n">_integrated</span><span class="o">.</span><span class="n">refl</span> <span class="mi">1</span><span class="n">_integrated</span><span class="o">.</span><span class="n">expt</span> <span class="mi">2</span><span class="n">_integrated</span><span class="o">.</span><span class="n">refl</span> <span class="mi">2</span><span class="n">_integrated</span><span class="o">.</span><span class="n">expt</span> <span class="n">d_min</span><span class="o">=</span><span class="mf">1.4</span>
+</pre></div>
+</div>
+<p>Incremental scaling (with different options per dataset):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">scale</span> <span class="n">integrated</span><span class="o">.</span><span class="n">refl</span> <span class="n">integrated</span><span class="o">.</span><span class="n">expt</span> <span class="n">physical</span><span class="o">.</span><span class="n">scale_interval</span><span class="o">=</span><span class="mf">10.0</span>
+
+<span class="n">dials</span><span class="o">.</span><span class="n">scale</span> <span class="n">integrated_2</span><span class="o">.</span><span class="n">refl</span> <span class="n">integrated_2</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">physical</span><span class="o">.</span><span class="n">scale_interval</span><span class="o">=</span><span class="mf">15.0</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="basic-parameters">
+<h2>Basic parameters<a class="headerlink" href="#basic-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">KB</span> <span class="n">array</span> <span class="n">physical</span>
+<span class="n">output</span> <span class="p">{</span>
+  <span class="n">log</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">log</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;scaled.expt&quot;</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;scaled.refl&quot;</span>
+  <span class="n">html</span> <span class="o">=</span> <span class="s2">&quot;scaling.html&quot;</span>
+  <span class="n">json</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">unmerged_mtz</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">merged_mtz</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">}</span>
+<span class="n">overwrite_existing_models</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">reflection_selection</span> <span class="p">{</span>
+  <span class="n">method</span> <span class="o">=</span> <span class="o">*</span><span class="n">quasi_random</span> <span class="n">intensity_ranges</span> <span class="n">use_all</span> <span class="n">random</span>
+  <span class="n">random</span> <span class="p">{</span>
+    <span class="n">multi_dataset</span> <span class="p">{</span>
+      <span class="n">Isigma_cutoff</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="n">best_unit_cell</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">}</span>
+<span class="n">weighting</span> <span class="p">{</span>
+  <span class="n">error_model</span> <span class="p">{</span>
+    <span class="n">basic</span> <span class="p">{</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">cut_data</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="n">scaling_options</span> <span class="p">{</span>
+  <span class="n">check_consistent_indexing</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">}</span>
+<span class="n">cross_validation</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="n">filtering</span> <span class="p">{</span>
+  <span class="n">method</span> <span class="o">=</span> <span class="kc">None</span> <span class="n">deltacchalf</span>
+  <span class="n">deltacchalf</span> <span class="p">{</span>
+    <span class="n">max_cycles</span> <span class="o">=</span> <span class="mi">6</span>
+    <span class="n">max_percent_removed</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">min_completeness</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="o">*</span><span class="n">dataset</span> <span class="n">image_group</span>
+    <span class="n">group_size</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">stdcutoff</span> <span class="o">=</span> <span class="mf">4.0</span>
+  <span class="p">}</span>
+  <span class="n">output</span> <span class="p">{</span>
+    <span class="n">scale_and_filter_results</span> <span class="o">=</span> <span class="s2">&quot;scale_and_filter_results.json&quot;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">dataset_selection</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="full-parameter-definitions">
+<h2>Full parameter definitions<a class="headerlink" href="#full-parameter-definitions" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">KB</span> <span class="n">array</span> <span class="n">physical</span>
+  <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Set scaling model to be applied to input datasets&quot;</span>
+  <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+  <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">KB</span>
+  <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">{</span>
+  <span class="n">decay_correction</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to turn off decay correction (for physical/array/KB</span>
+      <span class="s2">&quot;</span>
+            <span class="s2">&quot;     default models).&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">}</span>
+<span class="n">array</span>
+  <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">{</span>
+  <span class="n">decay_correction</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to turn off decay correction (a 2D grid of parameters as a&quot;</span>
+            <span class="s2">&quot;function of rotation and resolution (d-value)).&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">decay_interval</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Rotation (phi) interval between model parameters for the decay&quot;</span>
+            <span class="s2">&quot;and absorption corrections.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">n_resolution_bins</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Number of resolution bins to use for the decay term.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">absorption_correction</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to turn off absorption correction (a 3D grid of parameters&quot;</span>
+            <span class="s2">&quot;as a function of rotation angle, detector-x and detector-y&quot;</span>
+            <span class="s2">&quot;position).&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">n_absorption_bins</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Number of bins in each dimension (applied to both x and y) for&quot;</span>
+            <span class="s2">&quot;binning the detector position for the absorption term of the&quot;</span>
+            <span class="s2">&quot;array model.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">modulation_correction</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to turn on a detector correction for the array default&quot;</span>
+            <span class="s2">&quot;model.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">n_modulation_bins</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Number of bins in each dimension (applied to both x and y) for&quot;</span>
+            <span class="s2">&quot;binning the detector position for the modulation correction.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="p">}</span>
+<span class="n">physical</span>
+  <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">{</span>
+  <span class="n">scale_interval</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Rotation (phi) interval between model parameters for the scale&quot;</span>
+            <span class="s2">&quot;component.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">decay_correction</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to turn off decay correction.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">decay_interval</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Rotation (phi) interval between model parameters for the decay&quot;</span>
+            <span class="s2">&quot;component.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">decay_restraint</span> <span class="o">=</span> <span class="mf">1e-1</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Weight to weakly restrain B-values to 0.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">absorption_correction</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to turn off absorption correction.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">lmax</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Number of spherical harmonics to include for absorption&quot;</span>
+            <span class="s2">&quot;correction, recommended to be no more than 6.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">surface_weight</span> <span class="o">=</span> <span class="mf">1e6</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Restraint weight applied to spherical harmonic terms in the&quot;</span>
+            <span class="s2">&quot;absorption correction.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">fix_initial</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;If performing full matrix minimisation, in the final cycle,&quot;</span>
+            <span class="s2">&quot;constrain the initial parameter for more reliable parameter and&quot;</span>
+            <span class="s2">&quot;scale factor error estimates.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="p">}</span>
+<span class="n">output</span> <span class="p">{</span>
+  <span class="n">log</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">log</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The log filename&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="n">experiments</span> <span class="o">=</span> <span class="s2">&quot;scaled.expt&quot;</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to set filepath for output json.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="n">reflections</span> <span class="o">=</span> <span class="s2">&quot;scaled.refl&quot;</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to set filepath for output pickle file of scaled</span>
+         <span class="s2">&quot;</span>
+            <span class="s2">&quot;     intensities.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="n">html</span> <span class="o">=</span> <span class="s2">&quot;scaling.html&quot;</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Filename for html report.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="n">json</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Filename to save html report data in json format.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="n">unmerged_mtz</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Filename to export an unmerged_mtz file using dials.export.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="n">merged_mtz</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Filename to export a merged_mtz file.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="n">crystal_name</span> <span class="o">=</span> <span class="n">XTAL</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The crystal name to be exported in the mtz file metadata&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">use_internal_variance</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to use internal spread of the intensities when merging</span>
+   <span class="s2">&quot;</span>
+            <span class="s2">&quot;          reflection groups and calculating sigI, rather than&quot;</span>
+            <span class="s2">&quot;using the</span>
+              <span class="n">sigmas</span> <span class="n">of</span> <span class="n">the</span> <span class="n">individual</span> <span class="n">reflections</span><span class="o">.</span><span class="s2">&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">merging</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Number of bins to use for calculating and plotting merging stats.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">delete_integration_shoeboxes</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Discard integration shoebox data from scaling output, to help&quot;</span>
+            <span class="s2">&quot;with memory management.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="p">}</span>
+<span class="n">overwrite_existing_models</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;If True, create new scaling models for all datasets&quot;</span>
+  <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+  <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">reflection_selection</span> <span class="p">{</span>
+  <span class="n">method</span> <span class="o">=</span> <span class="o">*</span><span class="n">quasi_random</span> <span class="n">intensity_ranges</span> <span class="n">use_all</span> <span class="n">random</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Method to use when choosing a reflection subset for scaling model&quot;</span>
+            <span class="s2">&quot;minimisation. The quasi_random option randomly selects&quot;</span>
+            <span class="s2">&quot;reflections groups within a dataset, and also selects groups&quot;</span>
+            <span class="s2">&quot;which have good connectedness across datasets for multi-dataset&quot;</span>
+            <span class="s2">&quot;cases. The random option selects reflection groups randomly for&quot;</span>
+            <span class="s2">&quot;both single and multi dataset scaling, so for a single dataset&quot;</span>
+            <span class="s2">&quot;quasi_random == random. The intensity_ranges option uses the&quot;</span>
+            <span class="s2">&quot;E2_range, Isigma_range and d_range options to the subset of&quot;</span>
+            <span class="s2">&quot;reflections The use_all option uses all suitable reflections,&quot;</span>
+            <span class="s2">&quot;which may be slow for large datasets.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+  <span class="n">random</span> <span class="p">{</span>
+    <span class="n">multi_dataset</span> <span class="p">{</span>
+      <span class="n">Isigma_cutoff</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum average I/sigma of reflection groups to use when&quot;</span>
+                <span class="s2">&quot;selecting random reflections for minimisation.&quot;</span>
+        <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="n">min_groups</span> <span class="o">=</span> <span class="mi">2000</span>
+      <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The minimum number of symmetry groups to use during&quot;</span>
+              <span class="s2">&quot;minimisation.&quot;</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+      <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">min_reflections</span> <span class="o">=</span> <span class="mi">50000</span>
+      <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The minimum number of reflections to use during minimisation.&quot;</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+      <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="p">}</span>
+  <span class="n">best_unit_cell</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Best unit cell value, to use when performing resolution cutting&quot;</span>
+            <span class="s2">&quot;and merging statistics. If None, the median cell will be used.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">floats</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+  <span class="n">E2_range</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">5.0</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum and maximum normalised E^2 value to used to select a&quot;</span>
+            <span class="s2">&quot;subset of reflections for minimisation.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">floats</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">Isigma_range</span> <span class="o">=</span> <span class="o">-</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">0.0</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum and maximum I/sigma values used to select a subset of&quot;</span>
+            <span class="s2">&quot;reflections for minimisation. A value of 0.0 for the maximum&quot;</span>
+            <span class="s2">&quot;indicates that no upper limit should be applied.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">floats</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">d_range</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum and maximum d-values used to select a subset of&quot;</span>
+            <span class="s2">&quot;reflections for minimisation.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">floats</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">min_partiality</span> <span class="o">=</span> <span class="mf">0.95</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum partiality to use when selecting reflections to use to&quot;</span>
+            <span class="s2">&quot;determine the scaling model and error model.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">intensity_choice</span> <span class="o">=</span> <span class="n">profile</span> <span class="nb">sum</span> <span class="o">*</span><span class="n">combine</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to choose from profile fitted or summation intensities,&quot;</span>
+            <span class="s2">&quot;or</span>
+               <span class="n">an</span> <span class="n">optimised</span> <span class="n">combination</span> <span class="n">of</span> <span class="n">profile</span><span class="o">/</span><span class="nb">sum</span><span class="o">.</span><span class="s2">&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">combine</span><span class="o">.</span><span class="n">Imid</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;A list of values to try for the midpoint, for profile/sum&quot;</span>
+            <span class="s2">&quot;combination</span>
+               <span class="n">calculation</span><span class="p">:</span> <span class="n">the</span> <span class="n">value</span> <span class="k">with</span> <span class="n">the</span> <span class="n">lowest</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;Rmeas will be chosen.</span>
+               <span class="mi">0</span> <span class="ow">and</span> <span class="mi">1</span> <span class="n">are</span> <span class="n">special</span> <span class="n">values</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;that can be supplied to include profile</span>
+               <span class="ow">and</span> <span class="nb">sum</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;respectively in the comparison.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">floats</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">combine</span><span class="o">.</span><span class="n">joint_analysis</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option of whether to do intensity combination optimisation</span>
+      <span class="s2">&quot;</span>
+            <span class="s2">&quot;       separately (i.e. different Imid per dataset) or joint for</span>
+<span class="s2">&quot;</span>
+            <span class="s2">&quot;             multiple datasets&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="p">}</span>
+<span class="n">weighting</span> <span class="p">{</span>
+  <span class="n">weighting_scheme</span> <span class="o">=</span> <span class="o">*</span><span class="n">invvar</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Weighting scheme used during Ih calculation. Weighting schemes</span>
+  <span class="s2">&quot;</span>
+            <span class="s2">&quot;           other than invvar and unity may trigger iterative&quot;</span>
+            <span class="s2">&quot;reweighting</span>
+              <span class="n">during</span> <span class="n">minimisation</span><span class="p">,</span> <span class="n">which</span> <span class="n">may</span> <span class="n">be</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;unstable for certain minimisation</span>
+              <span class="n">engines</span> <span class="p">(</span><span class="n">LBFGS</span><span class="p">)</span><span class="o">.</span><span class="s2">&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">error_model</span> <span class="p">{</span>
+    <span class="n">error_model</span> <span class="o">=</span> <span class="o">*</span><span class="n">basic</span> <span class="kc">None</span>
+      <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The error model to use.&quot;</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+      <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">basic</span> <span class="p">{</span>
+      <span class="n">a</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Used this fixed value for the error model &#39;a&#39; parameter&quot;</span>
+        <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+      <span class="n">b</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Used this fixed value for the error model &#39;b&#39; parameter&quot;</span>
+        <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+      <span class="n">min_Ih</span> <span class="o">=</span> <span class="mf">25.0</span>
+        <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Reflections with expected intensity above this value are to.&quot;</span>
+                <span class="s2">&quot;be used in error model minimisation.&quot;</span>
+        <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+      <span class="n">n_bins</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The number of intensity bins to use for the error model&quot;</span>
+                <span class="s2">&quot;optimisation.&quot;</span>
+        <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">cut_data</span> <span class="p">{</span>
+  <span class="n">d_min</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to apply a high resolution cutoff for the dataset (i.e.</span>
+  <span class="s2">&quot;</span>
+            <span class="s2">&quot;            the chosen reflections have d &gt; d_min).&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">d_max</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to apply a low resolution cutoff for the dataset (i.e.</span>
+   <span class="s2">&quot;</span>
+            <span class="s2">&quot;           the chosen reflections have d &lt; d_max).&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">partiality_cutoff</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Value below which reflections are removed from the dataset due</span>
+  <span class="s2">&quot;</span>
+            <span class="s2">&quot;            to low partiality.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">min_isigi</span> <span class="o">=</span> <span class="o">-</span><span class="mi">5</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Value below which reflections are removed from the dataset due to&quot;</span>
+            <span class="s2">&quot;low I/sigI in either profile or summation intensity estimates&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">}</span>
+<span class="n">scaling_options</span> <span class="p">{</span>
+  <span class="n">check_consistent_indexing</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;If True, run dials.cosym on all data in the data preparation&quot;</span>
+            <span class="s2">&quot;step, to ensure consistent indexing.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+  <span class="n">target_cycle</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to turn of initial round of targeted scaling</span>
+             <span class="s2">&quot;</span>
+            <span class="s2">&quot; if some datasets are already scaled.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">only_target</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to only do targeted scaling if some datasets</span>
+             <span class="s2">&quot;</span>
+            <span class="s2">&quot; are already scaled.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">only_save_targeted</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;If only_target is true, this option to change whether the&quot;</span>
+            <span class="s2">&quot;dataset</span>
+              <span class="n">that</span> <span class="ow">is</span> <span class="n">being</span> <span class="n">scaled</span> <span class="n">will</span> <span class="n">be</span> <span class="n">saved</span> <span class="n">on</span> <span class="n">its</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;own, or combined with the</span>
+              <span class="n">already</span> <span class="n">scaled</span> <span class="n">dataset</span><span class="o">.</span><span class="s2">&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">target_model</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Path to cif file to use to calculate target intensities for</span>
+     <span class="s2">&quot;</span>
+            <span class="s2">&quot;        scaling.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">path</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">target_mtz</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Path to merged mtz file to use as a target for scaling.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">path</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">nproc</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Number of blocks to divide the data into for minimisation.</span>
+      <span class="s2">&quot;</span>
+            <span class="s2">&quot;       This also sets the number of processes to use if the&quot;</span>
+            <span class="s2">&quot;option is</span>
+              <span class="n">available</span><span class="o">.</span><span class="s2">&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">use_free_set</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to use a free set during scaling to check for&quot;</span>
+            <span class="s2">&quot;overbiasing.</span>
+              <span class="n">This</span> <span class="n">free</span> <span class="nb">set</span> <span class="ow">is</span> <span class="n">used</span> <span class="n">to</span> <span class="n">calculate</span> <span class="n">an</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;RMSD, which is shown alongisde</span>
+              <span class="n">the</span> <span class="s1">&#39;working&#39;</span> <span class="n">RMSD</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;during refinement, but is not currently used</span>
+              <span class="n">to</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;terminate refinement or make any choices on the model.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">free_set_percentage</span> <span class="o">=</span> <span class="mf">10.0</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Percentage of symmetry equivalent groups to use for the free&quot;</span>
+            <span class="s2">&quot;set,</span>
+              <span class="k">if</span> <span class="n">use_free_set</span> <span class="ow">is</span> <span class="kc">True</span><span class="o">.</span><span class="s2">&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">free_set_offset</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Offset for choosing unique groups for the free set from the&quot;</span>
+            <span class="s2">&quot;whole</span>
+               <span class="nb">set</span> <span class="n">of</span> <span class="n">unique</span> <span class="n">groups</span><span class="o">.</span><span class="s2">&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">full_matrix</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Option to turn off GN/LM refinement round used to determine</span>
+     <span class="s2">&quot;</span>
+            <span class="s2">&quot;         error estimates on scale factors.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">outlier_rejection</span> <span class="o">=</span> <span class="o">*</span><span class="n">standard</span> <span class="n">simple</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Choice of outlier rejection routine. Standard may take a</span>
+       <span class="s2">&quot;</span>
+            <span class="s2">&quot;significant amount of time to run for large datasets or high</span>
+    <span class="s2">&quot;</span>
+            <span class="s2">&quot;   multiplicities, whereas simple should be quick for these&quot;</span>
+            <span class="s2">&quot;datasets.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">outlier_zmax</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Cutoff z-score value for identifying outliers based on their</span>
+    <span class="s2">&quot;</span>
+            <span class="s2">&quot;          normalised deviation within the group of equivalent&quot;</span>
+            <span class="s2">&quot;reflections&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">}</span>
+<span class="n">cross_validation</span> <span class="p">{</span>
+  <span class="n">cross_validation_mode</span> <span class="o">=</span> <span class="n">multi</span> <span class="n">single</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Choose the cross validation running mode, for a full description&quot;</span>
+            <span class="s2">&quot;see the module docstring. Choice is used for testing a parameter&quot;</span>
+            <span class="s2">&quot;that can only have discreet values (a choice or bool phil&quot;</span>
+            <span class="s2">&quot;parameter). Variable is used for testing a parameter that can&quot;</span>
+            <span class="s2">&quot;have a float or int value (that is also not a &#39;choice&#39; type).&quot;</span>
+            <span class="s2">&quot;Single just performs cross validation on one parameter&quot;</span>
+            <span class="s2">&quot;configuration.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">parameter</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Optimise a command-line parameter. The full phil path must be :&quot;</span>
+            <span class="s2">&quot;specified e.g. physical.absorption_correction. The option&quot;</span>
+            <span class="s2">&quot;parameter_values must also be specified, unless the parameter is&quot;</span>
+            <span class="s2">&quot;a True/False option.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">parameter_values</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Parameter values to compare, entered as a string of space&quot;</span>
+            <span class="s2">&quot;separated values.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">strings</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">nfolds</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Number of cross-validation folds to perform. If nfolds &gt; 1, the&quot;</span>
+            <span class="s2">&quot;minimisation for each option is repeated nfolds times, with an&quot;</span>
+            <span class="s2">&quot;incremental offset for the free set. The max number of folds&quot;</span>
+            <span class="s2">&quot;allowed is 1/free_set_percentage; if set greater than this then&quot;</span>
+            <span class="s2">&quot;the repetition will finish afer 1/free_set_percentage folds.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="p">}</span>
+<span class="n">scaling_refinery</span>
+  <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Parameters to configure the refinery&quot;</span>
+  <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">{</span>
+  <span class="n">engine</span> <span class="o">=</span> <span class="o">*</span><span class="n">SimpleLBFGS</span> <span class="n">GaussNewton</span> <span class="n">LevMar</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The minimisation engine to use for the main scaling algorithm&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+  <span class="n">refinement_order</span> <span class="o">=</span> <span class="o">*</span><span class="n">concurrent</span> <span class="n">consecutive</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Choice of whether to refine all model components concurrently, or&quot;</span>
+            <span class="s2">&quot;in a consecutive order as allowed/defined by the scaling model.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">max_iterations</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Maximum number of iterations in refinement before termination.&quot;</span>
+            <span class="s2">&quot;None implies the engine supplies its own default.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="n">rmsd_tolerance</span> <span class="o">=</span> <span class="mf">0.0001</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Tolerance at which to stop scaling refinement. This is a&quot;</span>
+            <span class="s2">&quot;relative</span>
+            <span class="n">value</span><span class="p">,</span> <span class="n">the</span> <span class="n">convergence</span> <span class="n">criterion</span> <span class="ow">is</span> <span class="p">(</span><span class="n">rmsd</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;- rmsd[i-1])/rmsd[i] &lt;</span>
+            <span class="n">rmsd_tolerance</span><span class="o">.</span><span class="s2">&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mf">1e-06</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="n">full_matrix_engine</span> <span class="o">=</span> <span class="n">GaussNewton</span> <span class="o">*</span><span class="n">LevMar</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The minimisation engine to use for a full matrix round of</span>
+       <span class="s2">&quot;</span>
+            <span class="s2">&quot;     minimisation after the main scaling, in order to determine</span>
+ <span class="s2">&quot;</span>
+            <span class="s2">&quot;           error estimates.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+  <span class="n">full_matrix_max_iterations</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Maximum number of iterations before termination in the full&quot;</span>
+            <span class="s2">&quot;matrix</span>
+             <span class="n">minimisation</span> <span class="nb">round</span><span class="o">.</span> <span class="kc">None</span> <span class="n">implies</span> <span class="n">the</span> <span class="n">engine</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;supplies its own default.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="n">filtering</span> <span class="p">{</span>
+  <span class="n">method</span> <span class="o">=</span> <span class="kc">None</span> <span class="n">deltacchalf</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Choice of whether to do any filtering cycles, default None.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+  <span class="n">deltacchalf</span> <span class="p">{</span>
+    <span class="n">max_cycles</span> <span class="o">=</span> <span class="mi">6</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">max_percent_removed</span> <span class="o">=</span> <span class="mi">10</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">min_completeness</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Desired minimum completeness, as a percentage (0 - 100).&quot;</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">value_max</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="o">*</span><span class="n">dataset</span> <span class="n">image_group</span>
+      <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Perform analysis on whole datasets or batch groups&quot;</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+    <span class="n">group_size</span> <span class="o">=</span> <span class="mi">10</span>
+      <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;The number of images to group together when calculating delta&quot;</span>
+              <span class="s2">&quot;cchalf in image_group mode&quot;</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">stdcutoff</span> <span class="o">=</span> <span class="mf">4.0</span>
+      <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Datasets with a delta cc half below (mean - stdcutoff*std) are&quot;</span>
+              <span class="s2">&quot;removed&quot;</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="p">}</span>
+  <span class="n">output</span> <span class="p">{</span>
+    <span class="n">scale_and_filter_results</span> <span class="o">=</span> <span class="s2">&quot;scale_and_filter_results.json&quot;</span>
+      <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Filename for output json of scale and filter results.&quot;</span>
+      <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">exclude_images</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Input in the format exp:start:end Exclude a range of images (start,&quot;</span>
+          <span class="s2">&quot;stop) from the dataset with experiment identifier exp  (inclusive&quot;</span>
+          <span class="s2">&quot;of frames start, stop).&quot;</span>
+  <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">strings</span>
+  <span class="o">.</span><span class="n">multiple</span> <span class="o">=</span> <span class="kc">True</span>
+  <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">dataset_selection</span> <span class="p">{</span>
+  <span class="n">use_datasets</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Choose a subset of datasets, based on the dataset id (as defined</span>
+<span class="s2">&quot;</span>
+            <span class="s2">&quot;              in the reflection table), to use from a&quot;</span>
+            <span class="s2">&quot;multi-dataset input.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">ints</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">exclude_datasets</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Choose a subset of datasets, based on the dataset id (as defined</span>
+<span class="s2">&quot;</span>
+            <span class="s2">&quot;              in the reflection table), to exclude from a&quot;</span>
+            <span class="s2">&quot;multi-dataset input.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">ints</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

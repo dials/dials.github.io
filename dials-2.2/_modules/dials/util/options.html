@@ -1,0 +1,1260 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.util.options &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../../index.html/../../_modules/dials/util/options.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dials.util.options</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">optparse</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">namedtuple</span>
+
+<span class="kn">from</span> <span class="nn">orderedset</span> <span class="kn">import</span> <span class="n">OrderedSet</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">cPickle</span>  <span class="c1"># deliberately not using six.moves</span>
+
+    <span class="n">pickle_errors</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">UnpicklingError</span><span class="p">,</span> <span class="n">cPickle</span><span class="o">.</span><span class="n">UnpicklingError</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">pickle_errors</span> <span class="o">=</span> <span class="p">(</span><span class="n">pickle</span><span class="o">.</span><span class="n">UnpicklingError</span><span class="p">,)</span>
+
+<span class="kn">import</span> <span class="nn">libtbx.phil</span>
+<span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">Sorry</span>
+<span class="kn">from</span> <span class="nn">dials.util.multi_dataset_handling</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">sort_tables_to_experiments_order</span><span class="p">,</span>
+    <span class="n">renumber_table_id_columns</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="n">ExperimentList</span>
+
+<span class="n">tolerance_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">tolerance</span>
+<span class="sd">    .help = &quot;Tolerances used to determine shared models&quot;</span>
+<span class="sd">    .expert_level = 2</span>
+<span class="sd">  {</span>
+
+<span class="sd">  beam {</span>
+
+<span class="sd">    wavelength = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The wavelength tolerance&quot;</span>
+
+<span class="sd">    direction = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The direction tolerance&quot;</span>
+
+<span class="sd">    polarization_normal = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The polarization normal tolerance&quot;</span>
+
+<span class="sd">    polarization_fraction = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The polarization fraction tolerance&quot;</span>
+
+<span class="sd">  }</span>
+
+<span class="sd">  detector {</span>
+
+<span class="sd">    fast_axis = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The fast axis tolerance&quot;</span>
+
+<span class="sd">    slow_axis = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The slow axis tolerance&quot;</span>
+
+<span class="sd">    origin = 5e-2</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The origin tolerance&quot;</span>
+
+<span class="sd">  }</span>
+
+<span class="sd">  goniometer {</span>
+
+<span class="sd">    rotation_axis = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The rotation axis tolerance&quot;</span>
+
+<span class="sd">    fixed_rotation = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The fixed rotation tolerance&quot;</span>
+
+<span class="sd">    setting_rotation = 1e-6</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The setting rotation tolerance&quot;</span>
+
+<span class="sd">  }</span>
+
+<span class="sd">  scan {</span>
+
+<span class="sd">    oscillation = 0.01</span>
+<span class="sd">      .type = float(value_min=0.0)</span>
+<span class="sd">      .help = &quot;The oscillation tolerance for the scan&quot;</span>
+
+<span class="sd">  }</span>
+<span class="sd">}</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="p">)</span>
+
+<span class="n">geometry_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">geometry</span>
+<span class="sd">  .help = &quot;Allow overrides of experimental geometry&quot;</span>
+<span class="sd">  .expert_level = 2</span>
+<span class="sd">{</span>
+<span class="sd">  include scope dxtbx.model.beam.beam_phil_scope</span>
+<span class="sd">  include scope dxtbx.model.detector.detector_phil_scope</span>
+<span class="sd">  include scope dxtbx.model.goniometer.goniometer_phil_scope</span>
+<span class="sd">  include scope dxtbx.model.scan.scan_phil_scope</span>
+
+<span class="sd">  convert_stills_to_sequences = False</span>
+<span class="sd">    .type = bool</span>
+<span class="sd">    .help = &quot;When overriding the scan, convert stills into sequences&quot;</span>
+<span class="sd">    .short_caption = &quot;Convert stills into sequences&quot;</span>
+
+<span class="sd">  convert_sequences_to_stills = False</span>
+<span class="sd">    .type = bool</span>
+<span class="sd">    .help = &quot;When overriding the scan, convert sequences into stills&quot;</span>
+<span class="sd">    .short_caption = &quot;Convert sequences into stills&quot;</span>
+<span class="sd">}</span>
+<span class="sd">&quot;&quot;&quot;</span><span class="p">,</span>
+    <span class="n">process_includes</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="n">format_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">format</span>
+<span class="sd">  .help = &quot;Options to pass to the Format class&quot;</span>
+<span class="sd">  .expert_level = 2</span>
+<span class="sd">{</span>
+<span class="sd">  dynamic_shadowing = auto</span>
+<span class="sd">    .type = bool</span>
+<span class="sd">    .help = &quot;Enable dynamic shadowing&quot;</span>
+<span class="sd">  multi_panel = False</span>
+<span class="sd">    .type = bool</span>
+<span class="sd">    .help = &quot;Enable a multi-panel detector model.&quot;</span>
+<span class="sd">            &quot;(Not supported by all detector formats)&quot;</span>
+<span class="sd">}</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="ConfigWriter"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ConfigWriter">[docs]</a><span class="k">class</span> <span class="nc">ConfigWriter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class to write configuration to file.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">master_phil</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialise with the master phil.</span>
+
+<span class="sd">        :param master_phil: The master phil scope</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_master_phil</span> <span class="o">=</span> <span class="n">master_phil</span>
+
+<div class="viewcode-block" id="ConfigWriter.write"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ConfigWriter.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write the configuration to file.</span>
+
+<span class="sd">        :param params: The input phil parameters</span>
+<span class="sd">        :param filename: The output filename</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get the modified phil</span>
+        <span class="n">modified_phil</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_master_phil</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">python_object</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="c1"># Get the phil as text</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">modified_phil</span><span class="o">.</span><span class="n">as_str</span><span class="p">()</span>
+
+        <span class="c1"># Write the text to file</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></div></div>
+
+
+<span class="c1"># Simple tuple to hold basic information on why an argument failed</span>
+<span class="n">ArgumentHandlingErrorInfo</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span>
+    <span class="s2">&quot;ArgumentHandlingErrorInfo&quot;</span><span class="p">,</span>
+    <span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;validation&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="s2">&quot;traceback&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;exception&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="Importer"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer">[docs]</a><span class="k">class</span> <span class="nc">Importer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class to import the command line arguments.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">args</span><span class="p">,</span>
+        <span class="n">read_experiments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">read_reflections</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">read_experiments_from_images</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">compare_beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">compare_detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">compare_goniometer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">scan_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the arguments. Populates its instance attributes in an intelligent way</span>
+<span class="sd">        from the arguments in args.</span>
+
+<span class="sd">        If include is set, only those items set will be tried. If not, then if</span>
+<span class="sd">        exclude is set, then those items will not be tested.</span>
+
+<span class="sd">        These are the types we can import:</span>
+<span class="sd">         - images: a list of images</span>
+<span class="sd">         - reflections : a list of reflections</span>
+<span class="sd">         - experiments: a list of experiments</span>
+
+<span class="sd">        :param args: The arguments to parse</span>
+<span class="sd">        :param read_experiments: Try to read the experiments</span>
+<span class="sd">        :param read_reflections: Try to read the reflections</span>
+<span class="sd">        :param read_experiments_from_images: Try to read the experiments from images</span>
+<span class="sd">        :param check_format: Check the format when reading images</span>
+<span class="sd">        :param verbose: True/False print out some stuff</span>
+<span class="sd">        :param load_models: Whether to load all models for ExperimentLists</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Initialise output</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="c1"># Keep track of any errors whilst handling arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handling_errors</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+
+        <span class="c1"># First try to read image files</span>
+        <span class="k">if</span> <span class="n">read_experiments_from_images</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_read_experiments_from_images</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="p">,</span>
+                <span class="n">verbose</span><span class="p">,</span>
+                <span class="n">compare_beam</span><span class="p">,</span>
+                <span class="n">compare_detector</span><span class="p">,</span>
+                <span class="n">compare_goniometer</span><span class="p">,</span>
+                <span class="n">scan_tolerance</span><span class="p">,</span>
+                <span class="n">format_kwargs</span><span class="p">,</span>
+                <span class="n">load_models</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Second try to read experiment files</span>
+        <span class="k">if</span> <span class="n">read_experiments</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_read_experiments</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="p">,</span> <span class="n">check_format</span><span class="p">,</span> <span class="n">verbose</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Third try to read reflection files</span>
+        <span class="k">if</span> <span class="n">read_reflections</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_read_reflections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_handle_converter_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argument</span><span class="p">,</span> <span class="n">exception</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">validation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="s2">&quot;Record information about errors that occured processing an argument&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">[</span><span class="n">argument</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">ArgumentHandlingErrorInfo</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">argument</span><span class="p">,</span>
+                <span class="n">validation</span><span class="o">=</span><span class="n">validation</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exception</span><span class="p">),</span>
+                <span class="n">traceback</span><span class="o">=</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">(),</span>
+                <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span>
+                <span class="n">exception</span><span class="o">=</span><span class="n">exception</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="Importer.try_read_experiments_from_images"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.try_read_experiments_from_images">[docs]</a>    <span class="k">def</span> <span class="nf">try_read_experiments_from_images</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">args</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">,</span>
+        <span class="n">compare_beam</span><span class="p">,</span>
+        <span class="n">compare_detector</span><span class="p">,</span>
+        <span class="n">compare_goniometer</span><span class="p">,</span>
+        <span class="n">scan_tolerance</span><span class="p">,</span>
+        <span class="n">format_kwargs</span><span class="p">,</span>
+        <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Try to import images.</span>
+
+<span class="sd">        :param args: The input arguments</span>
+<span class="sd">        :param verbose: Print verbose output</span>
+<span class="sd">        :param compare_beam:</span>
+<span class="sd">        :param compare_detector:</span>
+<span class="sd">        :param compare_goniometer:</span>
+<span class="sd">        :param scan_tolerance:</span>
+<span class="sd">        :param format_kwargs:</span>
+<span class="sd">        :param load_models: Whether to load all models for ExperimentLists</span>
+<span class="sd">        :return: Unhandled arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentListFactory</span>
+        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">FilenameDataWrapper</span><span class="p">,</span> <span class="n">ExperimentListConverters</span>
+        <span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+
+        <span class="c1"># If filenames contain wildcards, expand</span>
+        <span class="n">args_new</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;*&quot;</span> <span class="ow">in</span> <span class="n">arg</span><span class="p">:</span>
+                <span class="n">args_new</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">args_new</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">args_new</span>
+
+        <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_filenames</span><span class="p">(</span>
+            <span class="n">args</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="n">unhandled</span><span class="o">=</span><span class="n">unhandled</span><span class="p">,</span>
+            <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
+            <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
+            <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
+            <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">,</span>
+            <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+            <span class="n">load_models</span><span class="o">=</span><span class="n">load_models</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="s2">&quot;&lt;image files&gt;&quot;</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">FilenameDataWrapper</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
+            <span class="n">ExperimentListConverters</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">unhandled</span></div>
+
+<div class="viewcode-block" id="Importer.try_read_experiments"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.try_read_experiments">[docs]</a>    <span class="k">def</span> <span class="nf">try_read_experiments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">check_format</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Try to import experiments.</span>
+
+<span class="sd">        :param args: The input arguments</span>
+<span class="sd">        :param check_format: True/False check the image format</span>
+<span class="sd">        :param verbose: Print verbose output</span>
+<span class="sd">        :returns: Unhandled arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">ExperimentListConverters</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">InvalidExperimentListError</span>
+
+        <span class="n">converter</span> <span class="o">=</span> <span class="n">ExperimentListConverters</span><span class="p">(</span><span class="n">check_format</span><span class="p">)</span>
+        <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">argument</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">converter</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">argument</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">InvalidExperimentListError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c1"># This is a validation-related error: The file appears not to be in the correct format</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span>
+                    <span class="n">argument</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ExperimentList&quot;</span><span class="p">,</span> <span class="n">validation</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+                <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ExperimentList&quot;</span><span class="p">)</span>
+                <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">unhandled</span></div>
+
+<div class="viewcode-block" id="Importer.try_read_reflections"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.try_read_reflections">[docs]</a>    <span class="k">def</span> <span class="nf">try_read_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Try to import reflections.</span>
+
+<span class="sd">        :param args: The input arguments</span>
+<span class="sd">        :param verbose: Print verbose output</span>
+<span class="sd">        :returns: Unhandled arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">ReflectionTableConverters</span>
+
+        <span class="n">converter</span> <span class="o">=</span> <span class="n">ReflectionTableConverters</span><span class="p">()</span>
+        <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">argument</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">converter</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">argument</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">pickle_errors</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span>
+                    <span class="n">argument</span><span class="p">,</span>
+                    <span class="n">pickle</span><span class="o">.</span><span class="n">UnpicklingError</span><span class="p">(</span><span class="s2">&quot;Appears to be an invalid pickle file&quot;</span><span class="p">),</span>
+                    <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;Reflections&quot;</span><span class="p">,</span>
+                    <span class="n">validation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_handle_converter_error</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;Reflections&quot;</span><span class="p">)</span>
+                <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">unhandled</span></div></div>
+
+
+<div class="viewcode-block" id="PhilCommandParser"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.PhilCommandParser">[docs]</a><span class="k">class</span> <span class="nc">PhilCommandParser</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class to parse phil parameters from positional arguments&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">phil</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">read_experiments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">read_reflections</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">read_experiments_from_images</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialise the parser.</span>
+
+<span class="sd">        :param phil: The phil scope</span>
+<span class="sd">        :param read_experiments: Try to read the experiments</span>
+<span class="sd">        :param read_reflections: Try to read the reflections</span>
+<span class="sd">        :param read_experiments_from_images: Try to read the experiments from images</span>
+<span class="sd">        :param check_format: Check the format when reading images</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+
+        <span class="c1"># Set the system phil scope</span>
+        <span class="k">if</span> <span class="n">phil</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_system_phil</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_system_phil</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">phil</span><span class="p">)</span>
+
+        <span class="c1"># Set the flags</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments</span> <span class="o">=</span> <span class="n">read_experiments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_read_reflections</span> <span class="o">=</span> <span class="n">read_reflections</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments_from_images</span> <span class="o">=</span> <span class="n">read_experiments_from_images</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span> <span class="o">=</span> <span class="n">check_format</span>
+
+        <span class="c1"># Adopt the input scope</span>
+        <span class="n">input_phil_scope</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_input_scope</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">input_phil_scope</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">adopt_scope</span><span class="p">(</span><span class="n">input_phil_scope</span><span class="p">)</span>
+
+        <span class="c1"># Set the working phil scope</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">parse</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the phil object</span>
+
+<span class="sd">        :return: The phil scope</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">system_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the system phil.</span>
+
+<span class="sd">        :return: The system phil scope</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_system_phil</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">diff_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the diff phil.</span>
+
+<span class="sd">        :return: The difference phil scope</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">fetch_diff</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">phil</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PhilCommandParser.parse_args"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.PhilCommandParser.parse_args">[docs]</a>    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_unhandled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the command line arguments.</span>
+
+<span class="sd">        :param args: The input arguments</span>
+<span class="sd">        :param verbose: Print verbose output</span>
+<span class="sd">        :param return_unhandled: True/False also return unhandled arguments</span>
+<span class="sd">        :param quick_parse: Return as fast as possible and without reading any data,</span>
+<span class="sd">                            ignoring class constructor options.</span>
+<span class="sd">        :return: The options and parameters and (optionally) unhandled arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">BeamComparison</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">DetectorComparison</span>
+        <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">GoniometerComparison</span>
+        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+
+        <span class="c1"># Parse the command line phil parameters</span>
+        <span class="n">user_phils</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">interpretor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">command_line_argument_interpreter</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">_is_a_phil_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">any</span><span class="p">(</span>
+                <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">phil_ext</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">phil_ext</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;.phil&quot;</span><span class="p">,</span> <span class="s2">&quot;.param&quot;</span><span class="p">,</span> <span class="s2">&quot;.params&quot;</span><span class="p">,</span> <span class="s2">&quot;.eff&quot;</span><span class="p">,</span> <span class="s2">&quot;.def&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">_is_a_phil_file</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">user_phils</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parse</span><span class="p">(</span><span class="n">file_name</span><span class="o">=</span><span class="n">arg</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">return_unhandled</span><span class="p">:</span>
+                        <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span>
+            <span class="k">elif</span> <span class="n">arg</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">user_phils</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpretor</span><span class="o">.</span><span class="n">process_arg</span><span class="p">(</span><span class="n">arg</span><span class="o">=</span><span class="n">arg</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">return_unhandled</span><span class="p">:</span>
+                        <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+        <span class="c1"># Fetch the phil parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span><span class="p">,</span> <span class="n">unused</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span>
+            <span class="n">sources</span><span class="o">=</span><span class="n">user_phils</span><span class="p">,</span> <span class="n">track_unused_definitions</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Print if bad definitions</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unused</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">as_str</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">unused</span><span class="p">]</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;  </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">msg</span><span class="p">])</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;The following definitions were not recognised</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">msg</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Extract the parameters</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span>
+
+        <span class="c1"># Stop at this point if quick_parse is set. A second pass may be needed.</span>
+        <span class="k">if</span> <span class="n">quick_parse</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">unhandled</span>
+
+        <span class="c1"># Create some comparison functions</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments_from_images</span><span class="p">:</span>
+            <span class="n">compare_beam</span> <span class="o">=</span> <span class="n">BeamComparison</span><span class="p">(</span>
+                <span class="n">wavelength_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">wavelength</span><span class="p">,</span>
+                <span class="n">direction_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">direction</span><span class="p">,</span>
+                <span class="n">polarization_normal_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">polarization_normal</span><span class="p">,</span>
+                <span class="n">polarization_fraction_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">polarization_fraction</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">compare_detector</span> <span class="o">=</span> <span class="n">DetectorComparison</span><span class="p">(</span>
+                <span class="n">fast_axis_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">fast_axis</span><span class="p">,</span>
+                <span class="n">slow_axis_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">slow_axis</span><span class="p">,</span>
+                <span class="n">origin_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">origin</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">compare_goniometer</span> <span class="o">=</span> <span class="n">GoniometerComparison</span><span class="p">(</span>
+                <span class="n">rotation_axis_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">rotation_axis</span><span class="p">,</span>
+                <span class="n">fixed_rotation_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">fixed_rotation</span><span class="p">,</span>
+                <span class="n">setting_rotation_tolerance</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">setting_rotation</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">scan_tolerance</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">tolerance</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">oscillation</span>
+
+            <span class="c1"># FIXME Should probably make this smarter since it requires editing here</span>
+            <span class="c1"># and in dials.import phil scope</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">format_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;dynamic_shadowing&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">dynamic_shadowing</span><span class="p">,</span>
+                    <span class="s2">&quot;multi_panel&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">multi_panel</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="n">format_kwargs</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">compare_beam</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">compare_detector</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">compare_goniometer</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">scan_tolerance</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">format_kwargs</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">load_models</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">load_models</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">load_models</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Try to import everything</span>
+        <span class="n">importer</span> <span class="o">=</span> <span class="n">Importer</span><span class="p">(</span>
+            <span class="n">unhandled</span><span class="p">,</span>
+            <span class="n">read_experiments</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments</span><span class="p">,</span>
+            <span class="n">read_reflections</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_reflections</span><span class="p">,</span>
+            <span class="n">read_experiments_from_images</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments_from_images</span><span class="p">,</span>
+            <span class="n">check_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
+            <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
+            <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
+            <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">,</span>
+            <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+            <span class="n">load_models</span><span class="o">=</span><span class="n">load_models</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Grab a copy of the errors that occured in case the caller wants them</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handling_errors</span> <span class="o">=</span> <span class="n">importer</span><span class="o">.</span><span class="n">handling_errors</span>
+
+        <span class="c1"># Add the cached arguments</span>
+        <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">importer</span><span class="o">.</span><span class="n">experiments</span><span class="p">:</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">importer</span><span class="o">.</span><span class="n">reflections</span><span class="p">:</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+        <span class="c1"># Convert to phil</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">python_object</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">importer</span><span class="o">.</span><span class="n">unhandled</span></div>
+
+    <span class="k">def</span> <span class="nf">_generate_input_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the required input scope.</span>
+
+<span class="sd">        :return: The input phil scope</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+
+        <span class="c1"># Create the input scope</span>
+        <span class="n">require_input_scope</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments</span>
+            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_reflections</span>
+            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments_from_images</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">require_input_scope</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">input_phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="s2">&quot;input </span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">main_scope</span> <span class="o">=</span> <span class="n">input_phil_scope</span><span class="o">.</span><span class="n">get_without_substitution</span><span class="p">(</span><span class="s2">&quot;input&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">main_scope</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">main_scope</span> <span class="o">=</span> <span class="n">main_scope</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Add the experiments phil scope</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments_from_images</span><span class="p">:</span>
+            <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        experiments = None</span>
+<span class="sd">          .type = experiment_list(check_format=%r)</span>
+<span class="sd">          .multiple = True</span>
+<span class="sd">          .help = &quot;The experiment list file path&quot;</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+                <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span>
+            <span class="p">)</span>
+            <span class="n">main_scope</span><span class="o">.</span><span class="n">adopt_scope</span><span class="p">(</span><span class="n">phil_scope</span><span class="p">)</span>
+
+        <span class="c1"># If reading images, add some more parameters</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_experiments_from_images</span><span class="p">:</span>
+            <span class="n">main_scope</span><span class="o">.</span><span class="n">adopt_scope</span><span class="p">(</span><span class="n">tolerance_phil_scope</span><span class="p">)</span>
+
+        <span class="c1"># Add the reflections scope</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_reflections</span><span class="p">:</span>
+            <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        reflections = None</span>
+<span class="sd">          .type = reflection_table</span>
+<span class="sd">          .multiple = True</span>
+<span class="sd">          .help = &quot;The reflection table file path&quot;</span>
+<span class="sd">      &quot;&quot;&quot;</span>
+            <span class="p">)</span>
+            <span class="n">main_scope</span><span class="o">.</span><span class="n">adopt_scope</span><span class="p">(</span><span class="n">phil_scope</span><span class="p">)</span>
+
+        <span class="c1"># Return the input scope</span>
+        <span class="k">return</span> <span class="n">input_phil_scope</span></div>
+
+
+<div class="viewcode-block" id="OptionParserBase"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParserBase">[docs]</a><span class="k">class</span> <span class="nc">OptionParserBase</span><span class="p">(</span><span class="n">optparse</span><span class="o">.</span><span class="n">OptionParser</span><span class="p">,</span> <span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The base class for the option parser.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialise the class.</span>
+
+<span class="sd">        :param config_options: True/False show configuration options</span>
+<span class="sd">        :param sort_options: True/False show argument sorting options</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Initialise the option parser</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OptionParserBase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Add an option to show configuration parameters</span>
+        <span class="k">if</span> <span class="n">config_options</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+                <span class="s2">&quot;-c&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;--show-config&quot;</span><span class="p">,</span>
+                <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;show_config&quot;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show the configuration parameters.&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+                <span class="s2">&quot;-a&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;--attributes-level&quot;</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;int&quot;</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;attributes_level&quot;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Set the attributes level for showing configuration parameters&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+                <span class="s2">&quot;-e&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;--expert-level&quot;</span><span class="p">,</span>
+                <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;int&quot;</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;expert_level&quot;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Set the expert level for showing configuration parameters&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+                <span class="s2">&quot;--export-autocomplete-hints&quot;</span><span class="p">,</span>
+                <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;export_autocomplete_hints&quot;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="n">optparse</span><span class="o">.</span><span class="n">SUPPRESS_HELP</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Add an option to sort</span>
+        <span class="k">if</span> <span class="n">sort_options</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+                <span class="s2">&quot;-s&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;--sort&quot;</span><span class="p">,</span>
+                <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;sort&quot;</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Sort the arguments&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Set a verbosity parameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+            <span class="s2">&quot;-v&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;verbose&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Increase verbosity&quot;</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Add an option for PHIL file to parse - PHIL files passed as</span>
+        <span class="c1"># positional arguments are also read but this allows the user to</span>
+        <span class="c1"># explicitly specify STDIN</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+            <span class="s2">&quot;--phil&quot;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s2">&quot;append&quot;</span><span class="p">,</span>
+            <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;FILE&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;PHIL files to read. Pass &#39;-&#39; for STDIN. Can be specified multiple times, but duplicates ignored.&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="OptionParserBase.parse_args"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParserBase.parse_args">[docs]</a>    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the command line arguments and get system configuration.</span>
+
+<span class="sd">        :param args: The arguments to parse.</span>
+<span class="sd">        :returns: The options and phil parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Parse the command line arguments, this will separate out</span>
+        <span class="c1"># options (e.g. -o, --option) and positional arguments, in</span>
+        <span class="c1"># which phil options will be included.</span>
+        <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">OptionParserBase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="c1"># Read any argument-specified PHIL file. Ignore duplicates.</span>
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">phil</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">philfile</span> <span class="ow">in</span> <span class="n">OrderedSet</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">phil</span><span class="p">):</span>
+                <span class="c1"># Should we read STDIN?</span>
+                <span class="k">if</span> <span class="n">philfile</span> <span class="o">==</span> <span class="s2">&quot;-&quot;</span><span class="p">:</span>
+                    <span class="n">lines</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Otherwise, assume we&#39;ve been given a path</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">philfile</span><span class="p">)</span> <span class="k">as</span> <span class="n">phil_input</span><span class="p">:</span>
+                        <span class="n">lines</span> <span class="o">=</span> <span class="n">phil_input</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+                <span class="c1"># Add these to the unparsed argument list</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">)</span>
+
+        <span class="c1"># Maybe sort the data</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s2">&quot;sort&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">options</span><span class="o">.</span><span class="n">sort</span><span class="p">:</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="c1"># Return the parameters</span>
+        <span class="k">return</span> <span class="n">options</span><span class="p">,</span> <span class="n">args</span></div>
+
+<div class="viewcode-block" id="OptionParserBase.format_epilog"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParserBase.format_epilog">[docs]</a>    <span class="k">def</span> <span class="nf">format_epilog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">formatter</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Don&#39;t do formatting on epilog.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">epilog</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">epilog</span></div></div>
+
+
+<div class="viewcode-block" id="OptionParser"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser">[docs]</a><span class="k">class</span> <span class="nc">OptionParser</span><span class="p">(</span><span class="n">OptionParserBase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class to parse command line options and get the system configuration.</span>
+<span class="sd">    The class extends optparse.OptionParser to include the reading of phil</span>
+<span class="sd">    parameters.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">phil</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">read_experiments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">read_reflections</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">read_experiments_from_images</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">sort_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialise the class.</span>
+
+<span class="sd">        :param phil: The phil scope</span>
+<span class="sd">        :param read_experiments: Try to read the experiments</span>
+<span class="sd">        :param read_reflections: Try to read the reflections</span>
+<span class="sd">        :param read_experiments_from_images: Try to read the experiments from images</span>
+<span class="sd">        :param check_format: Check the format when reading images</span>
+<span class="sd">        :param sort_options: Show argument sorting options</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Create the phil parser</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span> <span class="o">=</span> <span class="n">PhilCommandParser</span><span class="p">(</span>
+            <span class="n">phil</span><span class="o">=</span><span class="n">phil</span><span class="p">,</span>
+            <span class="n">read_experiments</span><span class="o">=</span><span class="n">read_experiments</span><span class="p">,</span>
+            <span class="n">read_reflections</span><span class="o">=</span><span class="n">read_reflections</span><span class="p">,</span>
+            <span class="n">read_experiments_from_images</span><span class="o">=</span><span class="n">read_experiments_from_images</span><span class="p">,</span>
+            <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Initialise the option parser</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OptionParser</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">sort_options</span><span class="o">=</span><span class="n">sort_options</span><span class="p">,</span>
+            <span class="n">config_options</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">as_str</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="OptionParser.parse_args"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser.parse_args">[docs]</a>    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">show_diff_phil</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">return_unhandled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">ignore_unhandled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the command line arguments and get system configuration.</span>
+
+<span class="sd">        :param args: The input arguments</span>
+<span class="sd">        :param show_diff_phil: True/False Print the diff phil</span>
+<span class="sd">        :param return_unhandled: True/False return unhandled arguments</span>
+<span class="sd">        :param ignore_unhandled: True/False ignore unhandled arguments</span>
+<span class="sd">                                  if return_unhandled is False</span>
+<span class="sd">        :param quick_parse: Return as fast as possible and without reading any data,</span>
+<span class="sd">                            ignoring class constructor options</span>
+<span class="sd">        :return: The options and phil parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Parse the command line arguments, this will separate out</span>
+        <span class="c1"># options (e.g. -o, --option) and positional arguments, in</span>
+        <span class="c1"># which phil options will be included.</span>
+        <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">OptionParser</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span>
+            <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="n">quick_parse</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Show config</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s2">&quot;show_config&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">options</span><span class="o">.</span><span class="n">show_config</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="s2">&quot;Showing configuration parameters with:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;  attributes_level = </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;  expert_level = </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">attributes_level</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">expert_level</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">as_str</span><span class="p">(</span>
+                    <span class="n">expert_level</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">expert_level</span><span class="p">,</span>
+                    <span class="n">attributes_level</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">attributes_level</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">hasattr</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s2">&quot;export_autocomplete_hints&quot;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">options</span><span class="o">.</span><span class="n">export_autocomplete_hints</span>
+        <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_export_autocomplete_hints</span><span class="p">()</span>
+            <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Parse the phil parameters</span>
+        <span class="n">params</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span>
+            <span class="n">args</span><span class="p">,</span>
+            <span class="n">options</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">return_unhandled</span><span class="o">=</span><span class="n">return_unhandled</span><span class="p">,</span>
+            <span class="n">quick_parse</span><span class="o">=</span><span class="n">quick_parse</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Print the diff phil</span>
+        <span class="k">if</span> <span class="n">show_diff_phil</span><span class="p">:</span>
+            <span class="n">diff_phil_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">diff_phil</span><span class="o">.</span><span class="n">as_str</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">diff_phil_str</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The following parameters have been modified:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">diff_phil_str</span><span class="p">)</span>
+
+        <span class="c1"># Return the parameters</span>
+        <span class="k">if</span> <span class="n">return_unhandled</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">args</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">quick_parse</span><span class="p">:</span>
+            <span class="c1"># Handle printing any messages to diagnose unhandled arguments</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warn_about_unhandled_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">ignore_unhandled</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">Sorry</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">options</span></div>
+
+    <span class="k">def</span> <span class="nf">_warn_about_unhandled_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unhandled</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate any messages about unhandled arguments.</span>
+
+<span class="sd">        This separates errors by validation/non-validation related, and only</span>
+<span class="sd">        gives the user validation information if there&#39;s no other reason (or</span>
+<span class="sd">        asked for verbose output).</span>
+
+<span class="sd">        :param unhandled: List of unhandled arguments</span>
+<span class="sd">        :param verbosity: The output verbosity determined during parsing</span>
+<span class="sd">        :returns:         A formatted information string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Unable to handle the following arguments:&quot;</span><span class="p">)</span>
+
+        <span class="c1"># If we have any detailed information about why any of the</span>
+        <span class="c1"># arguments weren&#39;t processed, give this to the user</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">unhandled</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">]:</span>
+            <span class="c1"># Split the reasons for unhandling into validation, non-validation</span>
+            <span class="n">non_valid</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">validation</span>
+            <span class="p">]</span>
+            <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">validation</span><span class="p">]</span>
+
+            <span class="c1"># If we have non-validation-related errors, these are more important</span>
+            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">err</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">non_valid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">message</span><span class="p">):</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+                <span class="c1"># Grouping the errors by message lets us avoid repeating messages</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">err</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="s1">&#39;  &quot;</span><span class="si">{}</span><span class="s1">&quot; failed repeatedly during processing:</span><span class="se">\n</span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">arg</span><span class="p">,</span> <span class="s2">&quot;    &quot;</span> <span class="o">+</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">exception</span><span class="p">,</span> <span class="n">Sorry</span><span class="p">):</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="s1">&#39;  &quot;</span><span class="si">{}</span><span class="s1">&quot; failed during </span><span class="si">{}</span><span class="s1"> processing:</span><span class="se">\n</span><span class="s1">    </span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">arg</span><span class="p">,</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="s1">&#39;  &quot;</span><span class="si">{}</span><span class="s1">&quot; failed during </span><span class="si">{}</span><span class="s1"> processing:</span><span class="se">\n</span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">arg</span><span class="p">,</span>
+                            <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                                <span class="s2">&quot;    &quot;</span> <span class="o">+</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">traceback</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+                            <span class="p">),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+
+            <span class="c1"># Otherwise (or if asked for verbosity), list the validation errors</span>
+            <span class="k">if</span> <span class="n">valid</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">non_valid</span> <span class="ow">or</span> <span class="n">verbosity</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="s2">&quot;  </span><span class="si">{}</span><span class="s2"> did not appear to conform to any</span><span class="si">{}</span><span class="s2"> expected format:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">arg</span><span class="p">,</span> <span class="s2">&quot; other&quot;</span> <span class="k">if</span> <span class="n">non_valid</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">slen</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">type</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">valid</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">err</span> <span class="ow">in</span> <span class="n">valid</span><span class="p">:</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="s2">&quot;    - </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">type</span><span class="p">)</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="n">slen</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">err</span><span class="o">.</span><span class="n">message</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the phil object</span>
+
+<span class="sd">        :returns: The phil scope</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">phil</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">system_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the system phil.</span>
+
+<span class="sd">        :returns: The system phil scope</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">system_phil</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">diff_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the diff phil.</span>
+
+<span class="sd">        :returns: The diff phil scope</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">diff_phil</span>
+
+    <span class="k">def</span> <span class="nf">_strip_rst_markup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Strip rst markup</span>
+
+<span class="sd">        :param text: The text to strip</span>
+<span class="sd">        :return: The stripped text</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;::&quot;</span><span class="p">,</span> <span class="s2">&quot;:&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OptionParser.format_help"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser.format_help">[docs]</a>    <span class="k">def</span> <span class="nf">format_help</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Format the help string</span>
+
+<span class="sd">        :param formatter: The formatter to use</span>
+<span class="sd">        :return: The formatted help text</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">OptionParser</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">format_help</span><span class="p">(</span><span class="n">formatter</span><span class="o">=</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strip_rst_markup</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_export_autocomplete_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># complete list of all parameters</span>
+        <span class="n">parameter_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># short name -&gt; full name expansion for unique names</span>
+        <span class="n">parameter_expansion_list</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># full name -&gt; list of flags for choice parameters</span>
+        <span class="n">parameter_choice_list</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">all_definitions</span><span class="p">():</span>
+            <span class="c1"># Create complete list of all parameters</span>
+            <span class="n">parameter_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+            <span class="c1"># Create expansion (alias) list for unique names that are not expert commands</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parameter_expansion_list</span>
+                <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">expert_level</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">expert_level</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="p">):</span>
+                <span class="n">parameter_expansion_list</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">path</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">parameter_expansion_list</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1"># Extract parameter choice lists</span>
+            <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">phil_type</span> <span class="o">==</span> <span class="s2">&quot;choice&quot;</span><span class="p">:</span>
+                <span class="n">parameter_choice_list</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">path</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">w</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">w</span>
+                    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">words</span><span class="p">)</span>
+                <span class="p">]</span>
+            <span class="k">elif</span> <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">phil_type</span> <span class="o">==</span> <span class="s2">&quot;bool&quot;</span><span class="p">:</span>
+                <span class="n">parameter_choice_list</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">path</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">construct_completion_tree</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Construct a tree of parameters, grouped by common prefixes&quot;&quot;&quot;</span>
+
+            <span class="c1"># Split parameter paths at &#39;.&#39; character</span>
+            <span class="n">paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">]</span>
+
+            <span class="c1"># Identify all names that are directly on this level</span>
+            <span class="c1"># or represent parameter groups with a common prefix</span>
+            <span class="n">top_elements</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;</span><span class="si">%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;=&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;.&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">}</span>
+
+            <span class="c1"># Partition all names that are further down the tree by their prefix</span>
+            <span class="n">subpaths</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">subpaths</span><span class="p">:</span>
+                        <span class="n">subpaths</span><span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">subpaths</span><span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+            <span class="c1"># If there are prefixes with only one name beneath them, put them on the top level</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">subpaths</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subpaths</span><span class="p">[</span><span class="n">s</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">top_elements</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.&quot;</span> <span class="o">%</span> <span class="n">s</span><span class="p">)</span>
+                    <span class="n">top_elements</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">=&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">subpaths</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+                    <span class="k">del</span> <span class="n">subpaths</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;&quot;</span><span class="p">:</span> <span class="n">top_elements</span><span class="p">}</span>
+            <span class="c1"># Revursively process each group</span>
+            <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">subpaths</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">construct_completion_tree</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">result</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;function _dials_autocomplete_flags ()&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39; case &quot;$1&quot; in&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parameter_choice_list</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  </span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="n">p</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="s1">&#39;   _dials_autocomplete_values=&quot;</span><span class="si">%s</span><span class="s1">&quot;;;&#39;</span>
+                <span class="o">%</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parameter_choice_list</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  *)&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;    _dials_autocomplete_values=&quot;&quot;;;&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; esac&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;function _dials_autocomplete_expansion ()&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39; case &quot;$1&quot; in&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">parameter_expansion_list</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">exp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  </span><span class="si">%s</span><span class="s2">=)&quot;</span> <span class="o">%</span> <span class="n">p</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;   _dials_autocomplete_values=&quot;</span><span class="si">%s</span><span class="s1">=&quot;;;&#39;</span> <span class="o">%</span> <span class="n">exp</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  *)&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;    _dials_autocomplete_values=&quot;&quot;;;&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; esac&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">)</span>
+
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">construct_completion_tree</span><span class="p">(</span><span class="n">parameter_list</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">_tree_to_bash</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">tree</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">subkey</span> <span class="ow">in</span> <span class="n">tree</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">subkey</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                    <span class="n">_tree_to_bash</span><span class="p">(</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">subkey</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="n">tree</span><span class="p">[</span><span class="n">subkey</span><span class="p">])</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  </span><span class="si">%s</span><span class="s2">*)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">subkey</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span><span class="p">))</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="s1">&#39;    _dials_autocomplete_values=&quot;</span><span class="si">%s</span><span class="s1">&quot;;;&#39;</span>
+                        <span class="o">%</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                            <span class="nb">sorted</span><span class="p">(</span>
+                                <span class="p">[</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">subkey</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tree</span><span class="p">[</span><span class="n">subkey</span><span class="p">][</span><span class="s2">&quot;&quot;</span><span class="p">]]</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;function _dials_autocomplete_hints ()&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39; case &quot;$1&quot; in&#39;</span><span class="p">)</span>
+        <span class="n">_tree_to_bash</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">tree</span><span class="p">)</span>
+
+        <span class="n">toplevelset</span> <span class="o">=</span> <span class="n">tree</span><span class="p">[</span><span class="s2">&quot;&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="p">{</span>
+            <span class="n">p</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">parameter_expansion_list</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">exp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">}</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  *)&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;    _dials_autocomplete_values=&quot;</span><span class="si">%s</span><span class="s1">&quot;;;&#39;</span> <span class="o">%</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">toplevelset</span><span class="p">)))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; esac&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="flatten_reflections"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.flatten_reflections">[docs]</a><span class="k">def</span> <span class="nf">flatten_reflections</span><span class="p">(</span><span class="n">filename_object_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flatten a list of reflections tables</span>
+
+<span class="sd">    A check is also made for the &#39;id&#39; values in the reflection tables, which are</span>
+<span class="sd">    renumbered from 0..n-1 to avoid clashes. The experiment_identifiers dict is</span>
+<span class="sd">    also updated if present in the input tables.</span>
+
+<span class="sd">    :param filename_object_list: The parameter item</span>
+<span class="sd">    :return: The flattened reflection table</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tables</span> <span class="o">=</span> <span class="p">[</span><span class="n">o</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">filename_object_list</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tables</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">tables</span> <span class="o">=</span> <span class="n">renumber_table_id_columns</span><span class="p">(</span><span class="n">tables</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tables</span></div>
+
+
+<div class="viewcode-block" id="flatten_experiments"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.flatten_experiments">[docs]</a><span class="k">def</span> <span class="nf">flatten_experiments</span><span class="p">(</span><span class="n">filename_object_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flatten a list of experiment lists</span>
+
+<span class="sd">    :param filename_object_list: The parameter item</span>
+<span class="sd">    :return: The flattened experiment lists</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">filename_object_list</span><span class="p">:</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="reflections_and_experiments_from_files"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.reflections_and_experiments_from_files">[docs]</a><span class="k">def</span> <span class="nf">reflections_and_experiments_from_files</span><span class="p">(</span>
+    <span class="n">reflection_file_object_list</span><span class="p">,</span> <span class="n">experiment_file_object_list</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Extract reflection tables and an experiment list from the files.</span>
+<span class="sd">    If experiment identifiers are set, the order of the reflection tables is</span>
+<span class="sd">    changed to match the order of experiments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tables</span> <span class="o">=</span> <span class="n">flatten_reflections</span><span class="p">(</span><span class="n">reflection_file_object_list</span><span class="p">)</span>
+
+    <span class="n">experiments</span> <span class="o">=</span> <span class="n">flatten_experiments</span><span class="p">(</span><span class="n">experiment_file_object_list</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">tables</span> <span class="ow">and</span> <span class="n">experiments</span><span class="p">:</span>
+        <span class="n">tables</span> <span class="o">=</span> <span class="n">sort_tables_to_experiments_order</span><span class="p">(</span><span class="n">tables</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tables</span><span class="p">,</span> <span class="n">experiments</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>

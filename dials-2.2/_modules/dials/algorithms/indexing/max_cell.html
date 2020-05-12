@@ -1,0 +1,174 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>dials.algorithms.indexing.max_cell &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/dials-styles.css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            <a class="old-documentation" href="../../../../index.html/../../_modules/dials/algorithms/indexing/max_cell.html">
+    This documentation page refers to a previous release of DIALS (2.2).<br/>
+    Click here to go to the corresponding page for the latest version of DIALS
+  </a>
+  <h1>Source code for dials.algorithms.indexing.max_cell</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.spot_finding.per_image_analysis</span> <span class="kn">import</span> <span class="n">ice_rings_selection</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.nearest_neighbor</span> <span class="kn">import</span> <span class="n">NeighborAnalysis</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing</span> <span class="kn">import</span> <span class="n">DialsIndexError</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="find_max_cell"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.max_cell.find_max_cell">[docs]</a><span class="k">def</span> <span class="nf">find_max_cell</span><span class="p">(</span>
+    <span class="n">reflections</span><span class="p">,</span>
+    <span class="n">max_cell_multiplier</span><span class="o">=</span><span class="mf">1.3</span><span class="p">,</span>
+    <span class="n">step_size</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span>
+    <span class="n">nearest_neighbor_percentile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">histogram_binning</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span>
+    <span class="n">nn_per_bin</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">max_height_fraction</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
+    <span class="n">filter_ice</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">filter_overlaps</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">overlaps_border</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Finding suitable max_cell based on </span><span class="si">%i</span><span class="s2"> reflections&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
+    <span class="c1"># Exclude potential ice-ring spots from nearest neighbour analysis if needed</span>
+    <span class="k">if</span> <span class="n">filter_ice</span><span class="p">:</span>
+
+        <span class="n">ice_sel</span> <span class="o">=</span> <span class="n">ice_rings_selection</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+        <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">~</span><span class="n">ice_sel</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;Rejecting </span><span class="si">%i</span><span class="s2"> reflections at ice ring resolution&quot;</span> <span class="o">%</span> <span class="n">ice_sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="c1"># need bounding box in reflections to find overlaps; this is not there if</span>
+    <span class="c1"># spots are from XDS (for example)</span>
+    <span class="k">if</span> <span class="n">filter_overlaps</span> <span class="ow">and</span> <span class="s2">&quot;bbox&quot;</span> <span class="ow">in</span> <span class="n">reflections</span><span class="p">:</span>
+        <span class="n">overlap_sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">overlaps</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">find_overlaps</span><span class="p">(</span><span class="n">border</span><span class="o">=</span><span class="n">overlaps_border</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">overlaps</span><span class="o">.</span><span class="n">edges</span><span class="p">():</span>
+            <span class="n">i0</span> <span class="o">=</span> <span class="n">overlaps</span><span class="o">.</span><span class="n">source</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+            <span class="n">i1</span> <span class="o">=</span> <span class="n">overlaps</span><span class="o">.</span><span class="n">target</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+            <span class="n">overlap_sel</span><span class="p">[</span><span class="n">i0</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">overlap_sel</span><span class="p">[</span><span class="n">i1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;Rejecting </span><span class="si">%i</span><span class="s2"> overlapping bounding boxes&quot;</span> <span class="o">%</span> <span class="n">overlap_sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">~</span><span class="n">overlap_sel</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%i</span><span class="s2"> reflections remain for max_cell identification&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">DialsIndexError</span><span class="p">(</span>
+            <span class="s2">&quot;Too few spots remaining for nearest neighbour analysis (</span><span class="si">%d</span><span class="s2">)&quot;</span>
+            <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="n">NN</span> <span class="o">=</span> <span class="n">NeighborAnalysis</span><span class="p">(</span>
+        <span class="n">reflections</span><span class="p">,</span>
+        <span class="n">step_size</span><span class="o">=</span><span class="n">step_size</span><span class="p">,</span>
+        <span class="n">max_height_fraction</span><span class="o">=</span><span class="n">max_height_fraction</span><span class="p">,</span>
+        <span class="n">tolerance</span><span class="o">=</span><span class="n">max_cell_multiplier</span><span class="p">,</span>
+        <span class="n">percentile</span><span class="o">=</span><span class="n">nearest_neighbor_percentile</span><span class="p">,</span>
+        <span class="n">histogram_binning</span><span class="o">=</span><span class="n">histogram_binning</span><span class="p">,</span>
+        <span class="n">nn_per_bin</span><span class="o">=</span><span class="n">nn_per_bin</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">NN</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
