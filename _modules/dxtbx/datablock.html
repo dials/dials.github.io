@@ -689,7 +689,7 @@
 <span class="sd">    Any path entries that are a directory will be recursed into, once -</span>
 <span class="sd">    any further directories found will be ignored. Any path that is not</span>
 <span class="sd">    a file or directory, or on which IO fails for any reason, will be added</span>
-<span class="sd">    to the :attr:`unhandled` list.</span>
+<span class="sd">    to the :attr:`uncached` list, but still returned.</span>
 <span class="sd">    The current expected length of the iterator can be found with</span>
 <span class="sd">    `len(iterator)` - this can change while iterating, because until a</span>
 <span class="sd">    directory is encountered it cannot be detected without extra IO</span>
@@ -697,7 +697,9 @@
 <span class="sd">    :attr:`index` attribute.</span>
 
 <span class="sd">    Attributes:</span>
-<span class="sd">        unhandled:  List of paths that could not be handled</span>
+<span class="sd">        uncached:   List of paths that failed open_file. This may be a</span>
+<span class="sd">                    file that doesn&#39;t exist, or something that doesn&#39;t</span>
+<span class="sd">                    point to a file at all.</span>
 <span class="sd">        index:      Index of the next path item (alternatively, number</span>
 <span class="sd">                    of processed path items)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -714,7 +716,7 @@
         <span class="c1"># Let&#39;s keep track of how many we&#39;ve processed</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="c1"># List of paths that could not be opened</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uncached</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span>
@@ -729,7 +731,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">+=</span> <span class="mi">1</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># Attempt to open this path</span>
+            <span class="c1"># Attempt to open this &#39;path&#39;</span>
             <span class="n">Format</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">IOError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="n">errno</span><span class="o">.</span><span class="n">EISDIR</span><span class="p">:</span>
@@ -747,7 +749,7 @@
                 <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># A non-directory-related IO error</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">uncached</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Could not import </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pathname</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">strerror</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">errno</span><span class="p">))</span>
 
         <span class="k">return</span> <span class="n">pathname</span>
