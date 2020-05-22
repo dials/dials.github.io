@@ -208,12 +208,25 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Normalising intensities for dataset </span><span class="si">%i</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
             <span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">normalise</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">normalised_intensities</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
-                    <span class="n">normalise</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">intensities</span> <span class="o">=</span> <span class="n">normalise</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
+            <span class="c1"># Catch any of the several errors that can occur when there are too few</span>
+            <span class="c1"># reflections for the selected normalisation routine.</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;A problem occurred when trying to normalise the intensities by &quot;</span>
+                    <span class="s2">&quot;the </span><span class="si">%s</span><span class="s2"> method.</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;There may be too few unique reflections. Resorting to using &quot;</span>
+                    <span class="s2">&quot;un-normalised intensities instead.&quot;</span><span class="p">,</span>
+                    <span class="n">method</span><span class="p">,</span>
+                    <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="p">)</span>
+                <span class="k">return</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">intensities</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">normalised_intensities</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="n">normalised_intensities</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">info</span><span class="p">()</span>
         <span class="p">)</span><span class="o">.</span><span class="n">set_observation_type_xray_intensity</span><span class="p">()</span>
