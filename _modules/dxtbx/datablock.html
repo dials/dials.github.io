@@ -680,8 +680,8 @@
         <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span></div>
 
 
-<div class="viewcode-block" id="OpeningPathIterator"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/datablock.html#dxtbx.datablock.OpeningPathIterator">[docs]</a><span class="k">class</span> <span class="nc">OpeningPathIterator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Utility class to efficiently open all paths.</span>
+<span class="k">def</span> <span class="nf">_openingpathiterator</span><span class="p">(</span><span class="n">pathnames</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Utility function to efficiently open all paths.</span>
 
 <span class="sd">    A path is a potential file or directory.</span>
 <span class="sd">    Each path will be opened with :meth:`dxtbx.format.Format.open_file`,</span>
@@ -689,47 +689,20 @@
 <span class="sd">    use of :func:`os.stat` will be avoided.</span>
 <span class="sd">    Any path entries that are a directory will be recursed into, once -</span>
 <span class="sd">    any further directories found will be ignored. Any path that is not</span>
-<span class="sd">    a file or directory, or on which IO fails for any reason, will be added</span>
-<span class="sd">    to the :attr:`uncached` list, but still returned.</span>
-<span class="sd">    The current expected length of the iterator can be found with</span>
-<span class="sd">    `len(iterator)` - this can change while iterating, because until a</span>
-<span class="sd">    directory is encountered it cannot be detected without extra IO</span>
-<span class="sd">    operations. The number of items processed can be accessed through the</span>
-<span class="sd">    :attr:`index` attribute.</span>
+<span class="sd">    a file or directory, or on which IO fails for any reason, will still</span>
+<span class="sd">    be returned.</span>
 
-<span class="sd">    Attributes:</span>
-<span class="sd">        uncached:   List of paths that failed open_file. This may be a</span>
-<span class="sd">                    file that doesn&#39;t exist, or something that doesn&#39;t</span>
-<span class="sd">                    point to a file at all.</span>
-<span class="sd">        index:      Index of the next path item (alternatively, number</span>
-<span class="sd">                    of processed path items)</span>
+<span class="sd">    Args:</span>
+<span class="sd">        pathnames: Paths to attempt to open</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># type: (Iterable[str])</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pathnames</span><span class="p">):</span>
-        <span class="c1"># type: (Iterable[str])</span>
-        <span class="sd">&quot;&quot;&quot;Initialise the path iterator.</span>
+    <span class="c1"># Store a tuple of (recurse, pathname) to track what was root level</span>
+    <span class="n">paths</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">deque</span><span class="p">((</span><span class="kc">True</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pathnames</span><span class="p">))</span>
 
-<span class="sd">        Args:</span>
-<span class="sd">            pathnames: Paths to attempt to open</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Store a tuple of (recurse, pathname) to track what was root level</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">deque</span><span class="p">((</span><span class="kc">True</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pathnames</span><span class="p">))</span>
-        <span class="c1"># Let&#39;s keep track of how many we&#39;ve processed</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="c1"># List of paths that could not be opened</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">uncached</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span>
-
-    <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the next path to process&quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># Get the next path from the queue</span>
-            <span class="p">(</span><span class="n">do_recurse</span><span class="p">,</span> <span class="n">pathname</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
-        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">StopIteration</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">while</span> <span class="n">paths</span><span class="p">:</span>
+        <span class="c1"># Get the next path from the queue</span>
+        <span class="p">(</span><span class="n">do_recurse</span><span class="p">,</span> <span class="n">pathname</span><span class="p">)</span> <span class="o">=</span> <span class="n">paths</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Attempt to open this &#39;path&#39;</span>
@@ -742,29 +715,17 @@
                         <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
                     <span class="p">)</span>
                     <span class="c1"># ... and add them to our queue. Make sure not to mark for recursion</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">extendleft</span><span class="p">((</span><span class="kc">False</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">subdir_paths</span><span class="p">))</span>
+                    <span class="n">paths</span><span class="o">.</span><span class="n">extendleft</span><span class="p">((</span><span class="kc">False</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">subdir_paths</span><span class="p">))</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Adding </span><span class="si">%d</span><span class="s2"> files from </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">subdir_paths</span><span class="p">),</span> <span class="n">pathname</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Not adding sub-level directory entry </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pathname</span><span class="p">)</span>
                 <span class="c1"># Don&#39;t return directory instances</span>
-                <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">continue</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># A non-directory-related IO error</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">uncached</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Could not import </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pathname</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">strerror</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">errno</span><span class="p">))</span>
 
-        <span class="k">return</span> <span class="n">pathname</span>
-
-    <span class="nb">next</span> <span class="o">=</span> <span class="fm">__next__</span>
-
-    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the (current) total of path items&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the number of processed items&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span></div>
+        <span class="k">yield</span> <span class="n">pathname</span>
 
 
 <span class="k">def</span> <span class="nf">_merge_model_metadata</span><span class="p">(</span>
@@ -991,7 +952,7 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Added imageset to datablock </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datablocks</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
 
         <span class="c1"># Process each file given by this path list</span>
-        <span class="n">to_process</span> <span class="o">=</span> <span class="n">OpeningPathIterator</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+        <span class="n">to_process</span> <span class="o">=</span> <span class="n">_openingpathiterator</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
         <span class="n">find_format</span> <span class="o">=</span> <span class="n">FormatChecker</span><span class="p">()</span>
 
         <span class="n">format_groups</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
