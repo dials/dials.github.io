@@ -1,1 +1,1 @@
-dials.scale scaled.expt scaled.refl d_min=1.80
+dials.scale scaled.expt scaled.refl d_min=1.78
