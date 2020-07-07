@@ -284,9 +284,14 @@
             <span class="p">)</span>
             <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="n">functional</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">termination_params</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">termination_params</span><span class="p">)</span>
+            <span class="n">termination_params</span><span class="o">.</span><span class="n">max_iterations</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                <span class="mi">20</span><span class="p">,</span> <span class="n">termination_params</span><span class="o">.</span><span class="n">max_iterations</span>
+            <span class="p">)</span>
             <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">dim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing dimension: </span><span class="si">%i</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">set_dimensions</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_optimise</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_optimise</span><span class="p">(</span><span class="n">termination_params</span><span class="p">)</span>
                 <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
                 <span class="n">functional</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">minimizer</span><span class="o">.</span><span class="n">f</span><span class="p">)</span>
 
@@ -327,14 +332,14 @@
 <div class="viewcode-block" id="CosymAnalysis.run"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.CosymAnalysis.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_intialise_target</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_determine_dimensions</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_optimise</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_optimise</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">termination_params</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_principal_component_analysis</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_analyse_symmetry</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cluster_analysis</span><span class="p">()</span></div>
 
     <span class="nd">@Subject</span><span class="o">.</span><span class="n">notify_event</span><span class="p">(</span><span class="n">event</span><span class="o">=</span><span class="s2">&quot;optimised&quot;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">_optimise</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_optimise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">termination_params</span><span class="p">):</span>
         <span class="n">NN</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_intensities</span><span class="p">)</span>
         <span class="n">dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">dim</span>
         <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">get_sym_ops</span><span class="p">())</span>
@@ -342,7 +347,7 @@
 
         <span class="kn">import</span> <span class="nn">scitbx.lbfgs</span>
 
-        <span class="n">tp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">termination_params</span>
+        <span class="n">tp</span> <span class="o">=</span> <span class="n">termination_params</span>
         <span class="n">termination_params</span> <span class="o">=</span> <span class="n">scitbx</span><span class="o">.</span><span class="n">lbfgs</span><span class="o">.</span><span class="n">termination_parameters</span><span class="p">(</span>
             <span class="n">traditional_convergence_test</span><span class="o">=</span><span class="n">tp</span><span class="o">.</span><span class="n">traditional_convergence_test</span><span class="p">,</span>
             <span class="n">traditional_convergence_test_eps</span><span class="o">=</span><span class="n">tp</span><span class="o">.</span><span class="n">traditional_convergence_test_eps</span><span class="p">,</span>
