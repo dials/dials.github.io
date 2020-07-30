@@ -1,0 +1,1 @@
+dials.import /dls/i04/data/2020/mx27124-1/Mpro-x0692/Mpro-x0692_1_0*.cbf
