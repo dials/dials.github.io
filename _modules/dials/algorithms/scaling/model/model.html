@@ -56,7 +56,7 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 
-<span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">phil</span>
+<span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">phil</span><span class="p">,</span> <span class="n">Auto</span>
 <span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.scaling.model.components.scale_components</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">SingleScaleFactor</span><span class="p">,</span>
@@ -148,27 +148,27 @@
 
 
 <span class="n">physical_model_phil_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
-<span class="s2">scale_interval = 15.0</span>
+<span class="s2">scale_interval = auto</span>
 <span class="s2">    .type = float(value_min=1.0)</span>
 <span class="s2">    .help = &quot;Rotation (phi) interval between model parameters for the scale&quot;</span>
-<span class="s2">            &quot;component.&quot;</span>
+<span class="s2">            &quot;component (auto scales interval depending on oscillation range).&quot;</span>
 <span class="s2">    .expert_level = 1</span>
 <span class="s2">decay_correction = True</span>
 <span class="s2">    .type = bool</span>
 <span class="s2">    .help = &quot;Option to turn off decay correction.&quot;</span>
 <span class="s2">    .expert_level = 1</span>
-<span class="s2">decay_interval = 20.0</span>
+<span class="s2">decay_interval = auto</span>
 <span class="s2">    .type = float(value_min=1.0)</span>
 <span class="s2">    .help = &quot;Rotation (phi) interval between model parameters for the decay&quot;</span>
-<span class="s2">            &quot;component.&quot;</span>
+<span class="s2">            &quot;component (auto scales interval depending on oscillation range).&quot;</span>
 <span class="s2">    .expert_level = 1</span>
 <span class="s2">decay_restraint = 1e-1</span>
 <span class="s2">    .type = float(value_min=0.0)</span>
 <span class="s2">    .help = &quot;Weight to weakly restrain B-values to 0.&quot;</span>
 <span class="s2">    .expert_level = 2</span>
-<span class="s2">absorption_correction = True</span>
+<span class="s2">absorption_correction = auto</span>
 <span class="s2">    .type = bool</span>
-<span class="s2">    .help = &quot;Option to turn off absorption correction.&quot;</span>
+<span class="s2">    .help = &quot;Option to turn off absorption correction (default True if oscillation &gt; 60.0).&quot;</span>
 <span class="s2">    .expert_level = 1</span>
 <span class="s2">lmax = 4</span>
 <span class="s2">    .type = int(value_min=2)</span>
@@ -764,13 +764,31 @@
         <span class="n">configdict</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">({</span><span class="s2">&quot;corrections&quot;</span><span class="p">:</span> <span class="p">[]})</span>
         <span class="n">parameters_dict</span> <span class="o">=</span> <span class="p">{}</span>
 
+        <span class="n">autos</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">Auto</span><span class="p">,</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;Auto&quot;</span><span class="p">]</span>
         <span class="n">osc_range</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation_range</span><span class="p">()</span>
         <span class="n">one_osc_width</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;valid_osc_range&quot;</span><span class="p">:</span> <span class="n">osc_range</span><span class="p">})</span>
 
+        <span class="n">abs_osc_range</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">osc_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">osc_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scale_interval</span> <span class="ow">in</span> <span class="n">autos</span> <span class="ow">or</span> <span class="n">params</span><span class="o">.</span><span class="n">decay_interval</span> <span class="ow">in</span> <span class="n">autos</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">abs_osc_range</span> <span class="o">&lt;</span> <span class="mf">10.0</span><span class="p">:</span>
+                <span class="n">scale_interval</span><span class="p">,</span> <span class="n">decay_interval</span> <span class="o">=</span> <span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">abs_osc_range</span> <span class="o">&lt;</span> <span class="mf">25.0</span><span class="p">:</span>
+                <span class="n">scale_interval</span><span class="p">,</span> <span class="n">decay_interval</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">abs_osc_range</span> <span class="o">&lt;</span> <span class="mf">90.0</span><span class="p">:</span>
+                <span class="n">scale_interval</span><span class="p">,</span> <span class="n">decay_interval</span> <span class="o">=</span> <span class="p">(</span><span class="mf">8.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">scale_interval</span><span class="p">,</span> <span class="n">decay_interval</span> <span class="o">=</span> <span class="p">(</span><span class="mf">15.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">scale_interval</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">autos</span><span class="p">:</span>
+            <span class="n">scale_interval</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">scale_interval</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">decay_interval</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">autos</span><span class="p">:</span>
+            <span class="n">decay_interval</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">decay_interval</span>
+
         <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">)</span>
         <span class="n">n_scale_param</span><span class="p">,</span> <span class="n">s_norm_fac</span><span class="p">,</span> <span class="n">scale_rot_int</span> <span class="o">=</span> <span class="n">initialise_smooth_input</span><span class="p">(</span>
-            <span class="n">osc_range</span><span class="p">,</span> <span class="n">one_osc_width</span><span class="p">,</span> <span class="n">params</span><span class="o">.</span><span class="n">scale_interval</span>
+            <span class="n">osc_range</span><span class="p">,</span> <span class="n">one_osc_width</span><span class="p">,</span> <span class="n">scale_interval</span>
         <span class="p">)</span>
         <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
             <span class="p">{</span><span class="s2">&quot;s_norm_fac&quot;</span><span class="p">:</span> <span class="n">s_norm_fac</span><span class="p">,</span> <span class="s2">&quot;scale_rot_interval&quot;</span><span class="p">:</span> <span class="n">scale_rot_int</span><span class="p">}</span>
@@ -783,7 +801,7 @@
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">decay_correction</span><span class="p">:</span>
             <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;decay&quot;</span><span class="p">)</span>
             <span class="n">n_decay_param</span><span class="p">,</span> <span class="n">d_norm_fac</span><span class="p">,</span> <span class="n">decay_rot_int</span> <span class="o">=</span> <span class="n">initialise_smooth_input</span><span class="p">(</span>
-                <span class="n">osc_range</span><span class="p">,</span> <span class="n">one_osc_width</span><span class="p">,</span> <span class="n">params</span><span class="o">.</span><span class="n">decay_interval</span>
+                <span class="n">osc_range</span><span class="p">,</span> <span class="n">one_osc_width</span><span class="p">,</span> <span class="n">decay_interval</span>
             <span class="p">)</span>
             <span class="n">configdict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
                 <span class="p">{</span><span class="s2">&quot;d_norm_fac&quot;</span><span class="p">:</span> <span class="n">d_norm_fac</span><span class="p">,</span> <span class="s2">&quot;decay_rot_interval&quot;</span><span class="p">:</span> <span class="n">decay_rot_int</span><span class="p">}</span>
@@ -793,7 +811,14 @@
                 <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="p">}</span>
 
-        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">absorption_correction</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">absorption_correction</span> <span class="ow">in</span> <span class="n">autos</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">abs_osc_range</span> <span class="o">&gt;</span> <span class="mf">60.0</span><span class="p">:</span>
+                <span class="n">absorption_correction</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">absorption_correction</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">absorption_correction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">absorption_correction</span>
+        <span class="k">if</span> <span class="n">absorption_correction</span><span class="p">:</span>
             <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;absorption&quot;</span><span class="p">)</span>
             <span class="n">lmax</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">lmax</span>
             <span class="n">n_abs_param</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">lmax</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">lmax</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># arithmetic sum formula (a1=3, d=2)</span>
