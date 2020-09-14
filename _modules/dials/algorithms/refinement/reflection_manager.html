@@ -52,6 +52,7 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 
 <span class="kn">import</span> <span class="nn">libtbx</span>
 <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
@@ -119,15 +120,19 @@
 <span class="sd">      .type = float(value_min = 0)</span>
 <span class="sd">      .expert_level = 1</span>
 
-<span class="sd">    trim_scan_edges = 0.0</span>
+<span class="sd">    scan_margin = 0.0</span>
 <span class="sd">      .help = &quot;Reflections within this value in degrees from the centre of the&quot;</span>
 <span class="sd">              &quot;first or last image of the scan will be removed before&quot;</span>
 <span class="sd">              &quot;refinement, unless doing so would result in too few remaining&quot;</span>
 <span class="sd">              &quot;reflections. Reflections that are truncated at the scan edges&quot;</span>
 <span class="sd">              &quot;have poorly-determined centroids and can bias the refined model&quot;</span>
 <span class="sd">              &quot;if they are included.&quot;</span>
-<span class="sd">      .type = float(value_min=0,value_max=1)</span>
+<span class="sd">      .type = float(value_min=0,value_max=5)</span>
 <span class="sd">      .expert_level = 1</span>
+
+<span class="sd">    trim_scan_edges = None</span>
+<span class="sd">      .type = float(value_min=0,value_max=5)</span>
+<span class="sd">      .help = Deprecated. Use scan_margin instead</span>
 
 <span class="sd">    weighting_strategy</span>
 <span class="sd">      .help = &quot;Parameters to configure weighting strategy overrides&quot;</span>
@@ -361,6 +366,14 @@
                 <span class="o">*</span><span class="n">params</span><span class="o">.</span><span class="n">weighting_strategy</span><span class="o">.</span><span class="n">constants</span><span class="p">,</span> <span class="n">stills</span><span class="o">=</span><span class="n">do_stills</span>
             <span class="p">)</span>
 
+        <span class="c1"># Check for deprecated parameter</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">trim_scan_edges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;The parameter trim_scan_edges is deprecated and will be removed shortly&quot;</span><span class="p">,</span>
+                <span class="ne">FutureWarning</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">scan_margin</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">trim_scan_edges</span>
+
         <span class="k">return</span> <span class="n">refman</span><span class="p">(</span>
             <span class="n">reflections</span><span class="o">=</span><span class="n">reflections</span><span class="p">,</span>
             <span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
@@ -368,7 +381,7 @@
             <span class="n">max_sample_size</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">maximum_sample_size</span><span class="p">,</span>
             <span class="n">min_sample_size</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">minimum_sample_size</span><span class="p">,</span>
             <span class="n">close_to_spindle_cutoff</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">close_to_spindle_cutoff</span><span class="p">,</span>
-            <span class="n">trim_scan_edges</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">trim_scan_edges</span><span class="p">,</span>
+            <span class="n">scan_margin</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">scan_margin</span><span class="p">,</span>
             <span class="n">outlier_detector</span><span class="o">=</span><span class="n">outlier_detector</span><span class="p">,</span>
             <span class="n">weighting_strategy_override</span><span class="o">=</span><span class="n">weighting_strategy</span><span class="p">,</span>
         <span class="p">)</span></div></div>
@@ -394,7 +407,7 @@
         <span class="n">max_sample_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">min_sample_size</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
         <span class="n">close_to_spindle_cutoff</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span>
-        <span class="n">trim_scan_edges</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">scan_margin</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
         <span class="n">outlier_detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">weighting_strategy_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
@@ -441,7 +454,7 @@
 
         <span class="c1"># set up the reflection inclusion criteria</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_close_to_spindle_cutoff</span> <span class="o">=</span> <span class="n">close_to_spindle_cutoff</span>  <span class="c1"># close to spindle</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_trim_scan_edges</span> <span class="o">=</span> <span class="n">DEG2RAD</span> <span class="o">*</span> <span class="n">trim_scan_edges</span>  <span class="c1"># close to the scan edge</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scan_margin</span> <span class="o">=</span> <span class="n">DEG2RAD</span> <span class="o">*</span> <span class="n">scan_margin</span>  <span class="c1"># close to the scan edge</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_detector</span> <span class="o">=</span> <span class="n">outlier_detector</span>  <span class="c1"># for outlier rejection</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_nref_per_degree</span> <span class="o">=</span> <span class="n">nref_per_degree</span>  <span class="c1"># random subsets</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_max_sample_size</span> <span class="o">=</span> <span class="n">max_sample_size</span>  <span class="c1"># sample size ceiling</span>
@@ -616,12 +629,12 @@
 
             <span class="c1"># third test: reject reflections close to the centres of the first and</span>
             <span class="c1"># last images in the scan</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trim_scan_edges</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan_margin</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
                 <span class="n">edge1</span><span class="p">,</span> <span class="n">edge2</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()]</span>
                 <span class="n">edge1</span> <span class="o">=</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_image_index</span><span class="p">(</span><span class="n">edge1</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-                <span class="n">edge1</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trim_scan_edges</span>
+                <span class="n">edge1</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan_margin</span>
                 <span class="n">edge2</span> <span class="o">=</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_angle_from_image_index</span><span class="p">(</span><span class="n">edge2</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-                <span class="n">edge2</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trim_scan_edges</span>
+                <span class="n">edge2</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan_margin</span>
                 <span class="n">passed3</span> <span class="o">=</span> <span class="p">(</span><span class="n">edge1</span> <span class="o">&lt;=</span> <span class="n">phi</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">phi</span> <span class="o">&lt;=</span> <span class="n">edge2</span><span class="p">)</span>
 
                 <span class="c1"># combine the last test only if there would be a reasonable number of</span>
@@ -631,7 +644,7 @@
                 <span class="k">if</span> <span class="n">to_update</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">40</span><span class="p">:</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                         <span class="s2">&quot;Too few reflections to trim centroids from the scan &quot;</span>
-                        <span class="s2">&quot;edges. Resetting trim_scan_edges=0.0&quot;</span>
+                        <span class="s2">&quot;edges. Resetting scan_margin=0.0&quot;</span>
                     <span class="p">)</span>
                     <span class="n">to_update</span> <span class="o">=</span> <span class="n">tmp</span>
 
