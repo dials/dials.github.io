@@ -66,6 +66,8 @@
 
 <span class="n">ext</span> <span class="o">=</span> <span class="n">boost_adaptbx</span><span class="o">.</span><span class="n">boost</span><span class="o">.</span><span class="n">python</span><span class="o">.</span><span class="n">import_ext</span><span class="p">(</span><span class="s2">&quot;dxtbx_ext&quot;</span><span class="p">)</span>
 
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span>
+
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span>
     <span class="s2">&quot;ExternalLookup&quot;</span><span class="p">,</span>
     <span class="s2">&quot;ExternalLookupItemBool&quot;</span><span class="p">,</span>
@@ -78,6 +80,19 @@
     <span class="s2">&quot;ImageSequence&quot;</span><span class="p">,</span>
     <span class="s2">&quot;MemReader&quot;</span><span class="p">,</span>
 <span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_expand_template</span><span class="p">(</span><span class="n">template</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;Expand a template string to a list of filenames.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        template: The template string, with a block of &#39;#&#39; to replace</span>
+<span class="sd">        indices:  The numeric indices to insert</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">pfx</span><span class="si">}{</span><span class="n">index</span><span class="si">:</span><span class="s2">0</span><span class="si">{</span><span class="n">count</span><span class="si">}}{</span><span class="n">sfx</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span>
 
 
 <div class="viewcode-block" id="MemReader"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.MemReader">[docs]</a><span class="k">class</span> <span class="nc">MemReader</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -439,26 +454,18 @@
             <span class="k">assert</span> <span class="ow">not</span> <span class="n">check_headers</span>
 
         <span class="c1"># Check the template is valid</span>
-        <span class="k">if</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s2">&quot;master&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid template&quot;</span><span class="p">)</span>
-            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-
-            <span class="c1"># Get the template format</span>
-            <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
-
+        <span class="k">if</span> <span class="s2">&quot;#&quot;</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
             <span class="c1"># Get the template image range</span>
             <span class="k">if</span> <span class="n">image_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">image_range</span> <span class="o">=</span> <span class="n">template_image_range</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
 
             <span class="c1"># Set the image range</span>
-            <span class="n">array_range</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-
-            <span class="c1"># Create the sequence file list</span>
-            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">array_range</span><span class="p">]</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="n">_expand_template</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;master&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid template&quot;</span><span class="p">)</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
 
         <span class="c1"># Import here as Format and Imageset have cyclic dependencies</span>
         <span class="kn">from</span> <span class="nn">dxtbx.format.Format</span> <span class="kn">import</span> <span class="n">Format</span>
@@ -490,17 +497,10 @@
         <span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">is_sequence</span> <span class="o">=</span> <span class="n">filelist</span>
 
         <span class="c1"># Get the template format</span>
-        <span class="n">count</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
-            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;#&quot;</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">_expand_template</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
-
-        <span class="c1"># Sort the filenames</span>
-        <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
 
         <span class="c1"># Get the format object</span>
         <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
@@ -511,42 +511,18 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_create_sequence</span><span class="p">(</span><span class="n">filelist</span><span class="p">,</span> <span class="n">check_headers</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Create a sequence&quot;&quot;&quot;</span>
-        <span class="c1"># Extract info from filelist</span>
         <span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">is_sequence</span> <span class="o">=</span> <span class="n">filelist</span>
 
-        <span class="c1"># Get the template format</span>
-        <span class="n">count</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
-            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span>
+        <span class="c1"># Expand the template if necessary</span>
+        <span class="k">if</span> <span class="s2">&quot;#&quot;</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">_expand_template</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
-
-        <span class="c1"># Sort the filenames</span>
-        <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
 
         <span class="c1"># Get the format object</span>
         <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
-        <span class="c1"># Get the template format</span>
-        <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
-
-        <span class="c1"># Set the image range</span>
-        <span class="n">array_range</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
-
-        <span class="c1"># Create the sequence file list</span>
-        <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">array_range</span><span class="p">]</span>
-
-        <span class="n">sequence</span> <span class="o">=</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
-            <span class="n">filenames</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span> <span class="n">as_sequence</span><span class="o">=</span><span class="kc">True</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Return the sequence</span>
-        <span class="k">return</span> <span class="n">sequence</span>
+        <span class="k">return</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span> <span class="n">as_sequence</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <div class="viewcode-block" id="ImageSetFactory.make_imageset"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetFactory.make_imageset">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">make_imageset</span><span class="p">(</span>
@@ -599,18 +575,10 @@
         <span class="n">indices</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
 
         <span class="c1"># Get the template format</span>
-        <span class="n">count</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">pfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">sfx</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">template_format</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%%</span><span class="s2">0</span><span class="si">%d</span><span class="s2">d</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pfx</span><span class="p">,</span> <span class="n">template</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">),</span> <span class="n">sfx</span><span class="p">)</span>
-            <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_format</span> <span class="o">%</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;#&quot;</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">_expand_template</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">template_format</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
-
-        <span class="c1"># Sort the filenames</span>
-        <span class="n">filenames</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
 
         <span class="c1"># Set the image range</span>
         <span class="n">array_range</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
@@ -630,7 +598,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">format_class</span> <span class="o">=</span> <span class="n">Format</span>
 
-        <span class="n">sequence</span> <span class="o">=</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
+        <span class="k">return</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
             <span class="n">filenames</span><span class="p">,</span>
             <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
             <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
@@ -641,10 +609,7 @@
             <span class="n">as_sequence</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span>
             <span class="n">single_file_indices</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">*</span><span class="n">array_range</span><span class="p">)),</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Return the sequence</span>
-        <span class="k">return</span> <span class="n">sequence</span></div>
+        <span class="p">)</span></div>
 
 <div class="viewcode-block" id="ImageSetFactory.imageset_from_anyset"><a class="viewcode-back" href="../../documentation/library_reference/dxtbx/imageset.html#dxtbx.imageset.ImageSetFactory.imageset_from_anyset">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">imageset_from_anyset</span><span class="p">(</span><span class="n">imageset</span><span class="p">):</span>
