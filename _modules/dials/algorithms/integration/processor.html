@@ -610,7 +610,6 @@
         <span class="k">assert</span> <span class="s2">&quot;bbox&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="s2">&quot;Reflections have no bbox&quot;</span>
 
         <span class="c1"># Compute the block size and processors</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">compute_blocks</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">compute_jobs</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">split_reflections</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">compute_processors</span><span class="p">()</span>
@@ -709,9 +708,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">compute_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">compute_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Compute the processing block size.</span>
+<span class="sd">        Sets up a JobList() object in self.jobs</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
@@ -721,19 +720,17 @@
                 <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">force</span>
             <span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Threshold must be &gt; 0&quot;</span>
-                <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;Threshold must be &lt; 1&quot;</span>
-                <span class="n">nframes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">b</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">]])</span>
-                <span class="n">cutoff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">nframes</span><span class="p">))</span>
-                <span class="n">block_size</span> <span class="o">=</span> <span class="n">nframes</span><span class="p">[</span><span class="n">cutoff</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">block_size</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="s2">&quot;frames&quot;</span>
 
-    <span class="k">def</span> <span class="nf">compute_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Sets up a JobList() object in self.jobs</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># calculate the block overlap based on the size of bboxes in the data</span>
+        <span class="c1"># calculate once here rather than repeated in the loop below</span>
+        <span class="n">block_overlap</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Threshold must be &gt; 0&quot;</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;Threshold must be &lt; 1&quot;</span>
+            <span class="n">frames_per_refl</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">b</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">]])</span>
+            <span class="n">cutoff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">threshold</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">frames_per_refl</span><span class="p">))</span>
+            <span class="n">block_overlap</span> <span class="o">=</span> <span class="n">frames_per_refl</span><span class="p">[</span><span class="n">cutoff</span><span class="p">]</span>
+
         <span class="n">groups</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span>
             <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">)),</span>
             <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">imageset</span><span class="p">),</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">scan</span><span class="p">)),</span>
@@ -750,21 +747,46 @@
             <span class="k">if</span> <span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">scan</span><span class="p">),</span> <span class="s2">&quot;Invalid scan range&quot;</span>
                 <span class="n">array_range</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">block_size_frames</span> <span class="o">=</span> <span class="n">array_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">array_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
+                <span class="c1"># auto determine based on nframes and overlap</span>
+                <span class="n">nframes</span> <span class="o">=</span> <span class="n">array_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">array_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">nblocks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">njobs</span>
+                <span class="c1"># want data to be split into n blocks with overlaps</span>
+                <span class="c1"># i.e. [x, overlap, y, overlap, y, overlap, ....,y,  overlap, x]</span>
+                <span class="c1"># blocks are x + overlap, or overlap + y + overlap.</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">nframes</span> <span class="o">-</span> <span class="n">block_overlap</span><span class="p">)</span> <span class="o">/</span> <span class="n">nblocks</span>
+                <span class="n">block_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">block_overlap</span><span class="p">))</span>
+                <span class="c1"># increase the block size to be at least twice the overlap, in</span>
+                <span class="c1"># case the overlap is large e.g. if high mosaicity.</span>
+                <span class="n">block_size_frames</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">block_size</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">block_overlap</span><span class="p">)</span>
             <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;radians&quot;</span><span class="p">:</span>
-                <span class="n">phi0</span><span class="p">,</span> <span class="n">dphi</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">dphi</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
                 <span class="n">block_size_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="n">dphi</span><span class="p">))</span>
+                <span class="c1"># if the specified block size is lower than the overlap,</span>
+                <span class="c1"># reduce the overlap to be half of the block size.</span>
+                <span class="n">block_overlap</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">block_overlap</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">block_size_frames</span> <span class="o">//</span> <span class="mi">2</span><span class="p">))</span>
             <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;degrees&quot;</span><span class="p">:</span>
-                <span class="n">phi0</span><span class="p">,</span> <span class="n">dphi</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">dphi</span> <span class="o">=</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">()</span>
                 <span class="n">block_size_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="n">dphi</span><span class="p">))</span>
+                <span class="c1"># if the specified block size is lower than the overlap,</span>
+                <span class="c1"># reduce the overlap to be half of the block size.</span>
+                <span class="n">block_overlap</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">block_overlap</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">block_size_frames</span> <span class="o">//</span> <span class="mi">2</span><span class="p">))</span>
             <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;frames&quot;</span><span class="p">:</span>
                 <span class="n">block_size_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+                <span class="n">block_overlap</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">block_overlap</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">block_size_frames</span> <span class="o">//</span> <span class="mi">2</span><span class="p">))</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                     <span class="s2">&quot;Unknown block_size units </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span>
                 <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">i0</span><span class="p">,</span> <span class="n">i1</span><span class="p">),</span> <span class="n">array_range</span><span class="p">,</span> <span class="n">block_size_frames</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">i0</span><span class="p">,</span> <span class="n">i1</span><span class="p">),</span>
+                <span class="n">array_range</span><span class="p">,</span>
+                <span class="n">block_size_frames</span><span class="p">,</span>
+                <span class="n">block_overlap</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Invalid number of jobs&quot;</span>
 
     <span class="k">def</span> <span class="nf">split_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -972,14 +994,14 @@
             <span class="n">block_size</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">block_size</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
-        <span class="n">fmt</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="s2">&quot;Processing reflections in the following blocks of images:</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; block_size: </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot;</span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="s2">&quot;Processing reflections in the following blocks of images:</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot; block_size: </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n\n</span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">block_size</span><span class="p">,</span>
+            <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="n">block_size</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;Auto&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span><span class="p">,</span>
+            <span class="n">task_table</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="n">fmt</span> <span class="o">%</span> <span class="p">(</span><span class="n">block_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">task_table</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Processor3D"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Processor3D">[docs]</a><span class="k">class</span> <span class="nc">Processor3D</span><span class="p">(</span><span class="n">_ProcessorRot</span><span class="p">):</span>
