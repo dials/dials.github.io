@@ -1,0 +1,277 @@
+
+
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dials.estimate_resolution &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/dials-styles.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="dials.predict" href="dials_predict.html" />
+    <link rel="prev" title="dials.estimate_gain" href="dials_estimate_gain.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="dials-estimate-resolution">
+<h1>dials.estimate_resolution<a class="headerlink" href="#dials-estimate-resolution" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Estimate a resolution limit based on merging statistics calculated in resolution bins.</p>
+<p>A number of metrics are supported for estimating a resolution limit,
+including:</p>
+<ul class="simple">
+<li><p><cite>cc_half</cite> (this is the default)</p></li>
+<li><p><cite>isigma</cite> (unmerged &lt;I/sigI&gt;)</p></li>
+<li><p><cite>misigma</cite> (merged &lt;I/sigI&gt;)</p></li>
+<li><p><cite>i_mean_over_sigma_mean</cite> (unmerged &lt;I&gt;/&lt;sigI&gt;)</p></li>
+<li><p><cite>cc_ref</cite> (CC vs provided reference data set)</p></li>
+<li><p><cite>completeness</cite></p></li>
+<li><p><cite>rmerge</cite></p></li>
+</ul>
+<p>Resolution estimation is performed by fitting an appropriate curve to the relevant
+merging statistics calculated in resolution bins (with a roughly equal number of
+reflections per bin). The estimated resolution limit is chosen as the resolution at
+which the fitted function equals the specified criteria.</p>
+<p>If multiple metrics are requested, the chosen resolution limit will be the lowest
+resolution value estimated across the selected metrics.</p>
+<p>The fitting functions for the various metrics are defined as follows:</p>
+<ul class="simple">
+<li><p><cite>cc_half</cite>: fit a tanh function the form (1/2)(1 - tanh(z)) where z = (s - s0)/r, s0 is
+the value of s at the half-falloff value, and r controls the steepness of falloff</p></li>
+<li><p><cite>isigma</cite>, <cite>misigma</cite>, <cite>i_mean_over_sigma_mean</cite>: fit a polynomial to the values
+log(y(x))</p></li>
+<li><p><cite>rmerge</cite>: fit a polynomial to the values log(1/y(x))</p></li>
+<li><p><cite>completeness</cite>: fit a polynomial to the values y(x)</p></li>
+</ul>
+</div>
+<div class="section" id="example-use-cases">
+<h2>Example use cases<a class="headerlink" href="#example-use-cases" title="Permalink to this headline">¶</a></h2>
+<p>Run with defaults on scaled data:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span>
+</pre></div>
+</div>
+<p>Run with default on scaled unmerged mtz file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span> <span class="n">scaled_unmerged</span><span class="o">.</span><span class="n">mtz</span>
+</pre></div>
+</div>
+<p>Override the default cc_half cutoff:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="n">cc_half</span><span class="o">=</span><span class="mf">0.1</span>
+</pre></div>
+</div>
+<p>Use merged &lt;I/sigI&gt; resolution cutoff instead of cc_half:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="n">misigma</span><span class="o">=</span><span class="mf">1.0</span> <span class="n">cc_half</span><span class="o">=</span><span class="kc">None</span>
+</pre></div>
+</div>
+<p>Use unmerged &lt;I/sigI&gt; resolution cutoff in addition to default cc_half:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="n">isigma</span><span class="o">=</span><span class="mf">0.25</span>
+</pre></div>
+</div>
+<p>Use cc_ref resolution cutoff:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span> <span class="n">cc_ref</span><span class="o">=</span><span class="mf">0.3</span> <span class="n">cc_half</span><span class="o">=</span><span class="kc">None</span> <span class="n">reference</span><span class="o">=</span><span class="n">reference</span><span class="o">.</span><span class="n">mtz</span>
+</pre></div>
+</div>
+<p>Example curve fits and resulting resolution estimates using various metrics:</p>
+<img alt="https://dials.github.io/images/estimate_resolution/x4wide_cc_half.png" src="https://dials.github.io/images/estimate_resolution/x4wide_cc_half.png" />
+<img alt="https://dials.github.io/images/estimate_resolution/x4wide_isigma.png" src="https://dials.github.io/images/estimate_resolution/x4wide_isigma.png" />
+<img alt="https://dials.github.io/images/estimate_resolution/x4wide_misigma.png" src="https://dials.github.io/images/estimate_resolution/x4wide_misigma.png" />
+<img alt="https://dials.github.io/images/estimate_resolution/x4wide_rmerge.png" src="https://dials.github.io/images/estimate_resolution/x4wide_rmerge.png" />
+<img alt="https://dials.github.io/images/estimate_resolution/x4wide_completeness.png" src="https://dials.github.io/images/estimate_resolution/x4wide_completeness.png" />
+</div>
+<div class="section" id="basic-parameters">
+<h2>Basic parameters<a class="headerlink" href="#basic-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">resolution</span> <span class="p">{</span>
+  <span class="n">cc_half_method</span> <span class="o">=</span> <span class="o">*</span><span class="n">half_dataset</span> <span class="n">sigma_tau</span>
+  <span class="n">reflections_per_bin</span> <span class="o">=</span> <span class="mi">10</span>
+  <span class="n">labels</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">reference</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">batch_range</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">}</span>
+<span class="n">output</span> <span class="p">{</span>
+  <span class="n">log</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span><span class="o">.</span><span class="n">log</span>
+  <span class="n">html</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span><span class="o">.</span><span class="n">html</span>
+  <span class="n">json</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="full-parameter-definitions">
+<h2>Full parameter definitions<a class="headerlink" href="#full-parameter-definitions" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">resolution</span> <span class="p">{</span>
+  <span class="n">rmerge</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Maximum value of Rmerge in the outer resolution shell&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Outer shell Rmerge&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">completeness</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum completeness in the outer resolution shell&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Outer shell completeness&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">cc_ref</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum value of CC vs reference data set in the outer resolution&quot;</span>
+            <span class="s2">&quot;shell&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Outer shell CCref&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">cc_half</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum value of CC½ in the outer resolution shell&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Outer shell CC½&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">cc_half_method</span> <span class="o">=</span> <span class="o">*</span><span class="n">half_dataset</span> <span class="n">sigma_tau</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+  <span class="n">cc_half_significance_level</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">value_max</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">cc_half_fit</span> <span class="o">=</span> <span class="n">polynomial</span> <span class="o">*</span><span class="n">tanh</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">isigma</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum value of the unmerged &lt;I/sigI&gt; in the outer resolution&quot;</span>
+            <span class="s2">&quot;shell&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Outer shell unmerged &lt;I/sigI&gt;&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">misigma</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum value of the merged &lt;I/sigI&gt; in the outer resolution&quot;</span>
+            <span class="s2">&quot;shell&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Outer shell merged &lt;I/sigI&gt;&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">i_mean_over_sigma_mean</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum value of the unmerged &lt;I&gt;/&lt;sigI&gt; in the outer resolution&quot;</span>
+            <span class="s2">&quot;shell&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Outer shell unmerged &lt;I&gt;/&lt;sigI&gt;&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">nbins</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Maximum number of resolution bins to use for estimation of&quot;</span>
+            <span class="s2">&quot;resolution limit.&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Number of resolution bins.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">reflections_per_bin</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Minimum number of reflections per bin.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="n">binning_method</span> <span class="o">=</span> <span class="o">*</span><span class="n">counting_sorted</span> <span class="n">volume</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;Use equal-volume bins or bins with approximately equal numbers of&quot;</span>
+            <span class="s2">&quot;reflections per bin.&quot;</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Equal-volume or equal #ref binning.&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">choice</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">anomalous</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="o">.</span><span class="n">short_caption</span> <span class="o">=</span> <span class="s2">&quot;Keep anomalous pairs separate in merging statistics&quot;</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">bool</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">labels</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">strings</span>
+  <span class="n">space_group</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">space_group</span>
+    <span class="o">.</span><span class="n">expert_level</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">reference</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">path</span>
+  <span class="n">batch_range</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">ints</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">value_min</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="n">output</span> <span class="p">{</span>
+  <span class="n">log</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span><span class="o">.</span><span class="n">log</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">path</span>
+  <span class="n">html</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">estimate_resolution</span><span class="o">.</span><span class="n">html</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">path</span>
+  <span class="n">json</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">path</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://dials.github.io/kb">Knowledge Base</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2020, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
