@@ -51,6 +51,7 @@
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 
 <span class="kn">from</span> <span class="nn">orderedset</span> <span class="kn">import</span> <span class="n">OrderedSet</span>
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">sparse</span>
@@ -131,15 +132,15 @@
                 <span class="n">last_id</span> <span class="o">=</span> <span class="n">lid</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">([</span><span class="s2">&quot;x,y,z&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">([</span><span class="s2">&quot;x,y,z&quot;</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_group</span> <span class="o">=</span> <span class="n">lattice_group</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">op</span><span class="o">.</span><span class="n">as_xyz</span><span class="p">()</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_twin_operators</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">op</span><span class="o">.</span><span class="n">as_xyz</span><span class="p">()</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_twin_operators</span><span class="p">())</span>
         <span class="k">if</span> <span class="n">dimensions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">dimensions</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="p">))</span>
+            <span class="n">dimensions</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_dimensions</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_group</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">space_group</span><span class="p">())</span>
-        <span class="k">for</span> <span class="n">sym_op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">sym_op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_group</span><span class="o">.</span><span class="n">expand_smx</span><span class="p">(</span><span class="n">sym_op</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_patterson_group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_group</span><span class="o">.</span><span class="n">build_derived_patterson_group</span><span class="p">()</span>
 
@@ -204,7 +205,7 @@
     <span class="k">def</span> <span class="nf">_compute_rij_wij</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Compute the rij_wij matrix.&quot;&quot;&quot;</span>
         <span class="n">n_lattices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
-        <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="p">)</span>
+        <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">)</span>
 
         <span class="n">NN</span> <span class="o">=</span> <span class="n">n_lattices</span> <span class="o">*</span> <span class="n">n_sym_ops</span>
 
@@ -216,7 +217,7 @@
 
         <span class="n">indices</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">space_group_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span><span class="o">.</span><span class="n">type</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">cb_op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">cb_op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">:</span>
             <span class="n">cb_op</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
             <span class="n">indices_reindexed</span> <span class="o">=</span> <span class="n">cb_op</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">indices</span><span class="p">())</span>
             <span class="n">miller</span><span class="o">.</span><span class="n">map_to_asu</span><span class="p">(</span><span class="n">space_group_type</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">indices_reindexed</span><span class="p">)</span>
@@ -225,7 +226,7 @@
         <span class="k">def</span> <span class="nf">_compute_rij_matrix_one_row_block</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
             <span class="n">rij_cache</span> <span class="o">=</span> <span class="p">{}</span>
 
-            <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="p">)</span>
+            <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">)</span>
             <span class="n">NN</span> <span class="o">=</span> <span class="n">n_lattices</span> <span class="o">*</span> <span class="n">n_sym_ops</span>
 
             <span class="n">rij_row</span> <span class="o">=</span> <span class="p">[]</span>
@@ -246,12 +247,12 @@
                 <span class="n">j_lower</span><span class="p">,</span> <span class="n">j_upper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_lower_upper_index</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
                 <span class="n">intensities_j</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">data</span><span class="p">()[</span><span class="n">j_lower</span><span class="p">:</span><span class="n">j_upper</span><span class="p">]</span>
 
-                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">cb_op_k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">cb_op_k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">):</span>
                     <span class="n">cb_op_k</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">(</span><span class="n">cb_op_k</span><span class="p">)</span>
 
                     <span class="n">indices_i</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="n">cb_op_k</span><span class="o">.</span><span class="n">as_xyz</span><span class="p">()][</span><span class="n">i_lower</span><span class="p">:</span><span class="n">i_upper</span><span class="p">]</span>
 
-                    <span class="k">for</span> <span class="n">kk</span><span class="p">,</span> <span class="n">cb_op_kk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">kk</span><span class="p">,</span> <span class="n">cb_op_kk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">):</span>
                         <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span> <span class="ow">and</span> <span class="n">k</span> <span class="o">==</span> <span class="n">kk</span><span class="p">:</span>
                             <span class="c1"># don&#39;t include correlation of dataset with itself</span>
                             <span class="k">continue</span>
@@ -363,7 +364,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">          f (float): The value of the target function at coordinates `x`.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">assert</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">))</span>
         <span class="n">inner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
         <span class="n">NN</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">):</span>
@@ -507,7 +508,11 @@
 <span class="sd">        Returns:</span>
 <span class="sd">          List[cctbx.sgtbx.rt_mx]: The list of symmetry operations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sym_ops</span></div></div>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;get_sym_ops() is deprecated, use sym_ops property instead&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span></div></div>
 </pre></div>
 
           </div>
