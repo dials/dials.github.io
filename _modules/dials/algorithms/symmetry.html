@@ -264,20 +264,30 @@
 <span class="sd">          cctbx.miller.array: The normalised intensities.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># handle negative reflections to minimise effect on mean I values.</span>
-        <span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">work</span> <span class="o">=</span> <span class="n">intensities</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
+        <span class="n">work</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
 
         <span class="c1"># set up binning objects</span>
-        <span class="k">if</span> <span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">20000</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">work</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">20000</span><span class="p">:</span>
             <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">20</span>
-        <span class="k">elif</span> <span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">15000</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">work</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">15000</span><span class="p">:</span>
             <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">15</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">10</span>
-        <span class="n">d_star_sq</span> <span class="o">=</span> <span class="n">intensities</span><span class="o">.</span><span class="n">d_star_sq</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
-        <span class="n">step</span> <span class="o">=</span> <span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">)</span> <span class="o">-</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_refl_shells</span>
-        <span class="n">intensities</span><span class="o">.</span><span class="n">setup_binner_d_star_sq_step</span><span class="p">(</span><span class="n">d_star_sq_step</span><span class="o">=</span><span class="n">step</span><span class="p">)</span>
-
-        <span class="n">normalisations</span> <span class="o">=</span> <span class="n">intensities</span><span class="o">.</span><span class="n">intensity_quasi_normalisations</span><span class="p">()</span>
+        <span class="n">d_star_sq</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">d_star_sq</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
+        <span class="n">d_star_sq_max</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">)</span>
+        <span class="n">d_star_sq_min</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">)</span>
+        <span class="n">span</span> <span class="o">=</span> <span class="n">d_star_sq_max</span> <span class="o">-</span> <span class="n">d_star_sq_min</span>
+        <span class="n">d_star_sq_max</span> <span class="o">+=</span> <span class="n">span</span> <span class="o">*</span> <span class="mf">1e-6</span>
+        <span class="n">d_star_sq_min</span> <span class="o">-=</span> <span class="n">span</span> <span class="o">*</span> <span class="mf">1e-6</span>
+        <span class="n">d_star_sq_step</span> <span class="o">=</span> <span class="p">(</span><span class="n">d_star_sq_max</span> <span class="o">-</span> <span class="n">d_star_sq_min</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_refl_shells</span>
+        <span class="n">work</span><span class="o">.</span><span class="n">setup_binner_d_star_sq_step</span><span class="p">(</span>
+            <span class="n">d_min</span><span class="o">=</span><span class="n">uctbx</span><span class="o">.</span><span class="n">d_star_sq_as_d</span><span class="p">(</span><span class="n">d_star_sq_min</span><span class="p">),</span>  <span class="c1"># cctbx/cctbx_project#588</span>
+            <span class="n">d_max</span><span class="o">=</span><span class="n">uctbx</span><span class="o">.</span><span class="n">d_star_sq_as_d</span><span class="p">(</span><span class="n">d_star_sq_max</span><span class="p">),</span>  <span class="c1"># cctbx/cctbx_project#588</span>
+            <span class="n">d_star_sq_step</span><span class="o">=</span><span class="n">d_star_sq_step</span><span class="p">,</span>
+            <span class="n">auto_binning</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">normalisations</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">intensity_quasi_normalisations</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">intensities</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span>
             <span class="n">data</span><span class="o">=</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">/</span> <span class="n">normalisations</span><span class="o">.</span><span class="n">data</span><span class="p">()),</span>
             <span class="n">sigmas</span><span class="o">=</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">sigmas</span><span class="p">()</span> <span class="o">/</span> <span class="n">normalisations</span><span class="o">.</span><span class="n">data</span><span class="p">()),</span>
