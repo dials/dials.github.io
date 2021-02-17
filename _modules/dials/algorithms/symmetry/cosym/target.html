@@ -51,6 +51,7 @@
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">orderedset</span> <span class="kn">import</span> <span class="n">OrderedSet</span>
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">sparse</span>
 
@@ -84,7 +85,7 @@
 <span class="sd">        Args:</span>
 <span class="sd">          intensities (cctbx.miller.array): The intensities on which to perform</span>
 <span class="sd">            cosym anaylsis.</span>
-<span class="sd">          lattice_ids (scitbx.array_family.flex.int): An array of equal size to</span>
+<span class="sd">          lattice_ids (np.ndarray): An array of equal size to</span>
 <span class="sd">            `intensities` which maps each reflection to a given lattice (dataset).</span>
 <span class="sd">          weights (str): Optionally include weights in the target function.</span>
 <span class="sd">            Allowed values are `None`, &quot;count&quot; and &quot;standard_error&quot;. The default</span>
@@ -113,22 +114,21 @@
         <span class="n">cb_op_to_primitive</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">change_of_basis_op_to_primitive_setting</span><span class="p">()</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_to_primitive</span><span class="p">)</span><span class="o">.</span><span class="n">map_to_asu</span><span class="p">()</span>
 
-        <span class="n">order</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">lattice_ids</span><span class="p">)</span>
-        <span class="n">sorted_lattice_id</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">lattice_ids</span><span class="p">,</span> <span class="n">order</span><span class="p">)</span>
-        <span class="n">sorted_data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
-        <span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">indices</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_ids</span> <span class="o">=</span> <span class="n">sorted_lattice_id</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">lattice_ids</span><span class="o">.</span><span class="n">argsort</span><span class="p">()</span>
+        <span class="n">sorted_data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">order</span><span class="p">))</span>
+        <span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">indices</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">order</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_ids</span> <span class="o">=</span> <span class="n">lattice_ids</span><span class="p">[</span><span class="n">order</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span><span class="n">indices</span><span class="o">=</span><span class="n">sorted_indices</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">sorted_data</span><span class="p">)</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">indices</span><span class="p">(),</span> <span class="nb">type</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">miller_index</span><span class="p">()))</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="nb">type</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()))</span>
 
         <span class="c1"># construct a lookup for the separate lattices</span>
-        <span class="n">last_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">lid</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattice_ids</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">lid</span> <span class="o">!=</span> <span class="n">last_id</span><span class="p">:</span>
-                <span class="n">last_id</span> <span class="o">=</span> <span class="n">lid</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattice_ids</span> <span class="o">==</span> <span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattice_ids</span><span class="p">)</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">([</span><span class="s2">&quot;x,y,z&quot;</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_group</span> <span class="o">=</span> <span class="n">lattice_group</span>
@@ -150,7 +150,7 @@
             <span class="s2">&quot;Patterson group: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patterson_group</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">symbol_and_number</span><span class="p">()</span>
         <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_compute_rij_wij</span><span class="p">()</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_rij_wij</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="Target.set_dimensions"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.set_dimensions">[docs]</a>    <span class="k">def</span> <span class="nf">set_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Set the number of dimensions for analysis.</span>
@@ -201,18 +201,24 @@
         <span class="k">return</span> <span class="n">lower_index</span><span class="p">,</span> <span class="n">upper_index</span>
 
     <span class="k">def</span> <span class="nf">_compute_rij_wij</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Compute the rij_wij matrix.&quot;&quot;&quot;</span>
-        <span class="n">n_lattices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
-        <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">)</span>
+        <span class="sd">&quot;&quot;&quot;Compute the rij_wij matrix.</span>
 
-        <span class="n">NN</span> <span class="o">=</span> <span class="n">n_lattices</span> <span class="o">*</span> <span class="n">n_sym_ops</span>
+<span class="sd">        Rij is a symmetric matrix of size (n x m, n x m), where n is the number of</span>
+<span class="sd">        datasets and m is the number of symmetry operations.</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">NN</span><span class="p">,</span> <span class="n">NN</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">NN</span><span class="p">,</span> <span class="n">NN</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+<span class="sd">        It is composed of (m, m) blocks of size (n, n), where each block contains the</span>
+<span class="sd">        correlation coefficients between cb_op_k applied to datasets 1..N with</span>
+<span class="sd">        cb_op_kk applied to datasets 1.. N.</span>
 
+<span class="sd">        If `use_cache=True`, then an optimisation is made to reflect the fact some elements</span>
+<span class="sd">        of the matrix are equivalent, i.e.:</span>
+<span class="sd">            CC[(a, cb_op_k), (b, cb_op_kk)] == CC[(a,), (b, cb_op_k.inverse() * cb_op_kk)]</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_lattices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="p">)</span>
+
+        <span class="c1"># Pre-calculate miller indices after application of each cb_op. Only calculate</span>
+        <span class="c1"># this once per cb_op instead of on-the-fly every time we need it.</span>
         <span class="n">indices</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">space_group_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span><span class="o">.</span><span class="n">type</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">cb_op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">:</span>
@@ -342,19 +348,17 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">wij_matrix</span> <span class="o">+=</span> <span class="n">wij</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">rij_matrix</span><span class="o">.</span><span class="n">todense</span><span class="p">())</span>
+        <span class="n">rij_matrix</span> <span class="o">=</span> <span class="n">rij_matrix</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">wij_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+            <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">wij_matrix</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">wij_matrix</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">rij_matrix</span><span class="p">,</span> <span class="n">wij_matrix</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span>
-
-<div class="viewcode-block" id="Target.compute_functional"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.compute_functional">[docs]</a>    <span class="k">def</span> <span class="nf">compute_functional</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<div class="viewcode-block" id="Target.compute_functional"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.compute_functional">[docs]</a>    <span class="k">def</span> <span class="nf">compute_functional</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Compute the target function at coordinates `x`.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">          x (scitbx.array_family.flex.double):</span>
+<span class="sd">          x (np.ndarray):</span>
 <span class="sd">            a flattened list of the N-dimensional vectors, i.e. coordinates in</span>
 <span class="sd">            the first dimension are stored first, followed by the coordinates in</span>
 <span class="sd">            the second dimension, etc.</span>
@@ -362,24 +366,24 @@
 <span class="sd">        Returns:</span>
 <span class="sd">          f (float): The value of the target function at coordinates `x`.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">assert</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">))</span>
-        <span class="n">inner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
-        <span class="n">NN</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">))</span>
+        <span class="n">inner</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span><span class="p">)</span>
+        <span class="n">NN</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">):</span>
             <span class="n">coord</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">NN</span> <span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">NN</span><span class="p">]</span>
-            <span class="n">outer_prod</span> <span class="o">=</span> <span class="n">coord</span><span class="o">.</span><span class="n">matrix_outer_product</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
+            <span class="n">outer_prod</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">coord</span><span class="p">)</span>
             <span class="n">inner</span> <span class="o">-=</span> <span class="n">outer_prod</span>
-        <span class="n">elements</span> <span class="o">=</span> <span class="n">inner</span> <span class="o">*</span> <span class="n">inner</span>
+        <span class="n">elements</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">inner</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">elements</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="o">*</span> <span class="n">elements</span>
-        <span class="n">f</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+            <span class="n">elements</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span><span class="p">,</span> <span class="n">elements</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">elements</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">f</span></div>
 
-<div class="viewcode-block" id="Target.compute_gradients_fd"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.compute_gradients_fd">[docs]</a>    <span class="k">def</span> <span class="nf">compute_gradients_fd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
+<div class="viewcode-block" id="Target.compute_gradients_fd"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.compute_gradients_fd">[docs]</a>    <span class="k">def</span> <span class="nf">compute_gradients_fd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Compute the gradients at coordinates `x` using finite differences.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">          x (scitbx.array_family.flex.double):</span>
+<span class="sd">          x (np.ndarray):</span>
 <span class="sd">            a flattened list of the N-dimensional vectors, i.e. coordinates in</span>
 <span class="sd">            the first dimension are stored first, followed by the coordinates in</span>
 <span class="sd">            the second dimension, etc.</span>
@@ -387,11 +391,12 @@
 <span class="sd">            The value of epsilon to use in finite difference calculations.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">          grad (scitbx.array_family.flex.double):</span>
+<span class="sd">          grad (np.ndarray):</span>
 <span class="sd">          The gradients of the target function with respect to the parameters.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">grad</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">size</span><span class="p">()):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">grad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
             <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">eps</span>  <span class="c1"># x + eps</span>
             <span class="n">fp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_functional</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
             <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">eps</span>  <span class="c1"># x - eps</span>
@@ -400,85 +405,78 @@
             <span class="n">grad</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="n">fp</span> <span class="o">-</span> <span class="n">fm</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">eps</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">grad</span></div>
 
-<div class="viewcode-block" id="Target.compute_functional_and_gradients"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.compute_functional_and_gradients">[docs]</a>    <span class="k">def</span> <span class="nf">compute_functional_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Compute the target function and gradients at coordinates `x`.</span>
+<div class="viewcode-block" id="Target.compute_gradients"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.compute_gradients">[docs]</a>    <span class="k">def</span> <span class="nf">compute_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Compute the gradients of the target function at coordinates `x`.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">          x (scitbx.array_family.flex.double):</span>
+<span class="sd">          x (np.ndarray):</span>
 <span class="sd">            a flattened list of the N-dimensional vectors, i.e. coordinates in</span>
 <span class="sd">            the first dimension are stored first, followed by the coordinates in</span>
 <span class="sd">            the second dimension, etc.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">          Tuple[float, scitbx.array_family.flex.double]:</span>
+<span class="sd">          Tuple[float, np.ndarray]:</span>
 <span class="sd">          f: The value of the target function at coordinates `x`.</span>
 <span class="sd">          grad: The gradients of the target function with respect to the parameters.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_functional</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">grad</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+        <span class="n">grad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">wrij_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span>
+            <span class="n">wrij_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">wrij_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span>
 
         <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">NN</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span>
+        <span class="n">NN</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">):</span>
             <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">NN</span> <span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">NN</span><span class="p">])</span>
 
         <span class="c1"># term 1</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">):</span>
-            <span class="n">grad</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">wrij_matrix</span><span class="o">.</span><span class="n">matrix_multiply</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+            <span class="n">grad</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">NN</span> <span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">NN</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">wrij_matrix</span><span class="p">,</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">):</span>
-            <span class="n">tmp_array</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
-            <span class="n">tmp</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">matrix_outer_product</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">tmp_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">tmp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="o">*</span> <span class="n">tmp</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span><span class="p">,</span> <span class="n">tmp</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">):</span>
-                <span class="n">tmp_array</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">tmp</span><span class="o">.</span><span class="n">matrix_multiply</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
+                <span class="n">tmp_array</span><span class="p">[</span><span class="n">j</span> <span class="o">*</span> <span class="n">NN</span> <span class="p">:</span> <span class="p">(</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">NN</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">coords</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
             <span class="n">grad</span> <span class="o">-=</span> <span class="n">tmp_array</span>
         <span class="n">grad</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">2</span>
 
-        <span class="c1"># grad_fd = self.compute_gradients_fd(x)</span>
-        <span class="c1"># assert grad.all_approx_equal_relatively(grad_fd, relative_error=1e-4)</span>
+        <span class="k">return</span> <span class="n">grad</span></div>
 
-        <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">grad</span></div>
-
-<div class="viewcode-block" id="Target.curvatures"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.curvatures">[docs]</a>    <span class="k">def</span> <span class="nf">curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Compute the curvature of the target function.</span>
+<div class="viewcode-block" id="Target.curvatures"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.curvatures">[docs]</a>    <span class="k">def</span> <span class="nf">curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Compute the curvature of the target function at coordinates `x`.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">          x (scitbx.array_family.flex.double):</span>
+<span class="sd">          x (np.ndarray):</span>
 <span class="sd">            a flattened list of the N-dimensional vectors, i.e. coordinates in</span>
 <span class="sd">            the first dimension are stored first, followed by the coordinates in</span>
 <span class="sd">            the second dimension, etc.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">          curvs (scitbx.array_family.flex.double):</span>
+<span class="sd">          curvs (np.ndarray):</span>
 <span class="sd">          The curvature of the target function with respect to the parameters.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">NN</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">):</span>
-            <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">NN</span> <span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">NN</span><span class="p">])</span>
-
-        <span class="n">curvs</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+        <span class="n">NN</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span>
+        <span class="n">curvs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">wij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wij_matrix</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">wij</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span><span class="o">.</span><span class="n">accessor</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">wij</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rij_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">):</span>
-            <span class="n">curvs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">wij</span><span class="o">.</span><span class="n">matrix_multiply</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+            <span class="n">curvs</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">NN</span> <span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">NN</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span>
+                <span class="n">wij</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">NN</span> <span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">NN</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="p">)</span>
         <span class="n">curvs</span> <span class="o">*=</span> <span class="mi">2</span>
-
         <span class="k">return</span> <span class="n">curvs</span></div>
 
-<div class="viewcode-block" id="Target.curvatures_fd"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.curvatures_fd">[docs]</a>    <span class="k">def</span> <span class="nf">curvatures_fd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
+<div class="viewcode-block" id="Target.curvatures_fd"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.curvatures_fd">[docs]</a>    <span class="k">def</span> <span class="nf">curvatures_fd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Compute the curvatures at coordinates `x` using finite differences.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">          x (scitbx.array_family.flex.double):</span>
+<span class="sd">          x (np.ndarray):</span>
 <span class="sd">            a flattened list of the N-dimensional vectors, i.e. coordinates in</span>
 <span class="sd">            the first dimension are stored first, followed by the coordinates in</span>
 <span class="sd">            the second dimension, etc.</span>
@@ -486,12 +484,13 @@
 <span class="sd">            The value of epsilon to use in finite difference calculations.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">          curvs (scitbx.array_family.flex.double):</span>
+<span class="sd">          curvs (np.ndarray):</span>
 <span class="sd">          The curvature of the target function with respect to the parameters.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_functional</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">curvs</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">curvs</span><span class="o">.</span><span class="n">size</span><span class="p">()):</span>
+        <span class="n">curvs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
             <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">eps</span>  <span class="c1"># x + eps</span>
             <span class="n">fp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_functional</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
             <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">eps</span>  <span class="c1"># x - eps</span>

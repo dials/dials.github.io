@@ -48,9 +48,12 @@
 
 <span class="kn">import</span> <span class="nn">logging</span>
 
-<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">scipy.optimize</span>
 
 <span class="kn">import</span> <span class="nn">scitbx.lbfgs</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="lbfgs_with_curvs"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.engine.lbfgs_with_curvs">[docs]</a><span class="k">class</span> <span class="nc">lbfgs_with_curvs</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -65,8 +68,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">          target (dials.algorithms.target.Target): The target function to minimise.</span>
-<span class="sd">          coords (scitbx.array_family.flex.double): The starting coordinates for</span>
-<span class="sd">            minimisation.</span>
+<span class="sd">          coords (np.ndarray): The starting coordinates for minimisation.</span>
 <span class="sd">          use_curvatures (bool): Whether or not to use curvature information in the</span>
 <span class="sd">            minimisation. Defaults to True.</span>
 <span class="sd">          termination_params (scitbx.lbfgs.termination_parameters):</span>
@@ -74,8 +76,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">coords</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="n">use_curvatures</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">diag_mode</span> <span class="o">=</span> <span class="s2">&quot;always&quot;</span>
@@ -84,7 +87,8 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">minimizer</span> <span class="o">=</span> <span class="n">scitbx</span><span class="o">.</span><span class="n">lbfgs</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="n">target_evaluator</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">termination_params</span><span class="o">=</span><span class="n">termination_params</span>
-        <span class="p">)</span></div>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">as_numpy_array</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="lbfgs_with_curvs.compute_functional_gradients_diag"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.engine.lbfgs_with_curvs.compute_functional_gradients_diag">[docs]</a>    <span class="k">def</span> <span class="nf">compute_functional_gradients_diag</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Compute the functional, gradients and diagonal.</span>
@@ -100,19 +104,17 @@
         <span class="n">diags</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">curvs</span>
         <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">diags</span></div>
 
-<div class="viewcode-block" id="lbfgs_with_curvs.curvatures"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.engine.lbfgs_with_curvs.curvatures">[docs]</a>    <span class="k">def</span> <span class="nf">curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return the curvatures.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">curvatures</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span></div>
-
 <div class="viewcode-block" id="lbfgs_with_curvs.compute_functional_gradients_and_curvatures"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.engine.lbfgs_with_curvs.compute_functional_gradients_and_curvatures">[docs]</a>    <span class="k">def</span> <span class="nf">compute_functional_gradients_and_curvatures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Compute the functional, gradients and curvatures.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">          tuple: A tuple of the functional, gradients and curvatures.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">compute_functional_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">curvatures</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">g</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span></div>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">as_numpy_array</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">compute_functional</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">compute_gradients</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">curvatures</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g</span><span class="p">),</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="lbfgs_with_curvs.compute_functional_and_gradients"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.engine.lbfgs_with_curvs.compute_functional_and_gradients">[docs]</a>    <span class="k">def</span> <span class="nf">compute_functional_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Compute the functional and gradients.</span>
@@ -120,13 +122,59 @@
 <span class="sd">        Returns:</span>
 <span class="sd">          tuple: A tuple of the functional and gradients.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">compute_functional_and_gradients</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">g</span></div>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">as_numpy_array</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">compute_functional</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">compute_gradients</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="lbfgs_with_curvs.callback_after_step"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.engine.lbfgs_with_curvs.callback_after_step">[docs]</a>    <span class="k">def</span> <span class="nf">callback_after_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minimizer</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Log progress after each successful step of the minimisation.&quot;&quot;&quot;</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;minimization step: f, iter, nfun:&quot;</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="n">minimizer</span><span class="o">.</span><span class="n">iter</span><span class="p">(),</span> <span class="n">minimizer</span><span class="o">.</span><span class="n">nfun</span><span class="p">()))</span></div></div>
+
+
+<div class="viewcode-block" id="minimize_scitbx_lbfgs"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.engine.minimize_scitbx_lbfgs">[docs]</a><span class="k">def</span> <span class="nf">minimize_scitbx_lbfgs</span><span class="p">(</span>
+    <span class="n">target</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">use_curvatures</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_iterations</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">max_calls</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">):</span>
+
+    <span class="n">termination_params</span> <span class="o">=</span> <span class="n">scitbx</span><span class="o">.</span><span class="n">lbfgs</span><span class="o">.</span><span class="n">termination_parameters</span><span class="p">(</span>
+        <span class="n">max_iterations</span><span class="o">=</span><span class="n">max_iterations</span><span class="p">,</span>
+        <span class="n">max_calls</span><span class="o">=</span><span class="n">max_calls</span><span class="p">,</span>
+        <span class="n">traditional_convergence_test</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">traditional_convergence_test_eps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">drop_convergence_test_n_test_points</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+        <span class="n">drop_convergence_test_max_drop_eps</span><span class="o">=</span><span class="mf">1.0e-5</span><span class="p">,</span>
+        <span class="n">drop_convergence_test_iteration_coefficient</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">lbfgs_with_curvs</span><span class="p">(</span>
+        <span class="n">target</span><span class="p">,</span>
+        <span class="n">coords</span><span class="p">,</span>
+        <span class="n">use_curvatures</span><span class="o">=</span><span class="n">use_curvatures</span><span class="p">,</span>
+        <span class="n">termination_params</span><span class="o">=</span><span class="n">termination_params</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">OptimizeResult</span><span class="p">(</span>
+        <span class="n">fun</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="n">jac</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">g</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">nfev</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">minimizer</span><span class="o">.</span><span class="n">nfun</span><span class="p">()</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="minimize_scipy"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.engine.minimize_scipy">[docs]</a><span class="k">def</span> <span class="nf">minimize_scipy</span><span class="p">(</span>
+    <span class="n">target</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;L-BFGS-B&quot;</span><span class="p">,</span> <span class="n">max_iterations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_calls</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Thin wrapper around scipy.optimize.minimize.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      target (dials.algorithms.target.Target): The target function to minimise.</span>
+<span class="sd">      coords (np.array): The starting coordinates for</span>
+<span class="sd">        minimisation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span>
+        <span class="n">fun</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">compute_functional</span><span class="p">,</span>
+        <span class="n">x0</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span>
+        <span class="n">jac</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">compute_gradients</span><span class="p">,</span>
+        <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+        <span class="n">options</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">maxiter</span><span class="o">=</span><span class="n">max_iterations</span><span class="p">,</span> <span class="n">maxfun</span><span class="o">=</span><span class="n">max_calls</span><span class="p">),</span>
+    <span class="p">)</span></div>
 </pre></div>
 
           </div>
