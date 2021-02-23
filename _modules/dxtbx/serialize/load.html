@@ -43,49 +43,12 @@
           <div class="body" role="main">
             
   <h1>Source code for dxtbx.serialize.load</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
-
-<span class="kn">import</span> <span class="nn">json</span>
+<span></span><span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">os</span>
-
-<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 
 <span class="kn">from</span> <span class="nn">dxtbx.model.crystal</span> <span class="kn">import</span> <span class="n">CrystalFactory</span>
 <span class="kn">from</span> <span class="nn">dxtbx.serialize.imageset</span> <span class="kn">import</span> <span class="n">imageset_from_dict</span>
-
-
-<span class="k">def</span> <span class="nf">_decode_list</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Decode a list to str from unicode.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">data</span>
-    <span class="n">rv</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">):</span>
-            <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-            <span class="n">item</span> <span class="o">=</span> <span class="n">_decode_list</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="n">item</span> <span class="o">=</span> <span class="n">_decode_dict</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-        <span class="n">rv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">rv</span>
-
-
-<span class="k">def</span> <span class="nf">_decode_dict</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Decode a dict to str from unicode.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">data</span>
-    <span class="n">rv</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">):</span>
-            <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">text_type</span><span class="p">):</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">_decode_list</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">_decode_dict</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="n">rv</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
-    <span class="k">return</span> <span class="n">rv</span>
 
 
 <div class="viewcode-block" id="imageset_from_string"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.load.imageset_from_string">[docs]</a><span class="k">def</span> <span class="nf">imageset_from_string</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -98,9 +61,13 @@
 <span class="sd">        The models</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">imageset_from_dict</span><span class="p">(</span>
-        <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">_decode_dict</span><span class="p">),</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span>
-    <span class="p">)</span></div>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+        <span class="s2">&quot;This function is deprecated and will be removed in the next release&quot;</span><span class="p">,</span>
+        <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">imageset_from_dict</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">string</span><span class="p">),</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="imageset"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.load.imageset">[docs]</a><span class="k">def</span> <span class="nf">imageset</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
@@ -117,7 +84,7 @@
     <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
     <span class="n">directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">imageset_from_string</span><span class="p">(</span><span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">imageset_from_dict</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">),</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="datablock"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.load.datablock">[docs]</a><span class="k">def</span> <span class="nf">datablock</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -157,7 +124,7 @@
 
 
 <div class="viewcode-block" id="experiment_list"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/serialize.html#dxtbx.serialize.load.experiment_list">[docs]</a><span class="k">def</span> <span class="nf">experiment_list</span><span class="p">(</span><span class="n">infile</span><span class="p">,</span> <span class="n">check_format</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Load an experiment list from a serialzied format.&quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;Load an experiment list from a serialized format.&quot;&quot;&quot;</span>
     <span class="c1"># Resolve recursive import</span>
     <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentListFactory</span>
 
