@@ -62,6 +62,7 @@
 <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 
 <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">resolution_analysis</span>
+<span class="kn">from</span> <span class="nn">dials.util.normalisation</span> <span class="kn">import</span> <span class="n">quasi_normalisation</span>
 
 
 <div class="viewcode-block" id="symmetry_base"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base">[docs]</a><span class="k">class</span> <span class="nc">symmetry_base</span><span class="p">:</span>
@@ -190,7 +191,7 @@
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;kernel&quot;</span><span class="p">:</span>
             <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_normalisation</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;quasi&quot;</span><span class="p">:</span>
-            <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quasi_normalisation</span>
+            <span class="n">normalise</span> <span class="o">=</span> <span class="n">quasi_normalisation</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;ml_iso&quot;</span><span class="p">:</span>
             <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml_iso_normalisation</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;ml_aniso&quot;</span><span class="p">:</span>
@@ -249,46 +250,6 @@
             <span class="n">intensities</span><span class="p">,</span> <span class="n">auto_kernel</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">normalised_miller</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">info</span><span class="p">())</span></div>
-
-<div class="viewcode-block" id="symmetry_base.quasi_normalisation"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base.quasi_normalisation">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">quasi_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Quasi-normalisation of the input intensities.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">          intensities (cctbx.miller.array): The intensities to be normalised.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">          cctbx.miller.array: The normalised intensities.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># handle negative reflections to minimise effect on mean I values.</span>
-        <span class="n">work</span> <span class="o">=</span> <span class="n">intensities</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span>
-        <span class="n">work</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
-
-        <span class="c1"># set up binning objects</span>
-        <span class="k">if</span> <span class="n">work</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">20000</span><span class="p">:</span>
-            <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">20</span>
-        <span class="k">elif</span> <span class="n">work</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">15000</span><span class="p">:</span>
-            <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">15</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">n_refl_shells</span> <span class="o">=</span> <span class="mi">10</span>
-        <span class="n">d_star_sq</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">d_star_sq</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">()</span>
-        <span class="n">d_star_sq_max</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">)</span>
-        <span class="n">d_star_sq_min</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">d_star_sq</span><span class="p">)</span>
-        <span class="n">span</span> <span class="o">=</span> <span class="n">d_star_sq_max</span> <span class="o">-</span> <span class="n">d_star_sq_min</span>
-        <span class="n">d_star_sq_max</span> <span class="o">+=</span> <span class="n">span</span> <span class="o">*</span> <span class="mf">1e-6</span>
-        <span class="n">d_star_sq_min</span> <span class="o">-=</span> <span class="n">span</span> <span class="o">*</span> <span class="mf">1e-6</span>
-        <span class="n">d_star_sq_step</span> <span class="o">=</span> <span class="p">(</span><span class="n">d_star_sq_max</span> <span class="o">-</span> <span class="n">d_star_sq_min</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_refl_shells</span>
-        <span class="n">work</span><span class="o">.</span><span class="n">setup_binner_d_star_sq_step</span><span class="p">(</span>
-            <span class="n">d_min</span><span class="o">=</span><span class="n">uctbx</span><span class="o">.</span><span class="n">d_star_sq_as_d</span><span class="p">(</span><span class="n">d_star_sq_min</span><span class="p">),</span>  <span class="c1"># cctbx/cctbx_project#588</span>
-            <span class="n">d_max</span><span class="o">=</span><span class="n">uctbx</span><span class="o">.</span><span class="n">d_star_sq_as_d</span><span class="p">(</span><span class="n">d_star_sq_max</span><span class="p">),</span>  <span class="c1"># cctbx/cctbx_project#588</span>
-            <span class="n">d_star_sq_step</span><span class="o">=</span><span class="n">d_star_sq_step</span><span class="p">,</span>
-            <span class="n">auto_binning</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">normalisations</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">intensity_quasi_normalisations</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">intensities</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span>
-            <span class="n">data</span><span class="o">=</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">/</span> <span class="n">normalisations</span><span class="o">.</span><span class="n">data</span><span class="p">()),</span>
-            <span class="n">sigmas</span><span class="o">=</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">sigmas</span><span class="p">()</span> <span class="o">/</span> <span class="n">normalisations</span><span class="o">.</span><span class="n">data</span><span class="p">()),</span>
-        <span class="p">)</span></div>
 
 <div class="viewcode-block" id="symmetry_base.ml_aniso_normalisation"><a class="viewcode-back" href="../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.symmetry_base.ml_aniso_normalisation">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">ml_aniso_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">):</span>

@@ -59,6 +59,7 @@
 <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 
 <span class="kn">from</span> <span class="nn">dials.algorithms.scaling.Ih_table</span> <span class="kn">import</span> <span class="n">IhTable</span>
+<span class="kn">from</span> <span class="nn">dials.util.normalisation</span> <span class="kn">import</span> <span class="n">quasi_normalisation</span>
 <span class="kn">from</span> <span class="nn">dials_scaling_ext</span> <span class="kn">import</span> <span class="n">determine_outlier_indices</span><span class="p">,</span> <span class="n">limit_outlier_weights</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;dials&quot;</span><span class="p">)</span>
@@ -114,6 +115,27 @@
     <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">reflection_table</span></div>
+
+
+<div class="viewcode-block" id="determine_Esq_outlier_index_arrays"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.outlier_rejection.determine_Esq_outlier_index_arrays">[docs]</a><span class="k">def</span> <span class="nf">determine_Esq_outlier_index_arrays</span><span class="p">(</span><span class="n">Ih_table</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">emax</span><span class="o">=</span><span class="mf">10.0</span><span class="p">):</span>
+    <span class="c1"># first calculate normalised intensities and set in the Ih_table.</span>
+    <span class="n">intensities</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">as_miller_array</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">())</span>
+    <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">quasi_normalisation</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
+
+    <span class="n">sel</span> <span class="o">=</span> <span class="n">normalised_intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">emax</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">n_e2_outliers</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_e2_outliers</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_e2_outliers</span><span class="si">}</span><span class="s2"> outliers identified from normalised intensity analysis (E</span><span class="se">\xb2</span><span class="s2"> &gt; </span><span class="si">{</span><span class="p">(</span><span class="n">emax</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="p">)</span>
+    <span class="n">outlier_indices</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table_blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">n_datasets</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">outlier_indices</span><span class="p">]</span>
+    <span class="n">datasets</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table_blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+    <span class="n">final_outlier_arrays</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">n_datasets</span><span class="p">):</span>
+        <span class="n">final_outlier_arrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">outlier_indices</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">datasets</span> <span class="o">==</span> <span class="n">i</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">final_outlier_arrays</span></div>
 
 
 <div class="viewcode-block" id="determine_outlier_index_arrays"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.outlier_rejection.determine_outlier_index_arrays">[docs]</a><span class="k">def</span> <span class="nf">determine_outlier_index_arrays</span><span class="p">(</span><span class="n">Ih_table</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;standard&quot;</span><span class="p">,</span> <span class="n">zmax</span><span class="o">=</span><span class="mf">6.0</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
