@@ -51,7 +51,7 @@
 <span class="kn">import</span> <span class="nn">random</span>
 
 <span class="kn">import</span> <span class="nn">dials.extensions</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.integration</span> <span class="kn">import</span> <span class="n">processor</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.integration</span> <span class="kn">import</span> <span class="n">TimingInfo</span><span class="p">,</span> <span class="n">processor</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.integration.filtering</span> <span class="kn">import</span> <span class="n">IceRingFilter</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.integration.parallel_integrator</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">IntegratorProcessor</span><span class="p">,</span>
@@ -63,6 +63,7 @@
     <span class="n">ProcessorFlat3D</span><span class="p">,</span>
     <span class="n">ProcessorSingle2D</span><span class="p">,</span>
     <span class="n">ProcessorStills</span><span class="p">,</span>
+    <span class="n">assess_available_memory</span><span class="p">,</span>
     <span class="n">build_processor</span><span class="p">,</span>
     <span class="n">job</span><span class="p">,</span>
 <span class="p">)</span>
@@ -82,6 +83,7 @@
     <span class="n">Executor</span><span class="p">,</span>
     <span class="n">JobList</span><span class="p">,</span>
     <span class="n">ReflectionManager</span><span class="p">,</span>
+    <span class="n">max_memory_needed</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -274,6 +276,10 @@
 <span class="sd">        nproc = 1</span>
 <span class="sd">          .type = int(value_min=1)</span>
 <span class="sd">          .help = &quot;The number of processes to use per cluster job&quot;</span>
+
+<span class="sd">        multiprocessing.n_subset_split = None</span>
+<span class="sd">            .type = int(value_min=1)</span>
+<span class="sd">            .help = &quot;Number of subsets to split the reflection table for integration.&quot;</span>
 <span class="sd">      }</span>
 
 <span class="sd">      summation {</span>
@@ -421,6 +427,7 @@
         <span class="n">mp</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span>
         <span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span>
         <span class="n">mp</span><span class="o">.</span><span class="n">njobs</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">njobs</span>
+        <span class="n">mp</span><span class="o">.</span><span class="n">n_subset_split</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">multiprocessing</span><span class="o">.</span><span class="n">n_subset_split</span>
 
         <span class="c1"># Set the lookup parameters</span>
         <span class="n">lookup</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">Lookup</span><span class="p">()</span>
@@ -452,6 +459,7 @@
         <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">select</span>
         <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">separate_files</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">separate_files</span>
         <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">summation</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">summation</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">integrator</span>
 
         <span class="n">result</span><span class="o">.</span><span class="n">debug_reference_filename</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">reference</span><span class="o">.</span><span class="n">filename</span>
         <span class="n">result</span><span class="o">.</span><span class="n">debug_reference_output</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">reference</span><span class="o">.</span><span class="n">output</span>
@@ -984,52 +992,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="Integrator.integrate"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator.integrate">[docs]</a>    <span class="k">def</span> <span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Integrate the data</span>
+<div class="viewcode-block" id="Integrator.fit_profiles"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator.fit_profiles">[docs]</a>    <span class="k">def</span> <span class="nf">fit_profiles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Do profile fitting if appropriate.</span>
+
+<span class="sd">        Sets self.profile_validation_report and self.profile_model_report.</span>
+
+<span class="sd">        Returns profile_fitter (may be none)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Ensure we get the same random sample each time</span>
-        <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-        <span class="c1"># Init the report</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="c1"># Heading</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">heading</span><span class="p">(</span><span class="s2">&quot;Processing reflections&quot;</span><span class="p">))</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
-
-        <span class="c1"># Create summary format</span>
-        <span class="n">fmt</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="s2">&quot; Processing the following experiments:</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Experiments: </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Beams:       </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Detectors:   </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Goniometers: </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Scans:       </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Crystals:    </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="s2">&quot; Imagesets:   </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Print the summary</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="n">fmt</span><span class="p">,</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">),</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()),</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()),</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">goniometers</span><span class="p">()),</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">()),</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()),</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">imagesets</span><span class="p">()),</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Initialize the reflections</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">initialize_reflections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
-
-        <span class="c1"># Check if we want to do some profile fitting</span>
         <span class="n">fitting_class</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting_class</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">]</span>
         <span class="n">fitting_avail</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">fitting_class</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting</span> <span class="ow">and</span> <span class="n">fitting_avail</span><span class="p">:</span>
@@ -1199,6 +1168,50 @@
 
                 <span class="c1"># Set to the finalized fitter</span>
                 <span class="n">profile_fitter</span> <span class="o">=</span> <span class="n">finalized_profile_fitter</span>
+        <span class="k">return</span> <span class="n">profile_fitter</span></div>
+
+<div class="viewcode-block" id="Integrator.integrate"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.integration.html#dials.algorithms.integration.integrator.Integrator.integrate">[docs]</a>    <span class="k">def</span> <span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Integrate the data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Ensure we get the same random sample each time</span>
+        <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Init the report</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">profile_model_report</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">integration_report</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Heading</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">heading</span><span class="p">(</span><span class="s2">&quot;Processing reflections&quot;</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Print the summary</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot; Processing the following experiments:</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot; Experiments: </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot; Beams:       </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot; Detectors:   </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot; Goniometers: </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot; Scans:       </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot; Crystals:    </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot; Imagesets:   </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">goniometers</span><span class="p">()),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">()),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">imagesets</span><span class="p">()),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Initialize the reflections</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialize_reflections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+
+        <span class="c1"># Check if we want to do some profile fitting</span>
+        <span class="n">profile_fitter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_profiles</span><span class="p">()</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
@@ -1207,16 +1220,95 @@
 
         <span class="c1"># Create the data processor</span>
         <span class="n">executor</span> <span class="o">=</span> <span class="n">IntegratorExecutor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="n">profile_fitter</span><span class="p">)</span>
-        <span class="n">processor</span> <span class="o">=</span> <span class="n">build_processor</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ProcessorClass</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">processor</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">executor</span>
 
-        <span class="c1"># Process the reflections</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+        <span class="c1"># determine the max memory needed during integration</span>
+        <span class="k">def</span> <span class="nf">_determine_max_memory_needed</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+            <span class="n">max_needed</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="n">experiments</span><span class="o">.</span><span class="n">imagesets</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span> <span class="o">=</span> <span class="n">imageset</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>  <span class="c1"># catch DXTBX_ASSERT if no scan in imageset</span>
+                    <span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageset</span><span class="p">))</span>
+                <span class="n">flatten</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">integrator</span> <span class="o">==</span> <span class="s2">&quot;flat3d&quot;</span>
+                <span class="n">max_needed</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                    <span class="n">max_memory_needed</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">frame0</span><span class="p">,</span> <span class="n">frame1</span><span class="p">,</span> <span class="n">flatten</span><span class="p">),</span>
+                    <span class="n">max_needed</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">assert</span> <span class="n">max_needed</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Could not determine memory requirements&quot;</span>
+            <span class="k">return</span> <span class="n">max_needed</span>
+
+        <span class="k">def</span> <span class="nf">_iterative_table_split</span><span class="p">(</span><span class="n">tables</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">available_memory</span><span class="p">):</span>
+            <span class="n">split_tables</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">tables</span><span class="p">:</span>
+                <span class="n">mem_needed</span> <span class="o">=</span> <span class="n">_determine_max_memory_needed</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">table</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">mem_needed</span> <span class="o">&gt;</span> <span class="n">available_memory</span><span class="p">:</span>
+                    <span class="n">n_to_split</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">mem_needed</span> <span class="o">/</span> <span class="n">available_memory</span><span class="p">))</span>
+                    <span class="n">flex</span><span class="o">.</span><span class="n">set_random_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="n">split_tables</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">random_split</span><span class="p">(</span><span class="n">n_to_split</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">split_tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_tables</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">tables</span><span class="p">):</span>
+                <span class="c1"># nothing was split, all passed memory check</span>
+                <span class="k">return</span> <span class="n">split_tables</span>
+            <span class="c1"># some tables were split - so need to check again that all are ok</span>
+            <span class="k">return</span> <span class="n">_iterative_table_split</span><span class="p">(</span><span class="n">split_tables</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">available_memory</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">_run_processor</span><span class="p">(</span><span class="n">reflections</span><span class="p">):</span>
+            <span class="n">processor</span> <span class="o">=</span> <span class="n">build_processor</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ProcessorClass</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+                <span class="n">reflections</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">processor</span><span class="o">.</span><span class="n">executor</span> <span class="o">=</span> <span class="n">executor</span>
+            <span class="c1"># Process the reflections</span>
+            <span class="n">reflections</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">time_info</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span> <span class="o">!=</span> <span class="s2">&quot;multiprocessing&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">_run_processor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># need to do a memory check and decide whether to split table</span>
+            <span class="n">available_immediate</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">__</span> <span class="o">=</span> <span class="n">assess_available_memory</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span>
+            <span class="p">)</span>
+
+            <span class="c1">#  here don&#39;t consider nproc as the processor will reduce nproc to 1</span>
+            <span class="c1"># if necessary, only want to split if we can&#39;t even process with</span>
+            <span class="c1"># nproc = 1</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">n_subset_split</span><span class="p">:</span>
+                <span class="n">tables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">random_split</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">n_subset_split</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tables</span> <span class="o">=</span> <span class="n">_iterative_table_split</span><span class="p">(</span>
+                    <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
+                    <span class="n">available_immediate</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tables</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># will not fail a memory check in the processor, so proceed</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">_run_processor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Split the reflections and process by perfoming multiple</span>
+                <span class="c1"># passes over each imageset</span>
+                <span class="n">time_info</span> <span class="o">=</span> <span class="n">TimingInfo</span><span class="p">()</span>
+                <span class="n">reflections</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">()</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="sd">&quot;&quot;&quot;Predicted maximum memory needed exceeds available memory.</span>
+<span class="sd">Splitting reflection table into %s subsets for processing</span>
+<span class="sd">&quot;&quot;&quot;</span><span class="p">,</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">tables</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">table</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tables</span><span class="p">):</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Processing subset </span><span class="si">%s</span><span class="s2"> of reflection table&quot;</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">processed</span><span class="p">,</span> <span class="n">this_time_info</span> <span class="o">=</span> <span class="n">_run_processor</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+                    <span class="n">reflections</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">processed</span><span class="p">)</span>
+                    <span class="n">time_info</span> <span class="o">+=</span> <span class="n">this_time_info</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span> <span class="o">=</span> <span class="n">reflections</span>
 
         <span class="c1"># Finalize the reflections</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">finalize_reflections</span><span class="p">(</span>
