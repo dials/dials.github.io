@@ -46,17 +46,17 @@
 <span></span><span class="sd">&quot;&quot;&quot;Target function for cosym analysis.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">from</span> <span class="nn">orderedset</span> <span class="kn">import</span> <span class="n">OrderedSet</span>
-<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">sparse</span>
 
 <span class="kn">import</span> <span class="nn">cctbx.sgtbx.cosets</span>
 <span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">miller</span><span class="p">,</span> <span class="n">sgtbx</span>
 <span class="kn">from</span> <span class="nn">cctbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
-<span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_mp</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -73,10 +73,10 @@
         <span class="n">intensities</span><span class="p">,</span>
         <span class="n">lattice_ids</span><span class="p">,</span>
         <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">min_pairs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">min_pairs</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
         <span class="n">lattice_group</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">dimensions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">nproc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">nproc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Intialise a Target object.</span>
 
@@ -100,13 +100,15 @@
 <span class="sd">            in the analysis. If not set, then the number of dimensions used is</span>
 <span class="sd">            equal to the greater of 2 or the number of symmetry operations in the</span>
 <span class="sd">            lattice group.</span>
-<span class="sd">          nproc (int): number of processors to use for computing the rij matrix.</span>
+<span class="sd">          nproc (int): Deprecated</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">nproc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;nproc is deprecated&quot;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">assert</span> <span class="n">weights</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;standard_error&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">=</span> <span class="n">weights</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_min_pairs</span> <span class="o">=</span> <span class="n">min_pairs</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="n">nproc</span>
 
         <span class="n">data</span> <span class="o">=</span> <span class="n">intensities</span><span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span><span class="n">anomalous_flag</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">cb_op_to_primitive</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">change_of_basis_op_to_primitive_setting</span><span class="p">()</span>
@@ -192,15 +194,6 @@
 
         <span class="k">return</span> <span class="n">operators</span>
 
-    <span class="k">def</span> <span class="nf">_lattice_lower_upper_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lattice_id</span><span class="p">):</span>
-        <span class="n">lower_index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="p">[</span><span class="n">lattice_id</span><span class="p">])</span>
-        <span class="n">upper_index</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">lattice_id</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">upper_index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="p">[</span><span class="n">lattice_id</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">lattice_id</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
-        <span class="k">return</span> <span class="n">lower_index</span><span class="p">,</span> <span class="n">upper_index</span>
-
     <span class="k">def</span> <span class="nf">_compute_rij_wij</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Compute the rij_wij matrix.</span>
 
@@ -217,139 +210,94 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">n_lattices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="p">)</span>
+        <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">)</span>
 
         <span class="c1"># Pre-calculate miller indices after application of each cb_op. Only calculate</span>
         <span class="c1"># this once per cb_op instead of on-the-fly every time we need it.</span>
         <span class="n">indices</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">epsilons</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">space_group_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span><span class="o">.</span><span class="n">type</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">cb_op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">:</span>
             <span class="n">cb_op</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
             <span class="n">indices_reindexed</span> <span class="o">=</span> <span class="n">cb_op</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">indices</span><span class="p">())</span>
             <span class="n">miller</span><span class="o">.</span><span class="n">map_to_asu</span><span class="p">(</span><span class="n">space_group_type</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">indices_reindexed</span><span class="p">)</span>
-            <span class="n">indices</span><span class="p">[</span><span class="n">cb_op</span><span class="o">.</span><span class="n">as_xyz</span><span class="p">()]</span> <span class="o">=</span> <span class="n">indices_reindexed</span>
+            <span class="n">cb_op_str</span> <span class="o">=</span> <span class="n">cb_op</span><span class="o">.</span><span class="n">as_xyz</span><span class="p">()</span>
+            <span class="n">indices</span><span class="p">[</span><span class="n">cb_op_str</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">h</span><span class="o">.</span><span class="n">iround</span><span class="p">()</span><span class="o">.</span><span class="n">as_numpy_array</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">indices_reindexed</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+                <span class="p">]</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+            <span class="n">epsilons</span><span class="p">[</span><span class="n">cb_op_str</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patterson_group</span><span class="o">.</span><span class="n">epsilon</span><span class="p">(</span>
+                <span class="n">indices_reindexed</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">as_numpy_array</span><span class="p">()</span>
+        <span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">data</span><span class="p">()</span><span class="o">.</span><span class="n">as_numpy_array</span><span class="p">()</span>
 
-        <span class="k">def</span> <span class="nf">_compute_rij_matrix_one_row_block</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
-            <span class="n">rij_cache</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Map indices to an array of flat 1d indices which can later be used for</span>
+        <span class="c1"># matching pairs of indices</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">indices</span><span class="o">.</span><span class="n">values</span><span class="p">())),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">dims</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">indices</span><span class="o">.</span><span class="n">values</span><span class="p">())),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">offset</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">cb_op</span><span class="p">,</span> <span class="n">hkl</span> <span class="ow">in</span> <span class="n">indices</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">indices</span><span class="p">[</span><span class="n">cb_op</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">((</span><span class="n">hkl</span> <span class="o">+</span> <span class="n">offset</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">dims</span><span class="p">)</span>
 
-            <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">)</span>
-            <span class="n">NN</span> <span class="o">=</span> <span class="n">n_lattices</span> <span class="o">*</span> <span class="n">n_sym_ops</span>
+        <span class="c1"># Create an empty 2D array of shape (m * n, L), where m is the number of sym</span>
+        <span class="c1"># ops, n is the number of lattices, and L is the number of unique miller indices</span>
+        <span class="n">all_intensities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">n_sym_ops</span> <span class="o">*</span> <span class="n">n_lattices</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">dims</span><span class="p">)))</span>
 
-            <span class="n">rij_row</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">rij_col</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">rij_data</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">:</span>
-                <span class="n">wij_row</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="n">wij_col</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="n">wij_data</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">wij</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Populate all_intensities with intensity values, filling absent intensities</span>
+        <span class="c1"># with np.nan</span>
+        <span class="n">all_intensities</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">slices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattices</span><span class="p">,</span> <span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">slices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">slice</span><span class="p">,</span> <span class="n">slices</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">slices</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">mil_ind</span><span class="p">,</span> <span class="n">eps</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">indices</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">epsilons</span><span class="o">.</span><span class="n">values</span><span class="p">())):</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">selection</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">slices</span><span class="p">):</span>
+                <span class="c1"># map (i, j) to a column in all_intensities</span>
+                <span class="n">column</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">),</span> <span class="p">(</span><span class="n">n_sym_ops</span><span class="p">,</span> <span class="n">n_lattices</span><span class="p">))</span>
+                <span class="n">epsilon_equals_one</span> <span class="o">=</span> <span class="n">eps</span><span class="p">[</span><span class="n">selection</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span>
+                <span class="n">valid_mil_ind</span> <span class="o">=</span> <span class="n">mil_ind</span><span class="p">[</span><span class="n">selection</span><span class="p">][</span><span class="n">epsilon_equals_one</span><span class="p">]</span>
+                <span class="n">valid_intensities</span> <span class="o">=</span> <span class="n">intensities</span><span class="p">[</span><span class="n">selection</span><span class="p">][</span><span class="n">epsilon_equals_one</span><span class="p">]</span>
+                <span class="n">all_intensities</span><span class="p">[</span><span class="n">column</span><span class="p">,</span> <span class="n">valid_mil_ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">valid_intensities</span>
 
-            <span class="n">i_lower</span><span class="p">,</span> <span class="n">i_upper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_lower_upper_index</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-            <span class="n">intensities_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">data</span><span class="p">()[</span><span class="n">i_lower</span><span class="p">:</span><span class="n">i_upper</span><span class="p">]</span>
-
-            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_lattices</span><span class="p">):</span>
-
-                <span class="n">j_lower</span><span class="p">,</span> <span class="n">j_upper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice_lower_upper_index</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
-                <span class="n">intensities_j</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">data</span><span class="p">()[</span><span class="n">j_lower</span><span class="p">:</span><span class="n">j_upper</span><span class="p">]</span>
-
-                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">cb_op_k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">):</span>
-                    <span class="n">cb_op_k</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">(</span><span class="n">cb_op_k</span><span class="p">)</span>
-
-                    <span class="n">indices_i</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="n">cb_op_k</span><span class="o">.</span><span class="n">as_xyz</span><span class="p">()][</span><span class="n">i_lower</span><span class="p">:</span><span class="n">i_upper</span><span class="p">]</span>
-
-                    <span class="k">for</span> <span class="n">kk</span><span class="p">,</span> <span class="n">cb_op_kk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">):</span>
-                        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span> <span class="ow">and</span> <span class="n">k</span> <span class="o">==</span> <span class="n">kk</span><span class="p">:</span>
-                            <span class="c1"># don&#39;t include correlation of dataset with itself</span>
-                            <span class="k">continue</span>
-                        <span class="n">cb_op_kk</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">change_of_basis_op</span><span class="p">(</span><span class="n">cb_op_kk</span><span class="p">)</span>
-
-                        <span class="n">ik</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="p">(</span><span class="n">n_lattices</span> <span class="o">*</span> <span class="n">k</span><span class="p">)</span>
-                        <span class="n">jk</span> <span class="o">=</span> <span class="n">j</span> <span class="o">+</span> <span class="p">(</span><span class="n">n_lattices</span> <span class="o">*</span> <span class="n">kk</span><span class="p">)</span>
-
-                        <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cb_op_k</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span> <span class="o">*</span> <span class="n">cb_op_kk</span><span class="p">))</span>
-                        <span class="k">if</span> <span class="n">use_cache</span> <span class="ow">and</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">rij_cache</span><span class="p">:</span>
-                            <span class="n">cc</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="n">rij_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="n">indices_j</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="n">cb_op_kk</span><span class="o">.</span><span class="n">as_xyz</span><span class="p">()][</span><span class="n">j_lower</span><span class="p">:</span><span class="n">j_upper</span><span class="p">]</span>
-
-                            <span class="n">matches</span> <span class="o">=</span> <span class="n">miller</span><span class="o">.</span><span class="n">match_indices</span><span class="p">(</span><span class="n">indices_i</span><span class="p">,</span> <span class="n">indices_j</span><span class="p">)</span>
-                            <span class="n">pairs</span> <span class="o">=</span> <span class="n">matches</span><span class="o">.</span><span class="n">pairs</span><span class="p">()</span>
-                            <span class="n">isel_i</span> <span class="o">=</span> <span class="n">pairs</span><span class="o">.</span><span class="n">column</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                            <span class="n">isel_j</span> <span class="o">=</span> <span class="n">pairs</span><span class="o">.</span><span class="n">column</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-                            <span class="n">isel_i</span> <span class="o">=</span> <span class="n">isel_i</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">_patterson_group</span><span class="o">.</span><span class="n">epsilon</span><span class="p">(</span><span class="n">indices_i</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel_i</span><span class="p">))</span>
-                                <span class="o">==</span> <span class="mi">1</span>
-                            <span class="p">)</span>
-                            <span class="n">isel_j</span> <span class="o">=</span> <span class="n">isel_j</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">_patterson_group</span><span class="o">.</span><span class="n">epsilon</span><span class="p">(</span><span class="n">indices_j</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel_j</span><span class="p">))</span>
-                                <span class="o">==</span> <span class="mi">1</span>
-                            <span class="p">)</span>
-                            <span class="n">corr</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">linear_correlation</span><span class="p">(</span>
-                                <span class="n">intensities_i</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel_i</span><span class="p">),</span>
-                                <span class="n">intensities_j</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel_j</span><span class="p">),</span>
-                            <span class="p">)</span>
-
-                            <span class="k">if</span> <span class="n">corr</span><span class="o">.</span><span class="n">is_well_defined</span><span class="p">():</span>
-                                <span class="n">cc</span> <span class="o">=</span> <span class="n">corr</span><span class="o">.</span><span class="n">coefficient</span><span class="p">()</span>
-                                <span class="n">n</span> <span class="o">=</span> <span class="n">corr</span><span class="o">.</span><span class="n">n</span><span class="p">()</span>
-                            <span class="k">else</span><span class="p">:</span>
-                                <span class="n">cc</span> <span class="o">=</span> <span class="kc">None</span>
-                                <span class="n">n</span> <span class="o">=</span> <span class="kc">None</span>
-                            <span class="n">rij_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">cc</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
-
-                        <span class="k">if</span> <span class="p">(</span>
-                            <span class="n">n</span> <span class="ow">is</span> <span class="kc">None</span>
-                            <span class="ow">or</span> <span class="n">cc</span> <span class="ow">is</span> <span class="kc">None</span>
-                            <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_pairs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_pairs</span><span class="p">)</span>
-                        <span class="p">):</span>
-                            <span class="k">continue</span>
-                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">:</span>
-                            <span class="n">wij_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ik</span><span class="p">)</span>
-                            <span class="n">wij_col</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jk</span><span class="p">)</span>
-                            <span class="n">wij_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
-                        <span class="n">rij_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ik</span><span class="p">)</span>
-                        <span class="n">rij_col</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jk</span><span class="p">)</span>
-                        <span class="n">rij_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cc</span><span class="p">)</span>
-
-            <span class="n">rij</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">coo_matrix</span><span class="p">((</span><span class="n">rij_data</span><span class="p">,</span> <span class="p">(</span><span class="n">rij_row</span><span class="p">,</span> <span class="n">rij_col</span><span class="p">)),</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">NN</span><span class="p">,</span> <span class="n">NN</span><span class="p">))</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">:</span>
-                <span class="n">wij</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">coo_matrix</span><span class="p">((</span><span class="n">wij_data</span><span class="p">,</span> <span class="p">(</span><span class="n">wij_row</span><span class="p">,</span> <span class="n">wij_col</span><span class="p">)),</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">NN</span><span class="p">,</span> <span class="n">NN</span><span class="p">))</span>
-
-            <span class="k">return</span> <span class="n">rij</span><span class="p">,</span> <span class="n">wij</span>
-
-        <span class="n">args</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_lattices</span><span class="p">)]</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="n">easy_mp</span><span class="o">.</span><span class="n">parallel_map</span><span class="p">(</span>
-            <span class="n">_compute_rij_matrix_one_row_block</span><span class="p">,</span>
-            <span class="n">args</span><span class="p">,</span>
-            <span class="n">processes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">,</span>
-            <span class="n">iterable_type</span><span class="o">=</span><span class="n">easy_mp</span><span class="o">.</span><span class="n">posiargs</span><span class="p">,</span>
-            <span class="n">method</span><span class="o">=</span><span class="s2">&quot;multiprocessing&quot;</span><span class="p">,</span>
+        <span class="c1"># Ideally we would use `np.ma.corrcoef` here, but it is broken, so use</span>
+        <span class="c1"># pd.DataFrame.corr() instead (see numpy/numpy#15601)</span>
+        <span class="n">rij</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">all_intensities</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">corr</span><span class="p">(</span><span class="n">min_periods</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_pairs</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">values</span>
         <span class="p">)</span>
+        <span class="c1"># Set any NaN correlation coefficients to zero</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">rij</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># Cosym does not make use of the on-diagonal correlation coefficients</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">rij</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 
-        <span class="n">rij_matrix</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">wij_matrix</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">rij</span><span class="p">,</span> <span class="n">wij</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">rij_matrix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">rij_matrix</span> <span class="o">=</span> <span class="n">rij</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">rij_matrix</span> <span class="o">+=</span> <span class="n">rij</span>
-            <span class="k">if</span> <span class="n">wij</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">wij_matrix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">wij</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">wij_matrix</span> <span class="o">+=</span> <span class="n">wij</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">:</span>
+            <span class="n">wij</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">rij</span><span class="p">)</span>
+            <span class="n">right_up</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices_from</span><span class="p">(</span><span class="n">wij</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
-        <span class="n">rij_matrix</span> <span class="o">=</span> <span class="n">rij_matrix</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">wij_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">wij_matrix</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="c1"># For each correlation coefficient, set the weight equal to the size of</span>
+            <span class="c1"># the sample used to calculate that coefficient</span>
+            <span class="n">pairwise_combos</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">all_intensities</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">sample_size</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">x</span> <span class="o">&amp;</span> <span class="n">y</span><span class="p">)</span>
+            <span class="n">wij</span><span class="p">[</span><span class="n">right_up</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">starmap</span><span class="p">(</span><span class="n">sample_size</span><span class="p">,</span> <span class="n">pairwise_combos</span><span class="p">))</span>
+
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">==</span> <span class="s2">&quot;standard_error&quot;</span><span class="p">:</span>
+                <span class="c1"># Set each weights as the reciprocal of the standard error on the</span>
+                <span class="c1"># corresponding correlation coefficient</span>
                 <span class="c1"># http://www.sjsu.edu/faculty/gerstman/StatPrimer/correlation.pdf</span>
-                <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">wij_matrix</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">)</span>
-                <span class="n">se</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">rij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]))</span> <span class="o">/</span> <span class="p">(</span><span class="n">wij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span><span class="p">))</span>
-                <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">rij_matrix</span><span class="p">)</span>
-                <span class="n">wij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">se</span>
+                <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">divide</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">invalid</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">):</span>
+                    <span class="n">reciprocal_se</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+                        <span class="p">(</span><span class="n">wij</span><span class="p">[</span><span class="n">right_up</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">rij</span><span class="p">[</span><span class="n">right_up</span><span class="p">]))</span>
+                    <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">rij_matrix</span><span class="p">,</span> <span class="n">wij_matrix</span>
+                <span class="n">wij</span><span class="p">[</span><span class="n">right_up</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">wij</span><span class="p">[</span><span class="n">right_up</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">,</span> <span class="n">reciprocal_se</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># Symmetrise the wij matrix</span>
+            <span class="n">wij</span> <span class="o">+=</span> <span class="n">wij</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">wij</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">rij</span><span class="p">,</span> <span class="n">wij</span>
 
 <div class="viewcode-block" id="Target.compute_functional"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.target.Target.compute_functional">[docs]</a>    <span class="k">def</span> <span class="nf">compute_functional</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Compute the target function at coordinates `x`.</span>
