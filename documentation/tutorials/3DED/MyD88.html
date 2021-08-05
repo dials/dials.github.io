@@ -1,0 +1,832 @@
+
+
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>MyD88TIR small wedges &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="Lysozyme nanocrystals" href="lysozyme_nanocrystals.html" />
+    <link rel="prev" title="DIALS for 3DED/MicroED" href="../dials_for_ed.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="myd88tir-small-wedges">
+<h1>MyD88<sup>TIR</sup> small wedges<a class="headerlink" href="#myd88tir-small-wedges" title="Permalink to this headline">¶</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This tutorial was prepared using DIALS version 3.5.4 for Linux, downloaded
+from <a class="reference internal" href="../../../installation.html"><span class="doc">this site</span></a>. Results may differ with other
+versions of the software.</p>
+</div>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The structures of MyD88<sup>TIR</sup> domain higher-order assemblies were resolved
+by MicroED and SFX, providing insight into Toll-like receptor signal
+transduction. Details are published in this article:</p>
+<div class="line-block">
+<div class="line"><a class="reference external" href="https://doi.org/10.1038/s41467-021-22590-6" target="_blank">MyD88 TIR domain higher-order assembly interactions revealed by microcrystal electron diffraction and serial femtosecond crystallography</a></div>
+<div class="line">Clabbers MTB, Holmes S, Muusse TW, Vajjhala PR, Thygesen SJ, Malde AK, Hunter DJB, Croll TI, Flueckiger L, Nanson JD, Rahaman MH, Aquila A, Hunter MS, Liang M, Yoon CH, Zhao J, Zatsepin NA, Abbey B, Sierecki E, Gambin Y, Stacey KJ, Darmanin C, Kobe B, Xu H, Ve T.</div>
+<div class="line"><em>Nat Commun</em> <strong>12</strong>, 2578 (10 05 2021). [PMID:33972532] [PMC reprint: <a class="reference external" href="http://ncbi.nlm.nih.gov/pmc/articles/PMC8110528/" target="_blank">PMC8110528</a>]</div>
+</div>
+<p>DIALS was not used during the original work, but the datasets have been made
+public. So we can show how to use DIALS to reproduce the published results.</p>
+</section>
+<section id="data">
+<h2>Data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h2>
+<p>The datasets for this tutorial are available online at SBGrid:</p>
+<p><a class="reference external" href="https://doi.org/10.15785/SBGRID/814">Clabbers, MT.B., H Xu, and X Zou. 2021. “Microcrystal Electron
+Diffraction Data for: Myeloid Differentiation Primary Response
+Protein MyD88. PDB Code 7beq.” SBGrid Data Bank. 814</a>.</p>
+<p>The downloaded data consists of a directory with eighteen incrementally numbered
+subdirectories, <code class="docutils literal notranslate"><span class="pre">814/{1..18}</span></code>, each of which contains diffraction images from
+a single crystal. We recommend doing data processing for each dataset in its
+own directory, separate from the images. For example, we can create a structure
+that mirrors the path to the images. From a BASH command prompt we can do that
+like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir -p dials-proc/<span class="o">{</span><span class="m">1</span>..18<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="exploratory-analysis">
+<span id="section-label-exploratory-analysis"></span><h2>Exploratory analysis<a class="headerlink" href="#exploratory-analysis" title="Permalink to this headline">¶</a></h2>
+<p>Before we dive in and try to process all eighteen datasets we should perform some
+initial investigations to get a feel for the data and ensure the metadata
+describing the diffraction experiments is being read correctly. We might as well
+take the first dataset for this. To start, we change our working directory to
+our processing area, and then list the contents of the dataset directory.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> dials-proc/1
+ls ../../814/1
+</pre></div>
+</div>
+<p>We see that dataset 1 consists of 72 images with the extension <code class="docutils literal notranslate"><span class="pre">.img</span></code>, with
+filenames numbered sequentially from <code class="docutils literal notranslate"><span class="pre">00001.img</span></code> to <code class="docutils literal notranslate"><span class="pre">00072.img</span></code>. If the DIALS
+programs are in the <code class="docutils literal notranslate"><span class="pre">PATH</span></code> we can now check if DIALS can interpret one of these
+images.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.show ../../814/1/00001.img
+</pre></div>
+</div>
+<p>The output shows us that indeed DIALS recognises this image. Near the top of the
+output we see <code class="docutils literal notranslate"><span class="pre">Format</span> <span class="pre">class:</span> <span class="pre">FormatSMVTimePix_SU_516x516</span></code>, indicating that there
+is even a specific image reader for this image rather than DIALS falling back on a
+generic reader. That’s a good start, but if we look carefully through the rest
+of the output we might spot a problem.</p>
+<section id="detector-distance">
+<h3>Detector distance<a class="headerlink" href="#detector-distance" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>distance: 2.193
+</pre></div>
+</div>
+<p>Those with experience with DIALS might know that laboratory space distances in
+the program are measured in millimetres <a class="footnote-reference brackets" href="#id3" id="id2">*</a>. This is evident from an earlier line,
+<code class="docutils literal notranslate"><span class="pre">pixel_size:{0.055,0.055}</span></code> in which we see that the pixel size of the Timepix
+detector is 0.055 mm, i.e. 55 µm, as expected.</p>
+<dl class="footnote brackets">
+<dt class="label" id="id3"><span class="brackets"><a class="fn-backref" href="#id2">*</a></span></dt>
+<dd><p>except for the wavelength, which is in Ångströms.</p>
+</dd>
+</dl>
+<p>Here we see a general problem with the <a class="reference external" href="https://strucbio.biologie.uni-konstanz.de/ccp4wiki/index.php/SMV_file_format">SMV</a> file format used for these images. The
+format definition is not rigorous, so there is no way to <em>be sure</em> what units are in
+use. Despite that fact that almost all known SMV formats use millimetres for
+detector distance, this is not enforced by any standard, and we have clearly
+found an exception.</p>
+<p>Let’s assume the distance should be 2193 millimetres and import the full dataset:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.import ../../814/1/*.img <span class="nv">distance</span><span class="o">=</span><span class="m">2193</span>
+</pre></div>
+</div>
+<p>Looking at the metadata with <code class="docutils literal notranslate"><span class="pre">dials.show</span> <span class="pre">show.imported.expt</span></code> shows that the
+distance from the headers is now overwritten to be 2193 mm. Let’s now view the
+images:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.image_viewer imported.expt
+</pre></div>
+</div>
+<p>There is a good description of functions available in the image viewer in other
+tutorials, such as <a class="reference internal" href="../processing_in_detail_betalactamase.html"><span class="doc">Processing in Detail</span></a>.
+Feel free to play with the settings. Nothing you do here will alter the experimental
+geometry or affect further processing.</p>
+<p>We see from the position of the blue cross in the centre of the region of low
+angle scatter that the beam centre seems to be correctly recorded in the image
+headers.</p>
+</section>
+<section id="tilt-axis-orientation">
+<h3>Tilt axis orientation<a class="headerlink" href="#tilt-axis-orientation" title="Permalink to this headline">¶</a></h3>
+<p>The diffraction geometry metadata printed by <code class="docutils literal notranslate"><span class="pre">dials.show</span> <span class="pre">imported.expt</span></code>
+suggests that the orientation of the rotation axis is given by</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Rotation axis:   {0.782563,-0.622571,0}
+</pre></div>
+</div>
+<p>But should we trust this? It is not as immediately visible a thing as the beam centre,
+but sometimes we <em>can</em> get a visual clue from the image viewer.
+Thinking of the geometry of the diffraction experiment, we realise
+that spots that are perpendicular to the rotation axis appear and disappear
+rapidly during rotation of the sample. Conversely, spots located along the rotation
+axis remain in the diffracting condition for a long time. Therefore, by clicking
+through the diffraction images we can look for a direction in the images in which
+spots seem to persist for a long time. Doing this quickly should produce a view similar
+to this animation:</p>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/diffraction_movie.gif"><img alt="https://dials.github.io/images/MyD88/diffraction_movie.gif" class="align-center" src="https://dials.github.io/images/MyD88/diffraction_movie.gif" style="width: 50%;" /></a>
+<p>If we look carefully we see that the spots in the lower left
+and upper right persist on more images than spots in the upper left and lower
+right. Therefore, we expect the rotation axis to be approximately along the
+lower left to upper right diagonal.</p>
+<p>We can also get some idea of the axis orientation by stacking the images. It is helpful to alter
+the <code class="docutils literal notranslate"><span class="pre">Stack</span> <span class="pre">type</span></code> on the <code class="docutils literal notranslate"><span class="pre">Settings</span></code> window first to select <code class="docutils literal notranslate"><span class="pre">max</span></code>, and then
+in the main image viewer window change the value of <code class="docutils literal notranslate"><span class="pre">Stack</span></code> from <code class="docutils literal notranslate"><span class="pre">1</span></code> to
+<code class="docutils literal notranslate"><span class="pre">72</span></code>. The view now shows a composite image consisting of the maximum value at
+each pixel position through the whole dataset.</p>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/stack.png"><img alt="https://dials.github.io/images/MyD88/stack.png" class="align-center" src="https://dials.github.io/images/MyD88/stack.png" style="width: 80%;" /></a>
+<p>It is possible to make out a diagonal line from bottom left to top right along
+which there are few spots. Those spots that are present are those that persisted
+for a long time in the animation. We’ll take the position of one of these as an
+anchor point to estimate the orientation of the rotation axis. At the bottom of
+the image viewer is a status bar from which we can read information
+like the pixel position of the cursor. Reading out the pixel position gives us</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Readout 0: slow=112.660 / fast=334.812 pixels
+</pre></div>
+</div>
+<p>Now hovering over the beam centre we see this is located at about 235 pixels in
+the slow direction and 228 in the fast direction. Therefore the line from the
+beam centre to the pixel position we found before is approximately
+<span class="math notranslate nohighlight">\(113 - 235 = -122\)</span> pixels in the slow direction and <span class="math notranslate nohighlight">\(335 - 228 = 107\)</span>
+pixels in the fast direction. Returning to the output of <code class="docutils literal notranslate"><span class="pre">dials.show</span> <span class="pre">imported.expt</span></code>
+we see</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>fast_axis: {1,0,0}
+slow_axis: {0,-1,0}
+</pre></div>
+</div>
+<p>from which we can construct a putative rotation axis direction</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\vec{\textrm{axis}} = 107 \times \begin{pmatrix}1\\0\\0\end{pmatrix}
+ - 122 \times \begin{pmatrix}0\\-1\\0\end{pmatrix}
+= \begin{pmatrix}107\\122\\0\end{pmatrix}\end{split}\]</div>
+<p>We don’t know if the direction of right handed rotation is along
+this axis or its inverse though. This is something we’ll come back to during indexing.
+At the moment, we’ll just re-import the data with this axis and move on to
+spot-finding.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.import ../../814/1/*.img <span class="nv">distance</span><span class="o">=</span><span class="m">2193</span> goniometer.axis<span class="o">=</span><span class="m">107</span>,122,0.0
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is currently no easy way to determine the rotation axis using the
+<a class="reference internal" href="../../programs/dials_image_viewer.html"><span class="doc">dials.image_viewer</span></a>, hence these manual
+steps. As with the detector distance and beam centre it is best if these
+things are carefully calibrated for the data collection and recorded with
+the images.</p>
+</div>
+</section>
+<section id="spot-finding">
+<h3>Spot-finding<a class="headerlink" href="#spot-finding" title="Permalink to this headline">¶</a></h3>
+<p>Finding appropriate spot-finding settings can be challenging for some electron diffraction
+datasets with commonly-used types of integrating detectors. However, in this case
+the Timepix is a counting detector with a gain of 1.0, avoiding issues with
+improperly-modelled detector response. The default spot-finding settings as used
+for X-ray photon counting detectors are also appropriate here. We can view the
+effect of these settings in the <a class="reference internal" href="../../programs/dials_image_viewer.html"><span class="doc">dials.image_viewer</span></a>.
+In this case we have ticked the box next to <code class="docutils literal notranslate"><span class="pre">Threshold</span> <span class="pre">pixels</span></code> in the <code class="docutils literal notranslate"><span class="pre">Settings</span></code>
+panel to show a diffraction image with the strong pixels marked up with a red
+overlay.</p>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/spot-finding.png"><img alt="https://dials.github.io/images/MyD88/spot-finding.png" class="align-center" src="https://dials.github.io/images/MyD88/spot-finding.png" style="width: 80%;" /></a>
+<p>The strong diffraction spots are clearly being found, but we also see that
+a big region of inelastic scatter around the direct beam
+is picked up by the spot-finding algorithm. This might cause problems with
+indexing. By using the <code class="docutils literal notranslate"><span class="pre">Resolution</span></code> reading at the bottom of the image viewer
+we see that most of this occurs within a d-spacing of 20 Å or higher, so we’ll
+exclude that, but otherwise leave spot-finding settings as default:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.find_spots imported.expt <span class="nv">d_max</span><span class="o">=</span><span class="m">20</span>
+</pre></div>
+</div>
+<p>The log shows the number of strong pixels found on each image, and then the
+number of spots these form, followed by how many make it through various
+filtering steps. The log ends with an ASCII-art histogram:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Histogram of per-image spot count for imageset 0:
+633 spots found on 72 images (max 26 / bin)
+                                    *
+                                    *
+    **                              *
+    ***        * *  *   ** * *      **
+    ***        * *  *  ***** *      **      *
+    ***        * ** *  ***** * ** * ****  * *
+    ***      *** ** * ****** * ** * ****  *** **    **   *
+** ****     ****************** *****************  * ** * *
+********  ************************************** **********
+************************************************ ***********
+1                          image                          72
+
+--------------------------------------------------------------------------------
+</pre></div>
+</div>
+<p>With X-ray datasets this histogram can often be used as a quick assessment of radiation
+damage. With electron diffraction that can be more difficult, both because the
+total rotation angle for the scan is usually smaller and because the Ewald sphere
+for electron diffraction is very flat. This means that the variability of this
+plot is rather high. Some orientations are close to zone axes and have many
+spots in the diffracting condition, whereas other orientations produce
+bands of fewer spots instead. We can explore the found spots now in the image
+viewer with this command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.image_viewer imported.expt strong.refl
+</pre></div>
+</div>
+<p>Another useful viewer is the 3D
+<a class="reference internal" href="../../programs/dials_reciprocal_lattice_viewer.html"><span class="doc">dials.reciprocal_lattice_viewer</span></a>,
+which we can now launch like this</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.reciprocal_lattice_viewer imported.expt strong.refl
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/rlv-strong.png"><img alt="https://dials.github.io/images/MyD88/rlv-strong.png" src="https://dials.github.io/images/MyD88/rlv-strong.png" style="width: 100%;" /></a>
+<p>Using the mouse we can rotate and zoom this view, and can easily find directions
+showing a well-ordered lattice. This gives us confidence that indexing will
+be successful.</p>
+</section>
+<section id="indexing">
+<span id="section-label-indexing"></span><h3>Indexing<a class="headerlink" href="#indexing" title="Permalink to this headline">¶</a></h3>
+<p>During indexing we will find a lattice and then refine the diffraction geometry
+to better fit the observed spots. One major difference between electron and X-ray
+diffraction is that the wavelength is much shorter (0.0251 Å in this case
+compared to ~1 Å typical for X-rays). As a result, the Ewald sphere is rather
+flat for electron diffraction and can be approximated by an “Ewald plane”. A
+side effect of this is that simultaneous refinement of the detector distance and
+the unit cell parameters is hardly possible. Changes in the distance can be offset
+by a scaling of the cell volume with negligible
+differences in the predicted spot positions. To avoid refinement wandering off
+to give unreasonable values for both the cell and distance, we typically fix the latter
+by adding the option <code class="docutils literal notranslate"><span class="pre">detector.fix=distance</span></code> to jobs that include
+geometry refinement.</p>
+<p>We may also have some reasonable doubts about the accuracy of our estimated
+rotation axis orientation. Usually in DIALS the rotation axis is assumed to be
+known very well and fixed to the laboratory frame, but we can change that behaviour by setting the
+option <code class="docutils literal notranslate"><span class="pre">goniometer.fix=None</span></code>. We will otherwise do indexing using the standard 3D FFT
+algorithm and other parameters as default, so the command we need is:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.index imported.expt strong.refl detector.fix<span class="o">=</span>distance goniometer.fix<span class="o">=</span>None
+</pre></div>
+</div>
+<p>At the end of the log for this job we see a high proportion of indexed spots:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>+------------+-------------+---------------+-------------+
+|   Imageset |   # indexed |   # unindexed | % indexed   |
+|------------+-------------+---------------+-------------|
+|          0 |         562 |            70 | 88.9%       |
++------------+-------------+---------------+-------------+
+</pre></div>
+</div>
+<p>and a little further up we see that the diffraction geometry model fits the
+observed spots quite nicely:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>RMSDs by experiment:
++-------+--------+----------+----------+------------+
+|   Exp |   Nref |   RMSD_X |   RMSD_Y |     RMSD_Z |
+|    id |        |     (px) |     (px) |   (images) |
+|-------+--------+----------+----------+------------|
+|     0 |    500 |  0.50338 |  0.68044 |    0.57072 |
++-------+--------+----------+----------+------------+
+</pre></div>
+</div>
+<p>But before we continue, we must remember that we haven’t resolved the handedness
+of the rotation axis yet!</p>
+<section id="direction-of-rotation">
+<h4>Direction of rotation<a class="headerlink" href="#direction-of-rotation" title="Permalink to this headline">¶</a></h4>
+<p>The flat Ewald sphere in electron diffraction not only causes increased
+correlation between parameters in refinement, but it also makes it possible to
+index a lattice with either direction of the rotation axis! This is explained in
+detail in this paper:</p>
+<div class="line-block">
+<div class="line"><a class="reference external" href="https://doi.org/10.1107/S2059798318007726" target="_blank">Electron diffraction data processing with DIALS</a></div>
+<div class="line">Clabbers MTB, Gruene T, Parkhurst JM, Abrahams JP, Waterman DG.</div>
+<div class="line"><em>Acta Crystallogr D Struct Biol</em> <strong>74</strong>, 506-518 (01 06 2018). [PMID:29872002] [PMC reprint: <a class="reference external" href="http://ncbi.nlm.nih.gov/pmc/articles/PMC6096487/" target="_blank">PMC6096487</a>]</div>
+</div>
+<p>To investigate the alternative we need to invert the rotation axis on import and try
+indexing again. We don’t need to repeat the spot-finding though, as the experimental
+geometry does not affect the spots that are found on each image.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.import ../../814/1/*.img <span class="nv">distance</span><span class="o">=</span><span class="m">2193</span> goniometer.axis<span class="o">=</span>-107,-122,0.0
+dials.index imported.expt strong.refl detector.fix<span class="o">=</span>distance goniometer.fix<span class="o">=</span>None
+</pre></div>
+</div>
+<p>In this case there is one more indexed spot:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>+------------+-------------+---------------+-------------+
+|   Imageset |   # indexed |   # unindexed | % indexed   |
+|------------+-------------+---------------+-------------|
+|          0 |         563 |            69 | 89.1%       |
++------------+-------------+---------------+-------------+
+</pre></div>
+</div>
+<p>but most tellingly, the <code class="docutils literal notranslate"><span class="pre">RMSD_Z</span></code> value has significantly decreased:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>RMSDs by experiment:
++-------+--------+----------+----------+------------+
+|   Exp |   Nref |   RMSD_X |   RMSD_Y |     RMSD_Z |
+|    id |        |     (px) |     (px) |   (images) |
+|-------+--------+----------+----------+------------|
+|     0 |    528 |   0.5165 |  0.67284 |    0.28888 |
++-------+--------+----------+----------+------------+
+</pre></div>
+</div>
+<p>The RMSDs are the root mean square deviation between observed and predicted
+spot positions for reflections used in refinement. For both this job and the
+previous one, the positional RMSDs are less than 1 pixel
+in both X (fast) and Y (slow) directions on the image. However, the RMSD in
+the tilt angle direction dropped from about 0.6 images to less than 0.3. This is
+the best indication we have to show that the rotation axis is actually inverted
+from our original guess.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The effect of inverting the rotation axis in electron diffraction is rather
+subtle. As an aside we can investigate this with
+<code class="docutils literal notranslate"><span class="pre">dials.reciprocal_lattice_viewer</span> <span class="pre">indexed.expt</span> <span class="pre">indexed.refl</span></code> and then ticking
+the box next to <code class="docutils literal notranslate"><span class="pre">Invert</span> <span class="pre">rotation</span> <span class="pre">axis</span></code>. We see that the orientation of the
+spots changes, but they still make a clear lattice either way.</p>
+</div>
+<p>In this case, we will continue with the inverted axis. As a recap and to ensure
+we are working with the right files, the correct steps up to this point are:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.import ../../814/1/*.img <span class="nv">distance</span><span class="o">=</span><span class="m">2193</span> goniometer.axis<span class="o">=</span>-107,-122,0.0
+dials.find_spots imported.expt <span class="nv">d_max</span><span class="o">=</span><span class="m">20</span>
+dials.index imported.expt strong.refl detector.fix<span class="o">=</span>distance goniometer.fix<span class="o">=</span>None
+</pre></div>
+</div>
+</section>
+</section>
+<section id="determining-lattice-symmetry">
+<h3>Determining lattice symmetry<a class="headerlink" href="#determining-lattice-symmetry" title="Permalink to this headline">¶</a></h3>
+<p>Unless a space group is explicitly specified,
+<a class="reference internal" href="../../programs/dials_index.html"><span class="doc">dials.index</span></a> will return the
+best fitting triclinic (<span class="math notranslate nohighlight">\(P\ 1\)</span>) solution. A separate program,
+<a class="reference internal" href="../../programs/dials_refine_bravais_settings.html"><span class="doc">dials.refine_bravais_settings</span></a>,
+can then be used to analyse the lattice symmetry and suggest a higher-symmetry point
+group. As this also does geometry refinement, we need to ensure the detector
+distance remains fixed:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.refine_bravais_settings indexed.expt indexed.refl detector.fix<span class="o">=</span>distance
+</pre></div>
+</div>
+<p>In the output we see two solutions: the original triclinic solution and
+a centred monoclinic lattice:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Chiral space groups corresponding to each Bravais lattice:
+aP: P1
+mC: C2
++------------+--------------+--------+--------------+----------+-----------+------------------------------------------+----------+--------------+
+|   Solution |   Metric fit |   rmsd | min/max cc   |   #spots | lattice   | unit_cell                                |   volume | cb_op        |
+|------------+--------------+--------+--------------+----------+-----------+------------------------------------------+----------+--------------|
+|   *      2 |       1.4551 |  0.118 | 0.950/0.950  |      531 | mC        | 64.31  37.02 115.99  90.00 104.37  90.00 |   267525 | c,a,-a+2*b-c |
+|   *      1 |       0      |  0.047 | -/-          |      529 | aP        | 37.07  61.62  64.40  72.89  89.26  73.47 |   134380 | a,b,c        |
++------------+--------------+--------+--------------+----------+-----------+------------------------------------------+----------+--------------+
+* = recommended solution
+</pre></div>
+</div>
+<p>If we knew nothing about the crystal structure beforehand we might continue and process with
+this solution. However, here we are going to “cheat” slightly and look
+at the cell from the published paper. There it is given as</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 43%" />
+<col style="width: 57%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Cell dimensions</p></th>
+<th class="head"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>a, b, c (Å)</p></td>
+<td><p>99.06, 31.01, 54.30</p></td>
+</tr>
+<tr class="row-odd"><td><p>α, β, γ (°)</p></td>
+<td><p>90.00, 107.70, 90.00</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Clearly we have found a different cell! In fact, here <code class="docutils literal notranslate"><span class="pre">dials.refine_bravais_settings</span></code> found an
+<span class="math notranslate nohighlight">\(I\ 2\)</span> setting but erroneously reported it as <span class="math notranslate nohighlight">\(C\ 2\)</span>. This
+issue has been fixed (<a class="reference external" href="https://github.com/dials/dials/pull/1825">https://github.com/dials/dials/pull/1825</a>) so that from the
+next release of DIALS the table above will correctly read <code class="docutils literal notranslate"><span class="pre">mI</span></code>. The reason
+DIALS selects the <span class="math notranslate nohighlight">\(I\ 2\)</span> setting here is because by default it favours
+monoclinic centred cells that have β angles closer to 90°. However, we can change
+that behaviour and run again:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.refine_bravais_settings indexed.expt indexed.refl detector.fix<span class="o">=</span>distance <span class="nv">best_monoclinic_beta</span><span class="o">=</span>False
+</pre></div>
+</div>
+<p>and with that we get</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Chiral space groups corresponding to each Bravais lattice:
+aP: P1
+mC: C2
++------------+--------------+--------+--------------+----------+-----------+-------------------------------------------+----------+-----------+
+|   Solution |   Metric fit |   rmsd | min/max cc   |   #spots | lattice   | unit_cell                                 |   volume | cb_op     |
+|------------+--------------+--------+--------------+----------+-----------+-------------------------------------------+----------+-----------|
+|   *      2 |       1.4551 |  0.118 | 0.950/0.950  |      531 | mC        | 117.84  37.02  64.31  90.00 107.54  90.00 |   267525 | a-2*b,a,c |
+|   *      1 |       0      |  0.047 | -/-          |      529 | aP        | 37.07  61.62  64.40  72.89  89.26  73.47  |   134380 | a,b,c     |
++------------+--------------+--------+--------------+----------+-----------+-------------------------------------------+----------+-----------+
+* = recommended solution
+</pre></div>
+</div>
+<p>Now at least the β angle is about what we expect! However, the a, b and c axes
+are all a bit too long. In fact, they are all about 20% higher than the published values.
+The cell volume is too large. At the introduction to <a class="reference internal" href="#section-label-indexing"><span class="std std-ref">Indexing</span></a> we noted
+that the cell volume and detector distance are highly correlated. It looks like
+the presumed detector distance of 2193 mm is still not correct.</p>
+<p>We will fix that in the next section, but first we have to reindex the reflections
+to match the chosen Bravais lattice solution, <code class="docutils literal notranslate"><span class="pre">bravais_setting_2.expt</span></code>.
+To do that we take the change-of-basis operator from the solution table
+and pass that into the <a class="reference internal" href="../../programs/dials_reindex.html"><span class="doc">dials.reindex</span></a>
+program:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.reindex indexed.refl <span class="nv">change_of_basis_op</span><span class="o">=</span>a-2*b,a,c
+</pre></div>
+</div>
+</div></blockquote>
+<p>This creates a file <code class="docutils literal notranslate"><span class="pre">reindexed.refl</span></code> that is compatible with our chosen
+solution <code class="docutils literal notranslate"><span class="pre">bravais_setting_2.expt</span></code>.</p>
+</section>
+<section id="refining-the-detector-distance">
+<h3>Refining the detector distance<a class="headerlink" href="#refining-the-detector-distance" title="Permalink to this headline">¶</a></h3>
+<p>In situations where the correct unit cell is known it <em>is</em> possible to refine
+the detector distance. We can do this by providing a restraint to the known
+unit cell. This allows refinement of the unit cell and detector parameters
+simultaneously, while pushing the cell towards its ideal values, thus breaking the
+degeneracy between these parameters. The strength of this “push” is adjustable,
+so we have control over how much we want the data or the external target to
+affect the refined unit cell values.</p>
+<p>To set up a restraint we must write a file using
+<a class="reference external" href="https://cci.lbl.gov/docs/cctbx/doc_low_phil/">PHIL syntax</a>. The interface
+to restraints is a bit awkward, but having written this once, we can then copy-and-paste
+it for other uses, with
+changes required only to the <code class="docutils literal notranslate"><span class="pre">values</span></code> and the <code class="docutils literal notranslate"><span class="pre">sigmas</span></code>. So, in a text
+editor, copy these lines and save the file as <code class="docutils literal notranslate"><span class="pre">restraint.phil</span></code>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>refinement
+{
+  parameterisation
+  {
+    crystal
+    {
+      unit_cell
+      {
+        restraints
+        {
+          tie_to_target
+          {
+            values=99.06,31.01,54.30,90,107.7,90
+            sigmas=0.01,0.01,0.01,0.01,0.01,0.01
+          }
+        }
+      }
+    }
+  }
+}
+</pre></div>
+</div>
+<p>This describes a restraint to the known cell with reasonably strong ties, given
+by fairly low <code class="docutils literal notranslate"><span class="pre">sigma</span></code> values. Once we have this set up, we can run refinement
+like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.refine bravais_setting_2.expt reindexed.refl restraint.phil <span class="nv">scan_varying</span><span class="o">=</span>False
+</pre></div>
+</div>
+<p>We added <code class="docutils literal notranslate"><span class="pre">scan_varying=False</span></code> to ensure that only “scan static” refinement is
+performed, otherwise we get one round of scan static refinement followed by a
+round of scan-varying refinement. The latter allows the crystal parameters to
+vary across the scan, but those smoothly-changing parameters are not affected by
+the restraint. In this situation, we are not trying to get a sophisticated,
+varying model for the diffraction geometry, but are just trying to correct the
+wrong detector distance.</p>
+<p>At the end of the log we see that the unit cell now looks correct:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Final refined crystal model:
+Crystal:
+    Unit cell: 99.080(18), 31.010(18), 54.264(17), 90.0, 107.706(17), 90.0
+    Space group: C 1 2 1
+</pre></div>
+</div>
+<p>and the RMSDs still look about as good as before, so refinement appears to have
+been successful. We can see the new detector distance by showing the output experiments
+file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.show refined.expt
+</pre></div>
+</div>
+<p>which contains the line:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>distance: 1772.4
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Repeating this procedure with all 18 datasets produces a distribution of
+detector distances between about 1740 and 1810 mm. The median of that distribution
+is at 1762 mm, so we might use <em>that</em> value for further processing.
+Of course it is much preferred if the detector distance is properly calibrated
+and stored along with the diffraction images!</p>
+</div>
+<p>We can now return to import with the correct detector distance, followed by the
+other steps to get back to the correctly indexed cell. We will skip the
+<code class="docutils literal notranslate"><span class="pre">dials.refine_bravais_settings</span></code> and <code class="docutils literal notranslate"><span class="pre">dials.reindex</span></code> steps now that we have
+determined the lattice symmetry, by selecting <code class="docutils literal notranslate"><span class="pre">space_group=C2</span></code> during the
+indexing job. This will make it easier to script these steps for the other
+datasets.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.import ../../814/1/*.img <span class="nv">distance</span><span class="o">=</span><span class="m">1762</span> goniometer.axis<span class="o">=</span>-107,-122,0.0
+dials.find_spots imported.expt <span class="nv">d_max</span><span class="o">=</span><span class="m">20</span>
+dials.index imported.expt strong.refl detector.fix<span class="o">=</span>distance goniometer.fix<span class="o">=</span>None<span class="se">\</span>
+  <span class="nv">space_group</span><span class="o">=</span>C2 output.experiments<span class="o">=</span>C2.expt output.reflections<span class="o">=</span>C2.refl
+</pre></div>
+</div>
+</section>
+<section id="further-refinement">
+<h3>Further refinement<a class="headerlink" href="#further-refinement" title="Permalink to this headline">¶</a></h3>
+<p>After indexing we usually run <a class="reference internal" href="../../programs/dials_refine.html"><span class="doc">dials.refine</span></a> to
+construct a more sophisticated model of the diffraction geometry prior to
+integration. In particular, by default this will perform a round of scan-varying
+refinement, in which the crystal model (unit cell and orientation) is allowed to
+vary as a function of image number. For some electron diffraction datasets, for
+which the direct beam position appears to drift during data collection, we
+can also try to model scan-varying beam orientation, however we are not going
+to try that in this tutorial. Following from the last <code class="docutils literal notranslate"><span class="pre">dials.index</span></code> job, our refinement
+command is:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.refine C2.expt C2.refl detector.fix<span class="o">=</span>distance
+</pre></div>
+</div>
+<p>The crystal model is printed at the end of the log:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Crystal:
+    Unit cell: 94.71(13), 29.746(16), 51.73(12), 90.0, 107.61(14), 90.0
+    Space group: C 1 2 1
+    U matrix:  {{ 0.2692, -0.6800,  0.6820},
+                {-0.2568, -0.7332, -0.6296},
+                { 0.9282, -0.0057, -0.3720}}
+    B matrix:  {{ 0.0106,  0.0000,  0.0000},
+                {-0.0000,  0.0336,  0.0000},
+                { 0.0034, -0.0000,  0.0203}}
+    A = UB:    {{ 0.0051, -0.0229,  0.0138},
+                {-0.0048, -0.0246, -0.0128},
+                { 0.0086, -0.0002, -0.0075}}
+    A sampled at 73 scan points
+</pre></div>
+</div>
+<p>The unit cell printed here is the <em>static</em> cell refined during the first
+macrocycle of refinement. We can tell that there is a <em>scan-varying</em> cell model
+as well though, from the final line, <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">sampled</span> <span class="pre">at</span> <span class="pre">73</span> <span class="pre">scan</span> <span class="pre">points</span></code>.</p>
+</section>
+<section id="integration">
+<h3>Integration<a class="headerlink" href="#integration" title="Permalink to this headline">¶</a></h3>
+<p>Now we have a suitable model for the experiment, we can go ahead and integrate
+the reflections. We won’t use any special options here.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.integrate refined.expt refined.refl
+</pre></div>
+</div>
+<p>There is a table of output at the end of the log that provides some insight into
+how well this proceeded. In particular, if there are very large numbers of
+reflections that failed to integrate by either summation integration or profile
+fitting then we should investigate. In this case though, everything looks okay.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>+---------------------------------------+-----------+--------+--------+
+| Item                                  |   Overall |    Low |   High |
+|---------------------------------------+-----------+--------+--------|
+| dmin                                  |      2.03 |   5.5  |   2.03 |
+| dmax                                  |     45.15 |  45.15 |   2.06 |
+| number fully recorded                 |   4320    | 539    |   9    |
+| number partially recorded             |    960    | 113    |   2    |
+| number with invalid background pixels |    994    |   0    |  11    |
+| number with invalid foreground pixels |    402    |   0    |  11    |
+| number with overloaded pixels         |      0    |   0    |   0    |
+| number in powder rings                |      0    |   0    |   0    |
+| number processed with summation       |   4854    | 644    |   0    |
+| number processed with profile fitting |   4918    | 631    |   2    |
+| number failed in background modelling |      0    |   0    |   0    |
+| number failed in summation            |    402    |   0    |  11    |
+| number failed in profile fitting      |    338    |  13    |   9    |
+| ibg                                   |     35.73 |  94.92 |  13.84 |
+| i/sigi (summation)                    |      3.93 |  18.51 |   0    |
+| i/sigi (profile fitting)              |      6.02 |  25.58 |   0    |
+| cc prf                                |      0.99 |   0.99 |   0.99 |
+| cc_pearson sum/prf                    |      0.99 |   0.99 |   0    |
+| cc_spearman sum/prf                   |      0.76 |   0.91 |   0    |
++---------------------------------------+-----------+--------+--------+
+</pre></div>
+</div>
+<p>We can open the integration results in the image viewer, showing how well the
+reflections are centred in their integration boxes.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.image_viewer integrated.expt integrated.refl
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/integration_shoeboxes.png"><img alt="https://dials.github.io/images/MyD88/integration_shoeboxes.png" class="align-center" src="https://dials.github.io/images/MyD88/integration_shoeboxes.png" style="width: 80%;" /></a>
+<p>Here we see that the fairly large rocking curve for the reflections means there
+are many overlapping shoeboxes. However, this is fine as long as the peak regions
+do not overlap. We cannot easily see this here, but the limited number of failed
+profile fits tells us the peak regions are well separated. The size of the
+reflection shoebox model is given towards the top of <code class="docutils literal notranslate"><span class="pre">dials.integrate.log</span></code>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Using 456 / 457 reflections for sigma calculation
+Calculating E.S.D Beam Divergence.
+Calculating E.S.D Reflecting Range (mosaicity).
+ sigma b: 0.004093 degrees
+ sigma m: 1.104106 degrees
+</pre></div>
+</div>
+<p>At this stage we would learn much more about the quality of the data from scaling
+and merging. However this single dataset is very incomplete. We should try
+integrating all the other datasets first and including them in the scaling job.</p>
+</section>
+</section>
+<section id="scripted-processing">
+<h2>Scripted processing<a class="headerlink" href="#scripted-processing" title="Permalink to this headline">¶</a></h2>
+<p>During the <a class="reference internal" href="#section-label-exploratory-analysis"><span class="std std-ref">Exploratory analysis</span></a> we came up with a reasonable set of
+processing commands for dataset 1, while figuring out incorrect or missing
+diffraction geometry metadata such as the detector distance and the rotation
+axis orientation and direction. Rather than repeat all those steps manually
+for the remaining datasets we will write a script to process them all in the
+same way. This example uses a BASH shell script on Linux, but we could do
+similar on other systems.</p>
+<p>First we change to the directory above where we have been working on dataset 1,
+and if not already done, we’ll make separate processing directories for all the datasets</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> ..
+mkdir -p <span class="o">{</span><span class="m">1</span>..18<span class="o">}</span>
+</pre></div>
+</div>
+<p>Now we’ll use a text editor to make a file, called <code class="docutils literal notranslate"><span class="pre">process.sh</span></code> for example,
+and enter these lines:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="nb">set</span> -e
+<span class="k">for</span> i <span class="k">in</span> <span class="o">{</span><span class="m">1</span>..18<span class="o">}</span>
+<span class="k">do</span>
+  <span class="nb">cd</span> <span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span>
+
+  dials.import ../../814/<span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span>/*.img goniometer.axis<span class="o">=</span>-107,-122,0.0 <span class="nv">distance</span><span class="o">=</span><span class="m">1762</span>
+  dials.find_spots imported.expt <span class="nv">d_max</span><span class="o">=</span><span class="m">20</span> <span class="nv">d_min</span><span class="o">=</span><span class="m">2</span>.5
+  dials.index imported.expt strong.refl detector.fix<span class="o">=</span>distance goniometer.fix<span class="o">=</span>None <span class="nv">space_group</span><span class="o">=</span>C2
+  dials.refine indexed.expt indexed.refl detector.fix<span class="o">=</span>distance
+  dials.plot_scan_varying_model refined.expt
+  dials.integrate refined.expt refined.refl prediction.d_min<span class="o">=</span><span class="m">2</span>.5
+
+  <span class="nb">cd</span> ..
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>We can make this executable and run it like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chmod +x process.sh
+./process.sh
+</pre></div>
+</div>
+<p>This should run through to completion (<code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">-e</span></code> ensures that it will stop if
+any one of the jobs fails with an error) and produce 18 integrated datasets.</p>
+</section>
+<section id="scaling">
+<h2>Scaling<a class="headerlink" href="#scaling" title="Permalink to this headline">¶</a></h2>
+<p>We now want to combine the 18 datasets, scale them together, and calculate merging
+statistics. We will use <a class="reference internal" href="../../programs/dials_scale.html"><span class="doc">dials.scale</span></a> for
+this. A particularly helpful feature of this program is its capability to
+automatically filter out bad parts of the combined dataset using the ΔCC½ metric.
+By default this removes complete datasets, which is useful for snapshot and small
+wedge serial crystallography where we tend to consider each dataset a unit and
+are not paying much attention to changes <em>within</em> each dataset caused, for example,
+by radiation damage. By contrast, in this case, we’d like to try filtering
+individual bad images rather than complete datasets. The command we need for that
+is the following:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir -p scale
+<span class="nb">cd</span> scale
+
+dials.scale ../<span class="o">{</span><span class="m">1</span>..18<span class="o">}</span>/integrated.<span class="o">{</span>expt,refl<span class="o">}</span><span class="se">\</span>
+  filtering.method<span class="o">=</span>deltacchalf<span class="se">\</span>
+  deltacchalf.mode<span class="o">=</span>image_group<span class="se">\</span>
+  deltacchalf.group_size<span class="o">=</span><span class="m">1</span><span class="se">\</span>
+  <span class="nv">d_min</span><span class="o">=</span><span class="m">3</span>.0
+
+<span class="nb">cd</span> ..
+</pre></div>
+</div>
+<p>The first three options passed to <code class="docutils literal notranslate"><span class="pre">dials.scale</span></code> set up the ΔCC½ filtering,
+in <code class="docutils literal notranslate"><span class="pre">image_group</span></code> mode rather than the default <code class="docutils literal notranslate"><span class="pre">dataset</span></code>, and we also set
+the <code class="docutils literal notranslate"><span class="pre">group_size</span></code> to 1 rather than the
+default 10 as these datasets are rather wide-sliced. The next option sets a
+resolution limit. We have chosen 3.0 Å here to match the processing published in
+the paper.</p>
+<p>At the end of the <code class="docutils literal notranslate"><span class="pre">dials.scale.log</span></code> we see a table summarising the merging
+statistics:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>                                             Overall    Low     High
+High resolution limit                           3.00    8.13    3.00
+Low resolution limit                           50.87   50.88    3.05
+Completeness                                   77.7    76.3    81.7
+Multiplicity                                   14.4    14.9    10.2
+I/sigma                                        12.6    28.6     4.4
+Rmerge(I)                                     0.385   0.247   1.238
+Rmerge(I+/-)                                  0.381   0.247   1.222
+Rmeas(I)                                      0.399   0.258   1.305
+Rmeas(I+/-)                                   0.408   0.264   1.344
+Rpim(I)                                       0.100   0.069   0.387
+Rpim(I+/-)                                    0.136   0.087   0.532
+CC half                                       0.993   0.994   0.326
+Anomalous completeness                         79.6    82.5    80.9
+Anomalous multiplicity                          7.6     8.6     5.3
+Anomalous correlation                        -0.267  -0.413  -0.047
+Anomalous slope                               1.337
+dF/F                                          0.158
+dI/s(dI)                                      1.058
+Total observations                            34189    1926    1184
+Total unique                                   2380     129     116
+</pre></div>
+</div>
+<p>These, and many more, details are also saved to a HTML format report page. On Linux you
+can usually open this up with the command</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>xdg-open scale/dials.scale.html
+</pre></div>
+</div>
+<p>This contains many useful plots, for example various statistics as a function of
+resolution:</p>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/cchalf.png"><img alt="https://dials.github.io/images/MyD88/cchalf.png" src="https://dials.github.io/images/MyD88/cchalf.png" style="width: 49%;" /></a>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/ioversigi.png"><img alt="https://dials.github.io/images/MyD88/ioversigi.png" src="https://dials.github.io/images/MyD88/ioversigi.png" style="width: 49%;" /></a>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/completeness.png"><img alt="https://dials.github.io/images/MyD88/completeness.png" src="https://dials.github.io/images/MyD88/completeness.png" style="width: 49%;" /></a>
+<a class="reference internal image-reference" href="https://dials.github.io/images/MyD88/multiplicity.png"><img alt="https://dials.github.io/images/MyD88/multiplicity.png" src="https://dials.github.io/images/MyD88/multiplicity.png" style="width: 49%;" /></a>
+</section>
+<section id="further-processing">
+<h2>Further processing<a class="headerlink" href="#further-processing" title="Permalink to this headline">¶</a></h2>
+<p>Now we have processed the 18 datasets we want to export the data for structure
+solution and refinement. We can export the unmerged but scaled intensities in
+MTZ format (<code class="docutils literal notranslate"><span class="pre">scaled.mtz</span></code>) like this</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.export scale/scaled.expt scale/scaled.refl
+</pre></div>
+</div>
+<p>However, many downstream steps require the merged intensities, which we can
+create using the <code class="docutils literal notranslate"><span class="pre">dials.merge</span></code> program.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.merge scale/scaled.expt scale/scaled.refl
+</pre></div>
+</div>
+<p>This creates the file <code class="docutils literal notranslate"><span class="pre">merged.mtz</span></code>, which we can use for structure solution
+by molecular replacement.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Documentation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://dials.github.io/kb">Knowledge Base</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2021, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
