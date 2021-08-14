@@ -1,1 +1,1 @@
-dials.import /dls/i04/data/2020/mx27124-1/Mpro-x0692/Mpro-x0692_1_0*.cbf
+dials.import /dls/science/groups/scisoft/DIALS/dials_data/mpro_x0692/Mpro-x0692_1_0*.cbf
