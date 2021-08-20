@@ -158,12 +158,7 @@
         <span class="sd">&quot;&quot;&quot;Return a list of unique beams, detectors, ... in order.</span>
 <span class="sd">        Optionally filter out None values (unless they came in via</span>
 <span class="sd">        an ImageSequence).&quot;&quot;&quot;</span>
-
-        <span class="c1"># Use the keys of an ordered dictionary to guaranteeing uniqueness</span>
-        <span class="c1"># while keeping the order. Could rewrite to use OrderedSet or wait</span>
-        <span class="c1"># for Python 3.7 and use a regular dictionary</span>
-        <span class="c1"># (3.7+: all dictionaries are guaranteed to be ordered)</span>
-        <span class="n">items</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_imagesets</span><span class="p">:</span>
             <span class="n">getter_function</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="s2">&quot;get_&quot;</span> <span class="o">+</span> <span class="n">item_name</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">imageset</span><span class="p">,</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSequence</span><span class="p">):</span>
@@ -202,16 +197,17 @@
         <span class="n">s</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unique_scans</span><span class="p">())</span>
 
         <span class="c1"># Create the data block dictionary</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
-        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;DataBlock&quot;</span>
-        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;imageset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;__id__&quot;</span><span class="p">:</span> <span class="s2">&quot;DataBlock&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;imageset&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="p">}</span>
 
         <span class="c1"># Loop through all the imagesets</span>
         <span class="k">for</span> <span class="n">iset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_imagesets</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">iset</span><span class="p">,</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSequence</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">iset</span><span class="o">.</span><span class="n">reader</span><span class="p">()</span><span class="o">.</span><span class="n">is_single_file_reader</span><span class="p">():</span>
                     <span class="n">result</span><span class="p">[</span><span class="s2">&quot;imageset&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                        <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">(</span>
+                        <span class="nb">dict</span><span class="p">(</span>
                             <span class="p">[</span>
                                 <span class="p">(</span><span class="s2">&quot;__id__&quot;</span><span class="p">,</span> <span class="s2">&quot;ImageSequence&quot;</span><span class="p">),</span>
                                 <span class="p">(</span>
@@ -251,7 +247,7 @@
                     <span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">result</span><span class="p">[</span><span class="s2">&quot;imageset&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                        <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">(</span>
+                        <span class="nb">dict</span><span class="p">(</span>
                             <span class="p">[</span>
                                 <span class="p">(</span><span class="s2">&quot;__id__&quot;</span><span class="p">,</span> <span class="s2">&quot;ImageSequence&quot;</span><span class="p">),</span>
                                 <span class="p">(</span><span class="s2">&quot;template&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">iset</span><span class="o">.</span><span class="n">get_template</span><span class="p">())),</span>
@@ -286,7 +282,7 @@
                         <span class="p">)</span>
                     <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">imageset</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+                <span class="n">imageset</span> <span class="o">=</span> <span class="p">{}</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">iset</span><span class="p">,</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageGrid</span><span class="p">):</span>
                     <span class="n">imageset</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;ImageGrid&quot;</span>
                     <span class="n">imageset</span><span class="p">[</span><span class="s2">&quot;grid_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iset</span><span class="o">.</span><span class="n">get_grid_size</span><span class="p">()</span>
@@ -294,16 +290,15 @@
                     <span class="n">imageset</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;ImageSet&quot;</span>
                 <span class="n">image_list</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">iset</span><span class="p">)):</span>
-                    <span class="n">image_dict</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
-                    <span class="n">image_dict</span><span class="p">[</span><span class="s2">&quot;filename&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">iset</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
-                    <span class="n">image_dict</span><span class="p">[</span><span class="s2">&quot;gain&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">abspath_or_none</span><span class="p">(</span>
-                        <span class="n">iset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">gain</span><span class="o">.</span><span class="n">filename</span>
-                    <span class="p">)</span>
-                    <span class="n">image_dict</span><span class="p">[</span><span class="s2">&quot;pedestal&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">abspath_or_none</span><span class="p">(</span>
-                        <span class="n">iset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">pedestal</span><span class="o">.</span><span class="n">filename</span>
-                    <span class="p">)</span>
-                    <span class="n">image_dict</span><span class="p">[</span><span class="s2">&quot;dx&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">abspath_or_none</span><span class="p">(</span><span class="n">iset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dx</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
-                    <span class="n">image_dict</span><span class="p">[</span><span class="s2">&quot;dy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">abspath_or_none</span><span class="p">(</span><span class="n">iset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dy</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+                    <span class="n">image_dict</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s2">&quot;filename&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">iset</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span><span class="n">i</span><span class="p">)),</span>
+                        <span class="s2">&quot;gain&quot;</span><span class="p">:</span> <span class="n">abspath_or_none</span><span class="p">(</span><span class="n">iset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">gain</span><span class="o">.</span><span class="n">filename</span><span class="p">),</span>
+                        <span class="s2">&quot;pedestal&quot;</span><span class="p">:</span> <span class="n">abspath_or_none</span><span class="p">(</span>
+                            <span class="n">iset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">pedestal</span><span class="o">.</span><span class="n">filename</span>
+                        <span class="p">),</span>
+                        <span class="s2">&quot;dx&quot;</span><span class="p">:</span> <span class="n">abspath_or_none</span><span class="p">(</span><span class="n">iset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dx</span><span class="o">.</span><span class="n">filename</span><span class="p">),</span>
+                        <span class="s2">&quot;dy&quot;</span><span class="p">:</span> <span class="n">abspath_or_none</span><span class="p">(</span><span class="n">iset</span><span class="o">.</span><span class="n">external_lookup</span><span class="o">.</span><span class="n">dy</span><span class="o">.</span><span class="n">filename</span><span class="p">),</span>
+                    <span class="p">}</span>
                     <span class="k">if</span> <span class="n">iset</span><span class="o">.</span><span class="n">reader</span><span class="p">()</span><span class="o">.</span><span class="n">is_single_file_reader</span><span class="p">():</span>
                         <span class="n">image_dict</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iset</span><span class="o">.</span><span class="n">indices</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span>
                     <span class="k">try</span><span class="p">:</span>
@@ -804,11 +799,9 @@
 
         <span class="c1"># Datablocks can only contain imageset with a shared format class, therefore</span>
         <span class="c1"># group the experiments by format class</span>
-        <span class="n">format_groups</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">format_groups</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="n">ExperimentList</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">expt</span> <span class="ow">in</span> <span class="n">expts</span><span class="p">:</span>
-            <span class="n">format_class</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">()</span>
-            <span class="n">format_groups</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">format_class</span><span class="p">,</span> <span class="n">ExperimentList</span><span class="p">())</span>
-            <span class="n">format_groups</span><span class="p">[</span><span class="n">format_class</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">expt</span><span class="p">)</span>
+            <span class="n">format_groups</span><span class="p">[</span><span class="n">expt</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">get_format_class</span><span class="p">()]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">expt</span><span class="p">)</span>
 
         <span class="c1"># Generate a datablock for each format group</span>
         <span class="k">for</span> <span class="n">format_group</span><span class="p">,</span> <span class="n">format_expts</span> <span class="ow">in</span> <span class="n">format_groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
