@@ -48,11 +48,12 @@
   <section id="user-guide-for-scaling-data-with-dials">
 <h1>User guide for scaling data with DIALS<a class="headerlink" href="#user-guide-for-scaling-data-with-dials" title="Permalink to this headline">¶</a></h1>
 <p>This document aims to provide a guide to using <code class="samp docutils literal notranslate"><span class="pre">dials.scale</span></code>, at various levels
-of depth. A new user is encouraged to read the symmetry and scaling section of
-the ‘Processing in detail’ tutorial for a quick overview of scaling in DIALS.
-For most users, it is likely to be sufficient to read only the ‘Byte-sized guide
-to common scaling options’ below, and return to the rest of the guide if further
-help is needed.</p>
+of depth. A new user is encouraged to read the Symmetry and Scaling sections of
+the <a class="reference external" href="https://dials.github.io/documentation/tutorials/processing_in_detail_betalactamase.html">Processing in detail</a>
+tutorial for a quick overview of scaling in DIALS.
+For most users, it is likely to be sufficient to read only the
+‘Guide to common scaling options’ below,
+and return to the rest of the guide if further help is needed.</p>
 <p>As a reminder, this is how to run routine data processing after integration to
 obtain a merged MTZ file:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">symmetry</span> <span class="n">integrated</span><span class="o">.</span><span class="n">refl</span> <span class="n">integrated</span><span class="o">.</span><span class="n">expt</span>
@@ -63,59 +64,94 @@ obtain a merged MTZ file:</p>
 <p>The user is also advised to familiarise themselves with the standard program
 output, which may contain useful information, and the html report generated
 by scaling, which provides numerous plots relating to the merging statistics.</p>
-<section id="byte-sized-guide-to-common-scaling-options">
-<h2>Byte-sized guide to common scaling options<a class="headerlink" href="#byte-sized-guide-to-common-scaling-options" title="Permalink to this headline">¶</a></h2>
-<p>To get started with using DIALS to scale data, load these 8 bits of information
-into memory, which cover the most commonly used options (with example values)
+<section id="guide-to-common-scaling-options">
+<h2>Guide to common scaling options<a class="headerlink" href="#guide-to-common-scaling-options" title="Permalink to this headline">¶</a></h2>
+<p>These sections cover the most commonly used options (with example values)
 for scaling routine macromolecular crystallography datasets.</p>
-<p><strong>When less is more - cutting back data.</strong> It is often the case that not all
-of the data are suitable for merging, so
-try these options to get the best of your data:</p>
+<p><strong>Cutting back data</strong>
+After inspecting the statistics in the <code class="samp docutils literal notranslate"><span class="pre">dials.scale.html</span></code> file, such as
+the R-merge vs batch plot, it is often the case that not all of the data are
+suitable for merging, perhaps due to radiation damage or nonisomorphism.
+This can be the case within a  single sweep or across multiple sweeps in a
+multi-sweep/multi-crystal experiment. These are example options to use:</p>
 <ul class="simple">
-<li><p><code class="samp docutils literal notranslate"><span class="pre">d_min=2.0</span></code>  Apply a resolution cutoff with this simple command.</p></li>
-<li><p><code class="samp docutils literal notranslate"><span class="pre">exclude_images=&quot;0:100:120&quot;</span></code>  Remove a section of images, perhaps due to
-bad per-image R-merge values as result of radiation damage. Use multiple
-commands like this to exclude multiple ranges. The syntax is “a:b:c”,
-where a is the experiment number (starting at <code class="samp docutils literal notranslate"><span class="pre">0</span></code>), b is the initial image
-to exclude and c is the final image to exclude.</p></li>
-<li><p><code class="samp docutils literal notranslate"><span class="pre">exclude_datasets=&quot;10</span> <span class="pre">50</span> <span class="pre">79&quot;</span></code>  Go all out and remove whole datasets, based on
+<li><p><code class="samp docutils literal notranslate"><span class="pre">d_min=2.0</span></code>  Applies a resolution cutoff at the given resolution (in Angstrom).</p></li>
+<li><p><code class="samp docutils literal notranslate"><span class="pre">exclude_images=&quot;100:120&quot;</span></code>  Removes a section of images for a single
+sweep dataset. Multiple commands like this can be used to exclude multiple ranges.
+In the case of multiple-sweeps, one must also provide the experiment ID that
+the exclusion should apply to, with the syntax <code class="samp docutils literal notranslate"><span class="pre">exclude_images=&quot;a:b:c&quot;</span></code>
+where <cite>a</cite> is the experiment ID (a number starting at <code class="samp docutils literal notranslate"><span class="pre">0</span></code>), <cite>b</cite> is the initial
+image to exclude and <cite>c</cite> is the final image to exclude.</p></li>
+<li><p><code class="samp docutils literal notranslate"><span class="pre">exclude_datasets=&quot;10</span> <span class="pre">50</span> <span class="pre">79&quot;</span></code>  Removes whole datasets, based on
 the dataset number; useful for large multi-crystal datasets.</p></li>
 </ul>
-<p><strong>Eyes on the prize - getting those MTZ files</strong>.
-You’re confident that this job is a good one and are already daydreaming about
-refining a high-quality structure. Use these options to get an mtz file from
-your final run of dials.scale without the extra step of using the full
-dials.export/dials.merge programs (which may have more extensive options):</p>
+<p><strong>Anomalous data</strong>
+During scaling, the option <code class="samp docutils literal notranslate"><span class="pre">anomalous=[True|False]</span></code> determines whether
+anomalous pairs (I+/I-) are combined during scaling model minimisation and outlier
+rejection. By default, <code class="samp docutils literal notranslate"><span class="pre">anomalous=False</span></code>, which is suitable for data with some anomalous signal, however for strongly anomalous data,
+the anomalous signal strength may be enhanced when scaling with <code class="samp docutils literal notranslate"><span class="pre">anomalous=True</span></code></p>
+<p><strong>Controlling the absorption correction</strong>
+The default physical scaling model applies a relative absorption correction based
+on the incoming and outgoing scattering vectors (this accounts for the relative
+difference in absorption for different scattering paths through the crystal,
+rather than absolute absorption of the beam by the crystal). This correction is
+constrained, and the level of constraint and parameterisation can be changed
+with the option <code class="samp docutils literal notranslate"><span class="pre">absorption_level=[low|medium|high]</span></code>. This aims to give
+relative absorption corrections of around 1%, 5% and 25%, but will depend on
+the dataset. To see the extent of the correction, check the ‘scaling models’
+section in the <code class="samp docutils literal notranslate"><span class="pre">dials.scale.html</span></code> file.</p>
+<p><strong>Generating MTZ files</strong>
+For convenience, <code class="samp docutils literal notranslate"><span class="pre">dials.scale</span></code> can invoke the exporting and merging programs to
+generate unmerged and merged MTZ files (you may want to use the individual
+programs to have more extensive control over the program options):</p>
 <ul class="simple">
 <li><p><code class="samp docutils literal notranslate"><span class="pre">merged_mtz=scaled.mtz</span></code>  Create a merged MTZ file, using the merging routines
 available in cctbx.</p></li>
-<li><p><code class="samp docutils literal notranslate"><span class="pre">unmerged_mtz=unmerged.mtz</span></code>  Output the scaled data in unmerged MTZ format (but
-please try to be more creative in the filename choice).</p></li>
+<li><p><code class="samp docutils literal notranslate"><span class="pre">unmerged_mtz=unmerged.mtz</span></code>  Output the scaled data in unmerged MTZ format.</p></li>
 </ul>
-<p><strong>Life is about choices</strong>
-Philosophy aside, one choice that is made automatically during scaling is
-whether summation or profile intensities seem to give the best estimate of the
-integrated intensity (or a combination of the two). Take back control, or just
-explore the options, with this command:</p>
+<p><strong>Choosing which integrated intensity to use</strong>
+One choice that is made automatically during scaling is whether summation or
+profile intensities seem give the best estimate of the integrated intensity
+(or a combination of the two). To see the result of this combination, inspect the
+table in the scaling log, which scores a set of Imid values on Rpim &amp; CC1/2.
+To specify which intensity choice to use, there are a couple of options:</p>
 <ul class="simple">
-<li><p><code class="samp docutils literal notranslate"><span class="pre">intensity_choice=profile</span></code>  Choose from profile, sum or combine (default is combine)</p></li>
+<li><p><code class="samp docutils literal notranslate"><span class="pre">intensity_choice=[profile|sum|combine]</span></code>  Choose from profile, sum or combine (default is combine)</p></li>
+<li><p><code class="samp docutils literal notranslate"><span class="pre">combine.Imid=700.0</span></code>  Specify the crossover value for profile-summation
+intensity combination.</p></li>
 </ul>
-<p><strong>Impartial about partials</strong>
+<p><strong>Adjusting the uncertainties/errors</strong>
+All scaling programs adjust the uncertainties (sigmas) of the integrated data, to
+account for additional systematic errors not suffiently modelled during integration.
+<code class="samp docutils literal notranslate"><span class="pre">dials.scale</span></code> adjusts the intensity errors by refining a two-component error model
+(see the output log or <code class="samp docutils literal notranslate"><span class="pre">dials.scale.html</span></code> for the values). While this is
+an important correction and should improve the data quality for typical
+macromolecular crystallographic data, for poorer quality data the model parameters
+may become overinflated.
+If so, then this correction can be controlled with the parameters:</p>
+<ul class="simple">
+<li><p><code class="samp docutils literal notranslate"><span class="pre">error_model=None</span></code>  Don’t apply an error model.</p></li>
+<li><p><code class="samp docutils literal notranslate"><span class="pre">error_model.basic.minimisation=None</span></code>  Don’t refine the error model in this
+scaling run. Will keep the pre-existing error model parameters, or the default
+error model (<code class="samp docutils literal notranslate"><span class="pre">a=1.0,</span> <span class="pre">b=0.02</span></code>) on a first scaling run.</p></li>
+</ul>
+<p>For the multi-sweep case, a single error model is applied to the combined dataset,
+on the assumption that a similar systematic error is affecting all sweeps. This
+approach may not be optimal for some datasets. As an alternative, a separate error
+model can be refined on sweeps individually or as groups.</p>
+<ul class="simple">
+<li><p><code class="samp docutils literal notranslate"><span class="pre">error_model.grouping=[individual|grouped|combined]</span></code>  If grouped is chosen,
+then the groups must be specified as below.</p></li>
+<li><p><code class="samp docutils literal notranslate"><span class="pre">error_model_group='0</span> <span class="pre">1'</span> <span class="pre">error_model_group='2</span> <span class="pre">3'</span></code> e.g. groups the sweeps
+in pairs for error model refinement.</p></li>
+</ul>
+<p><strong>Controlling partials</strong>
 By default, reflections with a partiality above 0.4 are included in the output
-datafiles and merging statistics from dials.scale. If you feel like being more
-discriminatory, or are concerned about the accuracy of the partial intensities,
-just change the threshold with this command:</p>
+data files and merging statistics from dials.scale. This threshold can be changed
+with the parameters:</p>
 <ul class="simple">
-<li><p><code class="samp docutils literal notranslate"><span class="pre">partiality_threshold=0.99</span></code>  Disregard all partialities below this value.</p></li>
-</ul>
-<p><strong>Errors in errors</strong>
-dials.scale adjusts the intensity errors by refining an error model (see the
-output log for the values). While this is an important correction and should
-improve the data quality for typical macromolecular crystallographic data,
-perhaps you have an edge case where the model refined is unrealistic.
-If so, then this correction can be disabled with this command:</p>
-<ul class="simple">
-<li><p><code class="samp docutils literal notranslate"><span class="pre">error_model=None</span></code>  Don’t adjust error estimates.</p></li>
+<li><p><code class="samp docutils literal notranslate"><span class="pre">partiality_threshold=0.95</span></code>  Disregard all measurements with partialities
+below this value.</p></li>
 </ul>
 </section>
 <section id="practicalities-for-large-datasets">
@@ -149,7 +185,7 @@ be output in a single .refl/.expt file.</p>
 <p><strong>Scaling against a dials reference dataset.</strong>
 In this example, reference.refl and reference.expt are from a dataset that has
 already been scaled with dials.scale. To scale another dataset (datafiles
-integrated.refl, integrated.expt) against this reference, one should use the
+<code class="samp docutils literal notranslate"><span class="pre">integrated.refl</span> <span class="pre">integrated.expt</span></code>) against this reference, one should use the
 following command:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">scale</span> <span class="n">only_target</span><span class="o">=</span><span class="kc">True</span> <span class="n">integrated</span><span class="o">.</span><span class="n">refl</span> <span class="n">integrated</span><span class="o">.</span><span class="n">expt</span> <span class="n">reference</span><span class="o">.</span><span class="n">refl</span> <span class="n">reference</span><span class="o">.</span><span class="n">expt</span>
 </pre></div>
