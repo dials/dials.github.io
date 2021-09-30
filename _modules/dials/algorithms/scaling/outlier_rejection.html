@@ -56,6 +56,9 @@
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">dxtbx</span> <span class="kn">import</span> <span class="n">flumpy</span>
 <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 
 <span class="kn">from</span> <span class="nn">dials.algorithms.scaling.Ih_table</span> <span class="kn">import</span> <span class="n">IhTable</span>
@@ -111,7 +114,7 @@
         <span class="n">reflection_table</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">outlier_in_scaling</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">reflection_table</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span>
-        <span class="n">outlier_indices</span><span class="p">,</span> <span class="n">reflection_table</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">outlier_in_scaling</span>
+        <span class="n">flumpy</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">outlier_indices</span><span class="p">),</span> <span class="n">reflection_table</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">outlier_in_scaling</span>
     <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">reflection_table</span></div>
@@ -128,13 +131,23 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_e2_outliers</span><span class="si">}</span><span class="s2"> outliers identified from normalised intensity analysis (E</span><span class="se">\xb2</span><span class="s2"> &gt; </span><span class="si">{</span><span class="p">(</span><span class="n">emax</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
         <span class="p">)</span>
-    <span class="n">outlier_indices</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table_blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+    <span class="n">outlier_indices</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table_blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">flumpy</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">sel</span><span class="p">)]</span>
+        <span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="p">)</span>
     <span class="k">if</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">n_datasets</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">outlier_indices</span><span class="p">]</span>
-    <span class="n">datasets</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table_blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+    <span class="n">datasets</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table_blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">flumpy</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">sel</span><span class="p">)]</span>
+        <span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="p">)</span>
     <span class="n">final_outlier_arrays</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">n_datasets</span><span class="p">):</span>
-        <span class="n">final_outlier_arrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">outlier_indices</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">datasets</span> <span class="o">==</span> <span class="n">i</span><span class="p">))</span>
+        <span class="n">final_outlier_arrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">outlier_indices</span><span class="p">[</span><span class="n">datasets</span> <span class="o">==</span> <span class="n">i</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">final_outlier_arrays</span></div>
 
 
@@ -212,9 +225,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">blocked_data_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_n_datasets</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">n_datasets</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_block_selections</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">blocked_selection_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint64</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">0</span><span class="p">,))</span>  <span class="c1"># flex.int([])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_zmax</span> <span class="o">=</span> <span class="n">zmax</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint64</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="p">(</span><span class="mi">0</span><span class="p">,)</span>
+        <span class="p">)</span>  <span class="c1"># flex.size_t([])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">final_outlier_arrays</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 <div class="viewcode-block" id="OutlierRejectionBase.run"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.outlier_rejection.OutlierRejectionBase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -239,9 +254,7 @@
             <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="p">]</span>
         <span class="n">final_outlier_arrays</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_datasets</span><span class="p">):</span>
-            <span class="n">final_outlier_arrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
-            <span class="p">)</span>
+            <span class="n">final_outlier_arrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span> <span class="o">==</span> <span class="n">i</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">final_outlier_arrays</span>
 
     <span class="k">def</span> <span class="nf">_do_outlier_rejection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -274,42 +287,51 @@
         <span class="n">target_asu_Ih_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
             <span class="nb">zip</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">asu_miller_index</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">Ih_values</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">variances</span><span class="p">))</span>
         <span class="p">)</span>
-        <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
-        <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_sigmasq&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_sigmasq&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">miller_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">asu_miller_index</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">miller_idx</span> <span class="ow">in</span> <span class="n">target_asu_Ih_dict</span><span class="p">:</span>
-                <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_value&quot;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">target_asu_Ih_dict</span><span class="p">[</span>
+                <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="s2">&quot;target_Ih_value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">target_asu_Ih_dict</span><span class="p">[</span>
                     <span class="n">miller_idx</span>
                 <span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_sigmasq&quot;</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">target_asu_Ih_dict</span><span class="p">[</span>
+                <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="s2">&quot;target_Ih_sigmasq&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">target_asu_Ih_dict</span><span class="p">[</span>
                     <span class="n">miller_idx</span>
                 <span class="p">][</span><span class="mi">1</span><span class="p">]</span>
 
-        <span class="n">nz_sel</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_value&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="mf">0.0</span>
+        <span class="n">nz_sel</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="o">!=</span> <span class="mf">0.0</span>
         <span class="n">Ih_table</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">nz_sel</span><span class="p">)</span>
         <span class="n">norm_dev</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">Ih_table</span><span class="o">.</span><span class="n">intensities</span>
-            <span class="o">-</span> <span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">inverse_scale_factors</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_value&quot;</span><span class="p">])</span>
+            <span class="o">-</span> <span class="p">(</span>
+                <span class="n">Ih_table</span><span class="o">.</span><span class="n">inverse_scale_factors</span>
+                <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+            <span class="p">)</span>
         <span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
-            <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
                 <span class="n">Ih_table</span><span class="o">.</span><span class="n">variances</span>
                 <span class="o">+</span> <span class="p">(</span>
-                    <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">inverse_scale_factors</span><span class="p">)</span>
-                    <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_sigmasq&quot;</span><span class="p">]</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">inverse_scale_factors</span><span class="p">)</span>
+                    <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;target_Ih_sigmasq&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
                 <span class="p">)</span>
             <span class="p">)</span>
         <span class="p">)</span>
-        <span class="n">outliers_sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">norm_dev</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zmax</span>
-        <span class="n">outliers_isel</span> <span class="o">=</span> <span class="n">nz_sel</span><span class="o">.</span><span class="n">iselection</span><span class="p">()</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">outliers_sel</span><span class="p">)</span>
+        <span class="n">outliers_sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">norm_dev</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zmax</span>
+        <span class="n">outliers_isel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">nz_sel</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="n">outliers_sel</span><span class="p">]</span>
 
-        <span class="n">outliers</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="n">outliers</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">outliers_isel</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">outliers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">outliers</span><span class="p">[</span><span class="n">outliers_isel</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">outliers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">outliers</span><span class="p">],</span>
+            <span class="p">]</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">outliers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">outliers</span><span class="p">],</span>
+            <span class="p">]</span>
         <span class="p">)</span></div>
 
 
@@ -322,9 +344,11 @@
 
 <div class="viewcode-block" id="SimpleNormDevOutlierRejection.__init__"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.outlier_rejection.SimpleNormDevOutlierRejection.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Ih_table</span><span class="p">,</span> <span class="n">zmax</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">Ih_table</span><span class="p">,</span> <span class="n">zmax</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">limit_outlier_weights</span><span class="p">(</span>
-            <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">weights</span><span class="p">),</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">h_index_matrix</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">flumpy</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span>
+            <span class="n">limit_outlier_weights</span><span class="p">(</span>
+                <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">weights</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">h_index_matrix</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_do_outlier_rejection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -333,28 +357,34 @@
         <span class="n">intensity</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">intensities</span>
         <span class="n">g</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">inverse_scale_factors</span>
         <span class="n">w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span>
-        <span class="n">wgIsum</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">intensity</span><span class="p">)</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_index_matrix</span>
-        <span class="p">)</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_expand_matrix</span>
-        <span class="n">wg2sum</span> <span class="o">=</span> <span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">)</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_index_matrix</span><span class="p">)</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_expand_matrix</span>
+        <span class="n">wgIsum</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">sum_in_groups</span><span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">intensity</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;per_refl&quot;</span><span class="p">)</span>
+        <span class="n">wg2sum</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">sum_in_groups</span><span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;per_refl&quot;</span><span class="p">)</span>
 
         <span class="c1"># guard against zero division errors - can happen due to rounding errors</span>
         <span class="c1"># or bad data giving g values are very small</span>
         <span class="n">zero_sel</span> <span class="o">=</span> <span class="n">wg2sum</span> <span class="o">==</span> <span class="mf">0.0</span>
         <span class="c1"># set as one for now, then mark as outlier below. This will only affect if</span>
         <span class="c1"># g is near zero, if w is zero then throw an assertionerror.</span>
-        <span class="n">wg2sum</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">zero_sel</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">wg2sum</span><span class="p">[</span><span class="n">zero_sel</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
 
-        <span class="k">assert</span> <span class="n">w</span><span class="o">.</span><span class="n">all_gt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># guard against division by zero</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">w</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># guard against division by zero</span>
         <span class="n">norm_dev</span> <span class="o">=</span> <span class="p">(</span><span class="n">intensity</span> <span class="o">-</span> <span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">wgIsum</span> <span class="o">/</span> <span class="n">wg2sum</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span>
-            <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">w</span><span class="p">)</span> <span class="o">+</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">g</span> <span class="o">/</span> <span class="n">wg2sum</span><span class="p">))</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">w</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">g</span> <span class="o">/</span> <span class="n">wg2sum</span><span class="p">))</span>
         <span class="p">)</span>
-        <span class="n">norm_dev</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">zero_sel</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>  <span class="c1"># to trigger rejection</span>
-        <span class="n">outliers</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">norm_dev</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zmax</span>
+        <span class="n">norm_dev</span><span class="p">[</span><span class="n">zero_sel</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1000</span>  <span class="c1"># to trigger rejection</span>
+        <span class="n">outliers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">norm_dev</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zmax</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">outliers</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">outliers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">outliers</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">outliers</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+            <span class="p">]</span>
         <span class="p">)</span></div>
 
 
@@ -367,20 +397,22 @@
 
 <div class="viewcode-block" id="NormDevOutlierRejection.__init__"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.outlier_rejection.NormDevOutlierRejection.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Ih_table</span><span class="p">,</span> <span class="n">zmax</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">Ih_table</span><span class="p">,</span> <span class="n">zmax</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">limit_outlier_weights</span><span class="p">(</span>
-            <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">weights</span><span class="p">),</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">h_index_matrix</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">flumpy</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span>
+            <span class="n">limit_outlier_weights</span><span class="p">(</span>
+                <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">weights</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">h_index_matrix</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_do_outlier_rejection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Add indices (w.r.t. the Ih_table data) to self._outlier_indices.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_round_of_outlier_rejection</span><span class="p">()</span>
-        <span class="n">n_outliers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="p">)</span>
+        <span class="n">n_outliers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="o">.</span><span class="n">size</span>
         <span class="n">n_new_outliers</span> <span class="o">=</span> <span class="n">n_outliers</span>
         <span class="k">while</span> <span class="n">n_new_outliers</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_round_of_outlier_rejection</span><span class="p">()</span>
-            <span class="n">n_new_outliers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="p">)</span> <span class="o">-</span> <span class="n">n_outliers</span>
-            <span class="n">n_outliers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="p">)</span>
+            <span class="n">n_new_outliers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="n">n_outliers</span>
+            <span class="n">n_outliers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="o">.</span><span class="n">size</span>
 
     <span class="k">def</span> <span class="nf">_round_of_outlier_rejection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -390,50 +422,61 @@
         <span class="n">intensity</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">intensities</span>
         <span class="n">g</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">inverse_scale_factors</span>
         <span class="n">w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span>
-        <span class="n">wgIsum</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">intensity</span><span class="p">)</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_index_matrix</span>
-        <span class="p">)</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_expand_matrix</span>
-        <span class="n">wg2sum</span> <span class="o">=</span> <span class="p">((</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">)</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_index_matrix</span><span class="p">)</span> <span class="o">*</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_expand_matrix</span>
+        <span class="n">wgIsum</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">sum_in_groups</span><span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">intensity</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;per_refl&quot;</span><span class="p">)</span>
+        <span class="n">wg2sum</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">sum_in_groups</span><span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;per_refl&quot;</span><span class="p">)</span>
         <span class="n">wgIsum_others</span> <span class="o">=</span> <span class="n">wgIsum</span> <span class="o">-</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">intensity</span><span class="p">)</span>
         <span class="n">wg2sum_others</span> <span class="o">=</span> <span class="n">wg2sum</span> <span class="o">-</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">g</span><span class="p">)</span>
         <span class="c1"># Now do the rejection analysis if n_in_group &gt; 2</span>
         <span class="n">nh</span> <span class="o">=</span> <span class="n">Ih_table</span><span class="o">.</span><span class="n">calc_nh</span><span class="p">()</span>
         <span class="n">sel</span> <span class="o">=</span> <span class="n">nh</span> <span class="o">&gt;</span> <span class="mi">2</span>
-        <span class="n">wg2sum_others_sel</span> <span class="o">=</span> <span class="n">wg2sum_others</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-        <span class="n">wgIsum_others_sel</span> <span class="o">=</span> <span class="n">wgIsum_others</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+        <span class="n">wg2sum_others_sel</span> <span class="o">=</span> <span class="n">wg2sum_others</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span>
+        <span class="n">wgIsum_others_sel</span> <span class="o">=</span> <span class="n">wgIsum_others</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span>
 
         <span class="c1"># guard against zero division errors - can happen due to rounding errors</span>
         <span class="c1"># or bad data giving g values are very small</span>
         <span class="n">zero_sel</span> <span class="o">=</span> <span class="n">wg2sum_others_sel</span> <span class="o">==</span> <span class="mf">0.0</span>
         <span class="c1"># set as one for now, then mark as outlier below. This will only affect if</span>
         <span class="c1"># g is near zero, if w is zero then throw an assertionerror.</span>
-        <span class="n">wg2sum_others_sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">zero_sel</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
-        <span class="n">g_sel</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-        <span class="n">I_sel</span> <span class="o">=</span> <span class="n">intensity</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-        <span class="n">w_sel</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+        <span class="n">wg2sum_others_sel</span><span class="p">[</span><span class="n">zero_sel</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">g_sel</span> <span class="o">=</span> <span class="n">g</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span>
+        <span class="n">I_sel</span> <span class="o">=</span> <span class="n">intensity</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span>
+        <span class="n">w_sel</span> <span class="o">=</span> <span class="n">w</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span>
 
-        <span class="k">assert</span> <span class="n">w_sel</span><span class="o">.</span><span class="n">all_gt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># guard against division by zero</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">w_sel</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># guard against division by zero</span>
         <span class="n">norm_dev</span> <span class="o">=</span> <span class="p">(</span><span class="n">I_sel</span> <span class="o">-</span> <span class="p">(</span><span class="n">g_sel</span> <span class="o">*</span> <span class="n">wgIsum_others_sel</span> <span class="o">/</span> <span class="n">wg2sum_others_sel</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span>
-            <span class="n">flex</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">w_sel</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span><span class="n">g_sel</span><span class="p">)</span> <span class="o">/</span> <span class="n">wg2sum_others_sel</span><span class="p">))</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">w_sel</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">g_sel</span><span class="p">)</span> <span class="o">/</span> <span class="n">wg2sum_others_sel</span><span class="p">))</span>
         <span class="p">)</span>
-        <span class="n">norm_dev</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">zero_sel</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>  <span class="c1"># to trigger rejection</span>
-        <span class="n">z_score</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">norm_dev</span><span class="p">)</span>
+        <span class="n">norm_dev</span><span class="p">[</span><span class="n">zero_sel</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1000</span>  <span class="c1"># to trigger rejection</span>
+        <span class="n">z_score</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">norm_dev</span><span class="p">)</span>
         <span class="c1"># Want an array same size as Ih table.</span>
-        <span class="n">all_z_scores</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
-        <span class="n">all_z_scores</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="o">.</span><span class="n">iselection</span><span class="p">(),</span> <span class="n">z_score</span><span class="p">)</span>
+        <span class="n">all_z_scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="c1"># all_z_scores.set_selected(sel.iselection(), z_score)</span>
+        <span class="n">all_z_scores</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">=</span> <span class="n">z_score</span>
         <span class="n">outlier_indices</span><span class="p">,</span> <span class="n">other_potential_outliers</span> <span class="o">=</span> <span class="n">determine_outlier_indices</span><span class="p">(</span>
-            <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_index_matrix</span><span class="p">,</span> <span class="n">all_z_scores</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zmax</span>
+            <span class="n">Ih_table</span><span class="o">.</span><span class="n">h_index_matrix</span><span class="p">,</span> <span class="n">flumpy</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">all_z_scores</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zmax</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">outlier_indices</span><span class="p">)</span>
+        <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">outlier_indices</span> <span class="o">=</span> <span class="n">flumpy</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">outlier_indices</span><span class="p">)</span>
+        <span class="n">sel</span><span class="p">[</span><span class="n">outlier_indices</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">lsel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;loc_indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+        <span class="n">dsel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_outlier_indices</span><span class="p">,</span>
+                <span class="n">lsel</span><span class="p">,</span>
+            <span class="p">]</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">Ih_table</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">outlier_indices</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_datasets</span><span class="p">,</span>
+                <span class="n">dsel</span><span class="p">,</span>
+            <span class="p">]</span>
         <span class="p">)</span>
-        <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="n">sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">other_potential_outliers</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">Ih_table</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">sel</span><span class="p">[</span><span class="n">flumpy</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">other_potential_outliers</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Ih_table_block</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span></div>
 </pre></div>
 
           </div>
