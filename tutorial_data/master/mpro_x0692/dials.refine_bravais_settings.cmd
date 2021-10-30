@@ -1,1 +1,1 @@
-dials.refine_bravais_settings indexed.expt indexed.refl
+dials.refine_bravais_settings indexed.expt indexed.refl best_monoclinic_beta=False

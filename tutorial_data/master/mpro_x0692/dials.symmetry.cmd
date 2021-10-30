@@ -1,1 +1,1 @@
-dials.symmetry integrated.expt integrated.refl
+dials.symmetry integrated.expt integrated.refl best_monoclinic_beta=False
