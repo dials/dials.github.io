@@ -230,6 +230,64 @@ direction of the scattering vector <span class="math notranslate nohighlight">\(
 image in number of pixels (starting 0,0 at the origin).</p></li>
 </ul>
 </div></blockquote>
+</section>
+<section id="the-dxtbx-goniometer-model">
+<h3>The DXTBX goniometer model<a class="headerlink" href="#the-dxtbx-goniometer-model" title="Permalink to this headline">¶</a></h3>
+<p>The following information is likely only to be of interest to developers of
+DIALS, since it is concerned with internal conventions for the
+representation of the goniostat rotation operator.</p>
+<p>When one performs a rotation diffraction experiment, the goniostat rotation
+operator <span class="math notranslate nohighlight">\(\mathbf{R}\)</span>, which was introduced in <a class="reference internal" href="#equation-diffractometer">(2)</a>,
+represents the rotation of the sample in the real-space laboratory frame.
+Equivalently, it relates the laboratory frame to the rotated real-space
+coordinate system of the sample.  By numbering the physical motors of a
+goniometer such that motor 1 is mounted to the laboratory floor, motor 2
+is mounted on motor 1, motor 3 is mounted on motor 2, etc.,
+<span class="math notranslate nohighlight">\(\mathbf{R}\)</span> can be expressed as a composition of rotation operators,
+one for each motor,</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{R} = \mathbf{R}_1 \circ \mathbf{R}_2 \circ \mathbf{R}_3 \circ \cdots \,\text{.}\]</div>
+<p>It is useful to represent <span class="math notranslate nohighlight">\(\mathbf{R}\)</span> this way because, in practice,
+the position of a gonimometer is usually recorded as an angular displacement
+for each motor <span class="math notranslate nohighlight">\(i\)</span>, which gives the magnitude of the rotation
+<span class="math notranslate nohighlight">\(\mathbf{R}_i\)</span>, combined with prior knowledge of the orientation of
+each motor’s axis in the laboratory frame when the goniometer is at its zero
+datum, which gives the axis vector of <span class="math notranslate nohighlight">\(\mathbf{R}_i\)</span>.</p>
+<p>DIALS uses the DXTBX package to handle the geometry of diffraction
+experiments.  In DXTBX, it is assumed that only one goniometer motor will
+turn during a measurement scan.  Numbering that motor <span class="math notranslate nohighlight">\(n\)</span>, the various
+operators <span class="math notranslate nohighlight">\(\mathbf{R}_i\)</span> are grouped into three,</p>
+<div class="math notranslate nohighlight" id="equation-dxtbx-operators">
+<span class="eqno">(8)<a class="headerlink" href="#equation-dxtbx-operators" title="Permalink to this equation">¶</a></span>\[\mathbf{R} = \mathbf{S} \circ \mathbf{R}' \circ \mathbf{F} \,\text{,}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{R}' = \mathbf{R}_n\)</span> is the scanning axis rotation and
+<span class="math notranslate nohighlight">\(\mathbf{S}\)</span> and <span class="math notranslate nohighlight">\(\mathbf{F}\)</span> are combined rotation operators,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{eqnarray}
+   \mathbf{S} &amp;= \cdots \circ \mathbf{R}_{n - 1} \,\text{;} \\
+   \mathbf{F} &amp;= \mathbf{R}_{n + 1} \circ \cdots \,\text{.}
+\end{eqnarray}\end{split}\]</div>
+<p><span class="math notranslate nohighlight">\(\mathbf{S}\)</span> is referred to as the ‘setting rotation’ (not to be
+confused with the crystal setting operator <span class="math notranslate nohighlight">\(\mathbf{A}\)</span>) and
+represents the combined rotation of all motors between the laboratory floor
+and the scanning motor <span class="math notranslate nohighlight">\(n\)</span>.  The setting rotation is so-named because
+it sets the orientation of the axis of <span class="math notranslate nohighlight">\(n\)</span>.  <span class="math notranslate nohighlight">\(\mathbf{F}\)</span> is
+referred to as the ‘fixed rotation’ and represents the combined rotation of
+all axes between <span class="math notranslate nohighlight">\(n\)</span> and the sample.  Both <span class="math notranslate nohighlight">\(\mathbf{S}\)</span> and
+<span class="math notranslate nohighlight">\(\mathbf{F}\)</span> are constant throughout a scan, since they represent
+motors whose positions are set before starting the scan and remain fixed
+throughout the scan.</p>
+<p>For example, a common diffractometer apparatus is the three-circle <span class="math notranslate nohighlight">\(κ\)</span>
+geometry.  In this arrangement, the <span class="math notranslate nohighlight">\(ω\)</span> motor is fixed to the
+laboratory floor, the <span class="math notranslate nohighlight">\(κ\)</span> motor is mounted on <span class="math notranslate nohighlight">\(ω\)</span>, and the
+<span class="math notranslate nohighlight">\(φ\)</span> motor is mounted on <span class="math notranslate nohighlight">\(κ\)</span> and holds the sample mount.  During
+a typical rotation scan, either <span class="math notranslate nohighlight">\(φ\)</span> or <span class="math notranslate nohighlight">\(ω\)</span> will rotate, while
+the other two axes are held in a fixed orientation, chosen so as to explore
+a particular region of reciprocal space.  In the case of a <span class="math notranslate nohighlight">\(φ\)</span> scan,
+<span class="math notranslate nohighlight">\(\mathbf{S} = \mathbf{R}_ω \circ \mathbf{R}_κ\)</span>,
+<span class="math notranslate nohighlight">\(\mathbf{R}' = \mathbf{R}_φ\)</span> and <span class="math notranslate nohighlight">\(\mathbf{F} = 𝟙\)</span>.  In the case
+of an <span class="math notranslate nohighlight">\(ω\)</span> scan, <span class="math notranslate nohighlight">\(\mathbf{S} = 𝟙\)</span>,
+<span class="math notranslate nohighlight">\(\mathbf{R}' = \mathbf{R}_ω\)</span> and
+<span class="math notranslate nohighlight">\(\mathbf{F} = \mathbf{R}_κ \circ \mathbf{R}_φ\)</span>.</p>
 <p class="rubric">References</p>
 <dl class="footnote brackets">
 <dt class="label" id="bernstein2006"><span class="brackets"><a class="fn-backref" href="#id8">1</a></span></dt>
@@ -239,7 +297,7 @@ image in number of pixels (starting 0,0 at the origin).</p></li>
 <dd><p>Busing, W. R. &amp; Levy, H. A. Angle calculations for 3- and 4-circle X-ray and neutron diffractometers. Acta Crystallogr. 22, 457–464 (1967).</p>
 </dd>
 <dt class="label" id="giacovazzo2002"><span class="brackets"><a class="fn-backref" href="#id6">3</a></span></dt>
-<dd><p>Giacovazzo, C. Fundamentals of Crystallography. (Oxofrd University Press, USA, 2002).</p>
+<dd><p>Giacovazzo, C. Fundamentals of Crystallography. (Oxford University Press, USA, 2002).</p>
 </dd>
 <dt class="label" id="grossekunstleve2002"><span class="brackets"><a class="fn-backref" href="#id5">4</a></span></dt>
 <dd><p>Grosse-Kunstleve, R. W., Sauter, N. K., Moriarty, N. W. &amp; Adams, P. D. The Computational Crystallography Toolbox: crystallographic algorithms in a reusable software framework. J. Appl. Crystallogr. 35, 126–136 (2002).</p>
