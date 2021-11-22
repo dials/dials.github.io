@@ -43,13 +43,14 @@
           <div class="body" role="main">
             
   <h1>Source code for dials.util.options</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">copy</span>
+<span></span><span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
-<span class="kn">import</span> <span class="nn">optparse</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">namedtuple</span>
 <span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
 
@@ -658,10 +659,10 @@
         <span class="k">return</span> <span class="n">input_phil_scope</span></div>
 
 
-<div class="viewcode-block" id="OptionParserBase"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParserBase">[docs]</a><span class="k">class</span> <span class="nc">OptionParserBase</span><span class="p">(</span><span class="n">optparse</span><span class="o">.</span><span class="n">OptionParser</span><span class="p">):</span>
+<div class="viewcode-block" id="ArgumentParserBase"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParserBase">[docs]</a><span class="k">class</span> <span class="nc">ArgumentParserBase</span><span class="p">(</span><span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The base class for the option parser.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="OptionParserBase.__init__"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParserBase.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="ArgumentParserBase.__init__"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParserBase.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialise the class.</span>
 
@@ -670,11 +671,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># Initialise the option parser</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">add_help</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># Add an option to show configuration parameters</span>
         <span class="k">if</span> <span class="n">config_options</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
                 <span class="s2">&quot;-c&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;--show-config&quot;</span><span class="p">,</span>
                 <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
@@ -682,33 +683,33 @@
                 <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;show_config&quot;</span><span class="p">,</span>
                 <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show the configuration parameters.&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
                 <span class="s2">&quot;-a&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;--attributes-level&quot;</span><span class="p">,</span>
                 <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-                <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;int&quot;</span><span class="p">,</span>
+                <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
                 <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;attributes_level&quot;</span><span class="p">,</span>
                 <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Set the attributes level for showing configuration parameters&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
                 <span class="s2">&quot;-e&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;--expert-level&quot;</span><span class="p">,</span>
-                <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;int&quot;</span><span class="p">,</span>
+                <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
                 <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                 <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;expert_level&quot;</span><span class="p">,</span>
                 <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Set the expert level for showing configuration parameters&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
                 <span class="s2">&quot;--export-autocomplete-hints&quot;</span><span class="p">,</span>
                 <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
                 <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;export_autocomplete_hints&quot;</span><span class="p">,</span>
-                <span class="n">help</span><span class="o">=</span><span class="n">optparse</span><span class="o">.</span><span class="n">SUPPRESS_HELP</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">SUPPRESS</span><span class="p">,</span>
             <span class="p">)</span>
 
         <span class="c1"># Add an option to sort</span>
         <span class="k">if</span> <span class="n">sort_options</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
                 <span class="s2">&quot;-s&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;--sort&quot;</span><span class="p">,</span>
                 <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
@@ -717,8 +718,18 @@
                 <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Sort the arguments&quot;</span><span class="p">,</span>
             <span class="p">)</span>
 
+        <span class="c1"># Set a help parameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s2">&quot;-h&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;--help&quot;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s2">&quot;count&quot;</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;help&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show this help message and exit. Can be specified multiple times to increase verbosity.&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
         <span class="c1"># Set a verbosity parameter</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
             <span class="s2">&quot;-v&quot;</span><span class="p">,</span>
             <span class="n">action</span><span class="o">=</span><span class="s2">&quot;count&quot;</span><span class="p">,</span>
             <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
@@ -729,14 +740,14 @@
         <span class="c1"># Add an option for PHIL file to parse - PHIL files passed as</span>
         <span class="c1"># positional arguments are also read but this allows the user to</span>
         <span class="c1"># explicitly specify STDIN</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_option</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
             <span class="s2">&quot;--phil&quot;</span><span class="p">,</span>
             <span class="n">action</span><span class="o">=</span><span class="s2">&quot;append&quot;</span><span class="p">,</span>
             <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;FILE&quot;</span><span class="p">,</span>
             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;PHIL files to read. Pass &#39;-&#39; for STDIN. Can be specified multiple times, but duplicates ignored.&quot;</span><span class="p">,</span>
         <span class="p">)</span></div>
 
-<div class="viewcode-block" id="OptionParserBase.parse_args"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParserBase.parse_args">[docs]</a>    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="ArgumentParserBase.parse_known_args"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParserBase.parse_known_args">[docs]</a>    <span class="k">def</span> <span class="nf">parse_known_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Parse the command line arguments and get system configuration.</span>
 
@@ -747,7 +758,7 @@
         <span class="c1"># Parse the command line arguments, this will separate out</span>
         <span class="c1"># options (e.g. -o, --option) and positional arguments, in</span>
         <span class="c1"># which phil options will be included.</span>
-        <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+        <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
 
         <span class="c1"># Read any argument-specified PHIL file. Ignore duplicates.</span>
         <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">phil</span><span class="p">:</span>
@@ -769,19 +780,19 @@
         <span class="c1"># Return the parameters</span>
         <span class="k">return</span> <span class="n">options</span><span class="p">,</span> <span class="n">args</span></div>
 
-<div class="viewcode-block" id="OptionParserBase.format_epilog"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParserBase.format_epilog">[docs]</a>    <span class="k">def</span> <span class="nf">format_epilog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">formatter</span><span class="p">):</span>
+<div class="viewcode-block" id="ArgumentParserBase.format_epilog"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParserBase.format_epilog">[docs]</a>    <span class="k">def</span> <span class="nf">format_epilog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">formatter</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Don&#39;t do formatting on epilog.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">epilog</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="s2">&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">epilog</span></div></div>
 
 
-<div class="viewcode-block" id="OptionParser"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser">[docs]</a><span class="k">class</span> <span class="nc">OptionParser</span><span class="p">(</span><span class="n">OptionParserBase</span><span class="p">):</span>
+<div class="viewcode-block" id="ArgumentParser"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParser">[docs]</a><span class="k">class</span> <span class="nc">ArgumentParser</span><span class="p">(</span><span class="n">ArgumentParserBase</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A class to parse command line options and get the system configuration.</span>
-<span class="sd">    The class extends optparse.OptionParser to include the reading of phil</span>
+<span class="sd">    The class extends argparse.ArgumentParser to include the reading of phil</span>
 <span class="sd">    parameters.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="OptionParser.__init__"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<div class="viewcode-block" id="ArgumentParser.__init__"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParser.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">phil</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">read_experiments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -818,7 +829,7 @@
             <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
         <span class="p">)</span></div>
 
-<div class="viewcode-block" id="OptionParser.parse_args"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser.parse_args">[docs]</a>    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span>
+<div class="viewcode-block" id="ArgumentParser.parse_args"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParser.parse_args">[docs]</a>    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">show_diff_phil</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -842,20 +853,33 @@
         <span class="c1"># Parse the command line arguments, this will separate out</span>
         <span class="c1"># options (e.g. -o, --option) and positional arguments, in</span>
         <span class="c1"># which phil options will be included.</span>
-        <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="n">quick_parse</span><span class="p">)</span>
+        <span class="n">options</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="n">quick_parse</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">help</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">print_help</span><span class="p">()</span>
 
         <span class="c1"># Show config</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s2">&quot;show_config&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">options</span><span class="o">.</span><span class="n">show_config</span><span class="p">:</span>
+            <span class="n">show_config</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">attributes_level</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">attributes_level</span>
+            <span class="n">expert_level</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">expert_level</span>
+        <span class="k">elif</span> <span class="n">options</span><span class="o">.</span><span class="n">help</span><span class="p">:</span>
+            <span class="n">show_config</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">attributes_level</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">verbose</span>
+            <span class="n">expert_level</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">help</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">show_config</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">show_config</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span>
                 <span class="s2">&quot;Showing configuration parameters with:</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;  attributes_level = </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;  expert_level = </span><span class="si">%d</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="o">%</span> <span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">attributes_level</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">expert_level</span><span class="p">)</span>
+                <span class="sa">f</span><span class="s2">&quot;  attributes_level = </span><span class="si">{</span><span class="n">attributes_level</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;  expert_level = </span><span class="si">{</span><span class="n">expert_level</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
             <span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">as_str</span><span class="p">(</span>
-                    <span class="n">expert_level</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">expert_level</span><span class="p">,</span>
-                    <span class="n">attributes_level</span><span class="o">=</span><span class="n">options</span><span class="o">.</span><span class="n">attributes_level</span><span class="p">,</span>
+                    <span class="n">expert_level</span><span class="o">=</span><span class="n">expert_level</span><span class="p">,</span>
+                    <span class="n">attributes_level</span><span class="o">=</span><span class="n">attributes_level</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="p">)</span>
             <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -997,14 +1021,14 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;::&quot;</span><span class="p">,</span> <span class="s2">&quot;:&quot;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="OptionParser.format_help"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser.format_help">[docs]</a>    <span class="k">def</span> <span class="nf">format_help</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="ArgumentParser.format_help"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParser.format_help">[docs]</a>    <span class="k">def</span> <span class="nf">format_help</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Format the help string</span>
 
 <span class="sd">        :param formatter: The formatter to use</span>
 <span class="sd">        :return: The formatted help text</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">format_help</span><span class="p">(</span><span class="n">formatter</span><span class="o">=</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">format_help</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strip_rst_markup</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_export_autocomplete_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1125,6 +1149,17 @@
         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;    _dials_autocomplete_values=&quot;</span><span class="si">%s</span><span class="s1">&quot;;;&#39;</span> <span class="o">%</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">toplevelset</span><span class="p">)))</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; esac&quot;</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OptionParser"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser">[docs]</a><span class="k">class</span> <span class="nc">OptionParser</span><span class="p">(</span><span class="n">ArgumentParser</span><span class="p">):</span>
+<div class="viewcode-block" id="OptionParser.__init__"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># Backwards compatibility 2021-11-10</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;OptionParser will be deprecated in future, use ArgumentParser instead&quot;</span><span class="p">,</span>
+            <span class="ne">PendingDeprecationWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
 
 
 <div class="viewcode-block" id="flatten_reflections"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.flatten_reflections">[docs]</a><span class="k">def</span> <span class="nf">flatten_reflections</span><span class="p">(</span><span class="n">filename_object_list</span><span class="p">):</span>
