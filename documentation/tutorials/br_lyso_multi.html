@@ -1,0 +1,738 @@
+
+
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Multi-crystal analysis with DIALS and xia2.multiplex &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <link rel="stylesheet" href="../../_static/dials-styles.css" type="text/css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="MyD88TIR small wedges" href="3DED/MyD88.html" />
+    <link rel="prev" title="Multi-crystal analysis with DIALS and BLEND: individual vs joint refinement" href="multi_crystal_analysis.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="multi-crystal-analysis-with-dials-and-xia2-multiplex">
+<h1>Multi-crystal analysis with DIALS and xia2.multiplex<a class="headerlink" href="#multi-crystal-analysis-with-dials-and-xia2-multiplex" title="Permalink to this headline">¶</a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The actual <em>processing</em> of multi-crystal data is essentially no
+different to processing regular rotation data in the first instance -
+though there are some potential differences in how you handle the data,
+by and large the process for an individual sweep is straightforward. The
+work comes in identifying which subsets of data (e.g. which crystals, or
+subsets of data from crystals) to merge into the final data set. This
+tutorial covers the basics of how to use DIALS tools to make these
+choices.</p>
+<p>One particular issue with multi-crystal data processing is the
+“bookkeeping” i.e. keeping track of individual data sets, which can
+become cumbersome when the numbers are large. This tutorial is aimed at
+helping you to use the tools at your disposal to process such data with
+the minimum of 🤯.</p>
+<p>The aim of the tutorial is to introduce you to tools for symmetry
+determination, incremental scaling and data elimination such that you
+could use them during experimental beam time.</p>
+</section>
+<section id="data">
+<h2>Data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h2>
+<p>For this tutorial the data kindly provided from a <a class="reference external" href="https://zenodo.org/record/1442922">CCP4 School at SPring
+8</a> will be used - in particular
+the 31 data sets included in <code class="docutils literal notranslate"><span class="pre">bl32xu_group2_data.tar.xz</span></code>. These are
+recorded using the <code class="docutils literal notranslate"><span class="pre">zoo</span></code> system with an Eiger 9M detector, and appear
+in the data <em>files</em> as 3,100 images which we have to interpret as 31 x
+100 image &#64; 0.1° / frame data sets. The data are from small samples of
+tetragonal lysozyme (unit cell ~ 78, 78, 38, 90, 90, 90, space group
+P43212), though we won’t use that information from the outset.</p>
+<p>The mode of data collection makes these data a little “special” so when
+importing care must be taken to treat the 31 x 100 image data sets as
+different data sets: in <code class="docutils literal notranslate"><span class="pre">dials.import</span></code> using <code class="docutils literal notranslate"><span class="pre">image_range=1,100</span></code>
+etc. is necessary. The data were taken from a single loop, which was
+raster scanned to identify the sample positions then collected using the
+ZOO system:</p>
+<figure class="align-default" id="id1">
+<img alt="Loop image" src="https://dials.github.io/images/br-lyso-multi/loop.jpg" />
+<figcaption>
+<p><span class="caption-text">Loop image</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+</section>
+<section id="bookkeeping">
+<h2>Bookkeeping<a class="headerlink" href="#bookkeeping" title="Permalink to this headline">¶</a></h2>
+<p>This process will involve processing dozens of data sets, will create
+hundreds of files and will involve running similar looking scaling tasks
+on several occasions so care will need to be taken on how you organise
+yourself.</p>
+<p>I’ve chosen to present the processing as directories <code class="docutils literal notranslate"><span class="pre">sweep00</span></code> to
+<code class="docutils literal notranslate"><span class="pre">sweep30</span></code> (i.e. 31 directories, using computer counting) and then
+<code class="docutils literal notranslate"><span class="pre">combine0-9</span></code> for combining first 10, <code class="docutils literal notranslate"><span class="pre">combine0-19</span></code> for first 20 etc.
+Any other organisation will do, but these need to be consistent.</p>
+</section>
+<section id="process">
+<h2>Process<a class="headerlink" href="#process" title="Permalink to this headline">¶</a></h2>
+<p>The first step is to integrate the data we have - without making any
+assumptions. For this the following bash “spell” is appropriate:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>for ((j=0;j&lt;31;j++));
+do
+  mkdir sweep-$(printf %02d $j)
+  cd sweep-$(printf %02d $j)
+  dials.import ../../*master* image_range=$((100 * j + 1)),$((100 * j + 100))
+  dials.find_spots imported.expt
+  dials.index imported.expt strong.refl
+  dials.refine indexed.expt indexed.refl
+  dials.integrate refined.expt refined.refl
+  cd -
+done
+</pre></div>
+</div>
+<p>This will import and process each 100 image block and really
+demonstrates how shell scripting can be powerful. In “real” data
+collection each data set would probably have a different filename, so
+the only change would be altering the <code class="docutils literal notranslate"><span class="pre">dials.import</span></code> command.</p>
+<p>This will generate 31 × <code class="docutils literal notranslate"><span class="pre">{integrated.refl,integrated.expt}</span></code> pairs that
+are the real input to this process. For this tutorial we will work on
+the first 10, then <em>add</em> the next ten etc. demonstrating the incremental
+approach to combining the data.</p>
+</section>
+<section id="sets-0-9">
+<h2>Sets 0-9<a class="headerlink" href="#sets-0-9" title="Permalink to this headline">¶</a></h2>
+<p>First,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ mkdir combine0-9
+$ cd combine0-9
+</pre></div>
+</div>
+<p>to give us somewhere to work for this - we will first use the
+<code class="docutils literal notranslate"><span class="pre">dials.cosym</span></code> tool to bring all the data together, estimate the
+symmetry and then prepare the data for scaling. This is run with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-9 $ dials.cosym ../sweep-0*/integrated.*
+</pre></div>
+</div>
+<p>This takes the following files</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-9 $ ls ../sweep-0*/integrated.*
+../sweep-00/integrated.expt ../sweep-05/integrated.expt
+../sweep-00/integrated.refl ../sweep-05/integrated.refl
+../sweep-01/integrated.expt ../sweep-06/integrated.expt
+../sweep-01/integrated.refl ../sweep-06/integrated.refl
+../sweep-02/integrated.expt ../sweep-07/integrated.expt
+../sweep-02/integrated.refl ../sweep-07/integrated.refl
+../sweep-03/integrated.expt ../sweep-08/integrated.expt
+../sweep-03/integrated.refl ../sweep-08/integrated.refl
+../sweep-04/integrated.expt ../sweep-09/integrated.expt
+../sweep-04/integrated.refl ../sweep-09/integrated.refl
+</pre></div>
+</div>
+<p>and:</p>
+<ul class="simple">
+<li><p>Maps all crystals back to P1,</p></li>
+<li><p>Checks them for consistency in unit cell,</p></li>
+<li><p>Determines the maximum possible lattice symmetry and lists of possible operations,</p></li>
+<li><p>Tests all operations against all pairs of data sets,</p></li>
+<li><p>Decides those that apply which are space group operations - those which do not apply are “twinning operations” i.e. indexing ambiguity,</p></li>
+<li><p>Resolves ambiguity and output data consistently indexed in the correct space group.</p></li>
+</ul>
+<p>In this case the correct space group is the same as the lattice symmetry
+i.e. P4/mmm, so there is no residual ambiguity. The output gives an
+indication of this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Best</span> <span class="n">number</span> <span class="n">of</span> <span class="n">dimensions</span><span class="p">:</span> <span class="mi">6</span>
+<span class="n">Using</span> <span class="mi">6</span> <span class="n">dimensions</span> <span class="k">for</span> <span class="n">analysis</span>
+<span class="n">Principal</span> <span class="n">component</span> <span class="n">analysis</span><span class="p">:</span>
+<span class="n">Explained</span> <span class="n">variance</span><span class="p">:</span> <span class="mf">0.0015</span><span class="p">,</span> <span class="mf">0.0013</span><span class="p">,</span> <span class="mf">0.0012</span><span class="p">,</span> <span class="mf">0.00078</span><span class="p">,</span> <span class="mf">0.00062</span><span class="p">,</span> <span class="mf">0.00047</span>
+<span class="n">Explained</span> <span class="n">variance</span> <span class="n">ratio</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.22</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.13</span><span class="p">,</span> <span class="mf">0.11</span><span class="p">,</span> <span class="mf">0.081</span>
+<span class="n">Scoring</span> <span class="n">individual</span> <span class="n">symmetry</span> <span class="n">elements</span>
+<span class="o">+--------------+--------+------+-----+-----------------+</span>
+<span class="o">|</span>   <span class="n">likelihood</span> <span class="o">|</span>   <span class="n">Z</span><span class="o">-</span><span class="n">CC</span> <span class="o">|</span>   <span class="n">CC</span> <span class="o">|</span>     <span class="o">|</span> <span class="n">Operator</span>        <span class="o">|</span>
+<span class="o">|--------------+--------+------+-----+-----------------|</span>
+<span class="o">|</span>        <span class="mf">0.947</span> <span class="o">|</span>   <span class="mf">9.95</span> <span class="o">|</span> <span class="mf">0.99</span> <span class="o">|</span> <span class="o">***</span> <span class="o">|</span> <span class="mi">4</span> <span class="o">|</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>    <span class="o">|</span>
+<span class="o">|</span>        <span class="mf">0.947</span> <span class="o">|</span>   <span class="mf">9.95</span> <span class="o">|</span> <span class="mf">0.99</span> <span class="o">|</span> <span class="o">***</span> <span class="o">|</span> <span class="mi">4</span><span class="o">^-</span><span class="mi">1</span> <span class="o">|</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">|</span>
+<span class="o">|</span>        <span class="mf">0.947</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span> <span class="mf">0.99</span> <span class="o">|</span> <span class="o">***</span> <span class="o">|</span> <span class="mi">2</span> <span class="o">|</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>    <span class="o">|</span>
+<span class="o">|</span>        <span class="mf">0.947</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span> <span class="mf">0.99</span> <span class="o">|</span> <span class="o">***</span> <span class="o">|</span> <span class="mi">2</span> <span class="o">|</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>    <span class="o">|</span>
+<span class="o">|</span>        <span class="mf">0.946</span> <span class="o">|</span>   <span class="mf">9.92</span> <span class="o">|</span> <span class="mf">0.99</span> <span class="o">|</span> <span class="o">***</span> <span class="o">|</span> <span class="mi">2</span> <span class="o">|</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>    <span class="o">|</span>
+<span class="o">|</span>        <span class="mf">0.947</span> <span class="o">|</span>   <span class="mf">9.93</span> <span class="o">|</span> <span class="mf">0.99</span> <span class="o">|</span> <span class="o">***</span> <span class="o">|</span> <span class="mi">2</span> <span class="o">|</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>    <span class="o">|</span>
+<span class="o">|</span>        <span class="mf">0.947</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span> <span class="mf">0.99</span> <span class="o">|</span> <span class="o">***</span> <span class="o">|</span> <span class="mi">2</span> <span class="o">|</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>   <span class="o">|</span>
+<span class="o">+--------------+--------+------+-----+-----------------+</span>
+<span class="n">Scoring</span> <span class="nb">all</span> <span class="n">possible</span> <span class="n">sub</span><span class="o">-</span><span class="n">groups</span>
+<span class="o">+-------------------+-----+--------------+----------+--------+--------+---------+--------------------+</span>
+<span class="o">|</span> <span class="n">Patterson</span> <span class="n">group</span>   <span class="o">|</span>     <span class="o">|</span>   <span class="n">Likelihood</span> <span class="o">|</span>   <span class="n">NetZcc</span> <span class="o">|</span>   <span class="n">Zcc</span><span class="o">+</span> <span class="o">|</span>   <span class="n">Zcc</span><span class="o">-</span> <span class="o">|</span>   <span class="n">delta</span> <span class="o">|</span> <span class="n">Reindex</span> <span class="n">operator</span>   <span class="o">|</span>
+<span class="o">|-------------------+-----+--------------+----------+--------+--------+---------+--------------------|</span>
+<span class="o">|</span> <span class="n">P</span> <span class="mi">4</span><span class="o">/</span><span class="n">m</span> <span class="n">m</span> <span class="n">m</span>         <span class="o">|</span> <span class="o">***</span> <span class="o">|</span>            <span class="mi">1</span> <span class="o">|</span>     <span class="mf">9.94</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>   <span class="mi">0</span>    <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">a</span>              <span class="o">|</span>
+<span class="o">|</span> <span class="n">P</span> <span class="mi">4</span><span class="o">/</span><span class="n">m</span>             <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>     <span class="mf">0.01</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>   <span class="mf">9.93</span> <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">a</span>              <span class="o">|</span>
+<span class="o">|</span> <span class="n">C</span> <span class="n">m</span> <span class="n">m</span> <span class="n">m</span>           <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>     <span class="mi">0</span>    <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="n">b</span><span class="o">+</span><span class="n">c</span><span class="p">,</span><span class="o">-</span><span class="n">b</span><span class="o">+</span><span class="n">c</span><span class="p">,</span><span class="n">a</span>         <span class="o">|</span>
+<span class="o">|</span> <span class="n">P</span> <span class="n">m</span> <span class="n">m</span> <span class="n">m</span>           <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>    <span class="o">-</span><span class="mf">0.01</span> <span class="o">|</span>   <span class="mf">9.93</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span>              <span class="o">|</span>
+<span class="o">|</span> <span class="n">C</span> <span class="mi">1</span> <span class="mi">2</span><span class="o">/</span><span class="n">m</span> <span class="mi">1</span>         <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>     <span class="mi">0</span>    <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="n">b</span><span class="o">+</span><span class="n">c</span><span class="p">,</span><span class="o">-</span><span class="n">b</span><span class="o">+</span><span class="n">c</span><span class="p">,</span><span class="n">a</span>         <span class="o">|</span>
+<span class="o">|</span> <span class="n">P</span> <span class="mi">1</span> <span class="mi">2</span><span class="o">/</span><span class="n">m</span> <span class="mi">1</span>         <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>     <span class="mi">0</span>    <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="o">-</span><span class="n">b</span><span class="p">,</span><span class="o">-</span><span class="n">a</span><span class="p">,</span><span class="o">-</span><span class="n">c</span>           <span class="o">|</span>
+<span class="o">|</span> <span class="n">P</span> <span class="mi">1</span> <span class="mi">2</span><span class="o">/</span><span class="n">m</span> <span class="mi">1</span>         <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>    <span class="o">-</span><span class="mi">0</span>    <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span>              <span class="o">|</span>
+<span class="o">|</span> <span class="n">C</span> <span class="mi">1</span> <span class="mi">2</span><span class="o">/</span><span class="n">m</span> <span class="mi">1</span>         <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>    <span class="o">-</span><span class="mi">0</span>    <span class="o">|</span>   <span class="mf">9.93</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="n">b</span><span class="o">-</span><span class="n">c</span><span class="p">,</span><span class="n">b</span><span class="o">+</span><span class="n">c</span><span class="p">,</span><span class="n">a</span>          <span class="o">|</span>
+<span class="o">|</span> <span class="n">P</span> <span class="mi">1</span> <span class="mi">2</span><span class="o">/</span><span class="n">m</span> <span class="mi">1</span>         <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>    <span class="o">-</span><span class="mf">0.02</span> <span class="o">|</span>   <span class="mf">9.92</span> <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>     <span class="mf">0.1</span> <span class="o">|</span> <span class="o">-</span><span class="n">a</span><span class="p">,</span><span class="o">-</span><span class="n">c</span><span class="p">,</span><span class="o">-</span><span class="n">b</span>           <span class="o">|</span>
+<span class="o">|</span> <span class="n">P</span> <span class="o">-</span><span class="mi">1</span>              <span class="o">|</span>     <span class="o">|</span>            <span class="mi">0</span> <span class="o">|</span>    <span class="o">-</span><span class="mf">9.94</span> <span class="o">|</span>   <span class="mi">0</span>    <span class="o">|</span>   <span class="mf">9.94</span> <span class="o">|</span>     <span class="mi">0</span>   <span class="o">|</span> <span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span>              <span class="o">|</span>
+<span class="o">+-------------------+-----+--------------+----------+--------+--------+---------+--------------------+</span>
+<span class="n">Best</span> <span class="n">solution</span><span class="p">:</span> <span class="n">P</span> <span class="mi">4</span><span class="o">/</span><span class="n">m</span> <span class="n">m</span> <span class="n">m</span>
+<span class="n">Unit</span> <span class="n">cell</span><span class="p">:</span> <span class="p">(</span><span class="mf">79.2189</span><span class="p">,</span> <span class="mf">79.2189</span><span class="p">,</span> <span class="mf">37.2723</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+<span class="n">Reindex</span> <span class="n">operator</span><span class="p">:</span> <span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">a</span>
+<span class="n">Laue</span> <span class="n">group</span> <span class="n">probability</span><span class="p">:</span> <span class="mf">1.000</span>
+<span class="n">Laue</span> <span class="n">group</span> <span class="n">confidence</span><span class="p">:</span> <span class="mf">1.000</span>
+<span class="n">Reindexing</span> <span class="n">operators</span><span class="p">:</span>
+<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>and a <code class="docutils literal notranslate"><span class="pre">dials.cosym.html</span></code> is generated, which can be opened with a browser
+(e.g. <code class="docutils literal notranslate"><span class="pre">firefox</span> <span class="pre">dials.cosym.html</span></code>) and graphically illustrates some of the
+analysis. The data are now prepared for scaling, and we can scale them with a
+standard command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ dials.scale symmetrized.*
+</pre></div>
+</div>
+<p>It is <em>critical</em> to note here, that though we have combined the data from
+10 sweeps into two files - the data retain their original identity. This means
+that in the files they are <em>still</em> 10 sweeps.</p>
+<p>The first scaling output has:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Resolution limit suggested from CC½ fit (limit CC½=0.3): 1.42
+
+            -------------Summary of merging statistics--------------
+
+                                            Suggested   Low    High  Overall
+High resolution limit                           1.42    3.87    1.42    1.09
+Low resolution limit                           79.22   79.34    1.45   79.22
+Completeness                                   98.8    98.9    98.7    85.1
+Multiplicity                                    7.4     7.2     7.7     5.9
+I/sigma                                         7.4    34.4     0.3     4.0
+Rmerge(I)                                     0.124   0.072   2.275   0.156
+Rmerge(I+/-)                                  0.113   0.063   2.201   0.141
+Rmeas(I)                                      0.134   0.078   2.444   0.170
+Rmeas(I+/-)                                   0.130   0.072   2.525   0.163
+Rpim(I)                                       0.048   0.028   0.866   0.064
+Rpim(I+/-)                                    0.061   0.033   1.200   0.080
+CC half                                       0.994   0.993   0.263   0.994
+Anomalous completeness                         95.4    93.6    96.3    70.9
+Anomalous multiplicity                          4.0     4.4     4.1     3.4
+Anomalous correlation                         0.165   0.278  -0.039   0.125
+Anomalous slope                               0.275
+dF/F                                          0.095
+dI/s(dI)                                      0.421
+Total observations                           167233    9155    8507  247651
+Total unique                                  22555    1278    1104   42048
+</pre></div>
+</div>
+<p>indicating that we have an almost complete data set already, though the
+high resolution limit is a little enthusiastic. Setting it for this
+analysis with e.g. <code class="docutils literal notranslate"><span class="pre">d_min=1.45</span></code> will allow focus on the key point of
+isomorphism etc. - to this limit we have:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                                             <span class="n">Overall</span>    <span class="n">Low</span>     <span class="n">High</span>
+<span class="n">High</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">1.45</span>    <span class="mf">3.94</span>    <span class="mf">1.45</span>
+<span class="n">Low</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">79.22</span>   <span class="mf">79.34</span>    <span class="mf">1.48</span>
+<span class="n">Completeness</span>                                   <span class="mf">98.8</span>    <span class="mf">98.9</span>    <span class="mf">98.7</span>
+<span class="n">Multiplicity</span>                                    <span class="mf">7.4</span>     <span class="mf">7.1</span>     <span class="mf">7.7</span>
+<span class="n">I</span><span class="o">/</span><span class="n">sigma</span>                                         <span class="mf">7.7</span>    <span class="mf">34.0</span>     <span class="mf">0.4</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                     <span class="mf">0.122</span>   <span class="mf">0.072</span>   <span class="mf">1.676</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                  <span class="mf">0.111</span>   <span class="mf">0.063</span>   <span class="mf">1.588</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                      <span class="mf">0.131</span>   <span class="mf">0.078</span>   <span class="mf">1.801</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                   <span class="mf">0.127</span>   <span class="mf">0.072</span>   <span class="mf">1.823</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                       <span class="mf">0.047</span>   <span class="mf">0.028</span>   <span class="mf">0.637</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                    <span class="mf">0.060</span>   <span class="mf">0.033</span>   <span class="mf">0.864</span>
+<span class="n">CC</span> <span class="n">half</span>                                       <span class="mf">0.995</span>   <span class="mf">0.992</span>   <span class="mf">0.370</span>
+<span class="n">Anomalous</span> <span class="n">completeness</span>                         <span class="mf">95.4</span>    <span class="mf">93.6</span>    <span class="mf">96.0</span>
+<span class="n">Anomalous</span> <span class="n">multiplicity</span>                          <span class="mf">4.0</span>     <span class="mf">4.4</span>     <span class="mf">4.1</span>
+<span class="n">Anomalous</span> <span class="n">correlation</span>                         <span class="mf">0.145</span>   <span class="mf">0.258</span>  <span class="o">-</span><span class="mf">0.087</span>
+<span class="n">Anomalous</span> <span class="n">slope</span>                               <span class="mf">0.292</span>
+<span class="n">dF</span><span class="o">/</span><span class="n">F</span>                                          <span class="mf">0.094</span>
+<span class="n">dI</span><span class="o">/</span><span class="n">s</span><span class="p">(</span><span class="n">dI</span><span class="p">)</span>                                      <span class="mf">0.439</span>
+<span class="n">Total</span> <span class="n">observations</span>                           <span class="mi">158400</span>    <span class="mi">8650</span>    <span class="mi">8072</span>
+<span class="n">Total</span> <span class="n">unique</span>                                  <span class="mi">21401</span>    <span class="mi">1212</span>    <span class="mi">1054</span>
+</pre></div>
+</div>
+<p>and it is well worth taking a look around <code class="docutils literal notranslate"><span class="pre">dials.scale.html</span></code>.</p>
+</section>
+<section id="sets-10-19">
+<h2>Sets 10-19<a class="headerlink" href="#sets-10-19" title="Permalink to this headline">¶</a></h2>
+<p>This time around we are going to take what we have already processed
+above and <em>add</em> 10 more data sets to it.</p>
+<p>First,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-9  $ mkdir ../combine0-19
+combine0-19 $ cd ../combine0-19
+</pre></div>
+</div>
+<p>Then:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-19 $ dials.cosym ../combine0-9/scaled.* ../sweep-1*/integrated.*
+</pre></div>
+</div>
+<p>Which is using these files:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-19 $ ls ../combine0-9/scaled.* ../sweep-1*/integrated.*
+../combine0-9/scaled.expt   ../sweep-14/integrated.refl
+../combine0-9/scaled.refl   ../sweep-15/integrated.expt
+../sweep-10/integrated.expt ../sweep-15/integrated.refl
+../sweep-10/integrated.refl ../sweep-16/integrated.expt
+../sweep-11/integrated.expt ../sweep-16/integrated.refl
+../sweep-11/integrated.refl ../sweep-17/integrated.expt
+../sweep-12/integrated.expt ../sweep-17/integrated.refl
+../sweep-12/integrated.refl ../sweep-18/integrated.expt
+../sweep-13/integrated.expt ../sweep-18/integrated.refl
+../sweep-13/integrated.refl ../sweep-19/integrated.expt
+../sweep-14/integrated.expt ../sweep-19/integrated.refl
+</pre></div>
+</div>
+<p>This will take the <em>scaled</em> output from the previous step, and the next
+10 processed sweeps, and combine them as before:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Best</span> <span class="n">solution</span><span class="p">:</span> <span class="n">P</span> <span class="mi">4</span><span class="o">/</span><span class="n">m</span> <span class="n">m</span> <span class="n">m</span>
+<span class="n">Unit</span> <span class="n">cell</span><span class="p">:</span> <span class="p">(</span><span class="mf">79.227</span><span class="p">,</span> <span class="mf">79.227</span><span class="p">,</span> <span class="mf">37.2723</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+<span class="n">Reindex</span> <span class="n">operator</span><span class="p">:</span> <span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">a</span>
+<span class="n">Laue</span> <span class="n">group</span> <span class="n">probability</span><span class="p">:</span> <span class="mf">1.000</span>
+<span class="n">Laue</span> <span class="n">group</span> <span class="n">confidence</span><span class="p">:</span> <span class="mf">1.000</span>
+<span class="n">Reindexing</span> <span class="n">operators</span><span class="p">:</span>
+<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">19</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Running through scaling as before, setting a 1.45 Å resolution limit, we
+see:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Resolution limit suggested from CC½ fit (limit CC½=0.3): 1.48
+
+            -------------Summary of merging statistics--------------
+
+                                            Suggested   Low    High  Overall
+High resolution limit                           1.48    4.02    1.48    1.45
+Low resolution limit                           79.22   79.33    1.51   79.22
+Completeness                                  100.0    99.7    99.9   100.0
+Multiplicity                                   14.8    14.5    15.2    14.9
+I/sigma                                         9.3    38.0     0.7     8.8
+Rmerge(I)                                     0.149   0.081   2.793   0.155
+Rmerge(I+/-)                                  0.142   0.073   2.749   0.148
+Rmeas(I)                                      0.154   0.084   2.892   0.161
+Rmeas(I+/-)                                   0.151   0.078   2.942   0.158
+Rpim(I)                                       0.039   0.021   0.728   0.041
+Rpim(I+/-)                                    0.052   0.026   1.018   0.054
+CC half                                       0.997   0.996   0.151   0.997
+Anomalous completeness                         99.9    99.9    99.9    99.9
+Anomalous multiplicity                          8.0     8.7     8.0     8.0
+Anomalous correlation                         0.213   0.371   0.080   0.240
+Anomalous slope                               0.338
+dF/F                                          0.086
+dI/s(dI)                                      0.549
+Total observations                           301412   16640   15140  321968
+Total unique                                  20324    1149     995   21649
+</pre></div>
+</div>
+<p>i.e. somehow adding more data has <em>reduced</em> the overall resolution
+limit. Looking at the plots in <code class="docutils literal notranslate"><span class="pre">dials.scale.html</span></code> we see that the
+R-merge value is rather high for some of the sweeps indicating that they
+do not agree well with the overall data. R-merge is however not a good
+basis for exclusion of data - for that we have ΔCC½.</p>
+<p>With:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-19 $ dials.compute_delta_cchalf scaled.*
+</pre></div>
+</div>
+<p>we may calculate the effect of adding individual data sets to the data
+as a whole - if this effect is <em>negative</em> then that data set should
+probably not be included. The tool outputs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Dataset: 15, ΔCC½: -3.625
+Dataset: 12, ΔCC½: -1.055
+Dataset: 14, ΔCC½: -0.599
+Dataset: 9, ΔCC½: -0.254
+Dataset: 1, ΔCC½: 0.056
+Dataset: 13, ΔCC½: 0.463
+Dataset: 5, ΔCC½: 0.508
+Dataset: 7, ΔCC½: 0.527
+Dataset: 0, ΔCC½: 0.528
+Dataset: 17, ΔCC½: 0.631
+Dataset: 2, ΔCC½: 0.758
+Dataset: 10, ΔCC½: 0.770
+Dataset: 18, ΔCC½: 0.773
+Dataset: 19, ΔCC½: 0.843
+Dataset: 4, ΔCC½: 0.854
+Dataset: 16, ΔCC½: 0.898
+Dataset: 6, ΔCC½: 0.931
+Dataset: 8, ΔCC½: 1.192
+Dataset: 3, ΔCC½: 1.444
+Dataset: 11, ΔCC½: 1.705
+
+mean delta_cc_half 0.3674101744536096
+stddev delta_cc_half 1.1112402970091422
+cutoff value: -4.0775510135829585
+</pre></div>
+</div>
+<p>Suggesting that dataset 15 looks to agree rather poorly. This may be
+excluded from scaling with <code class="docutils literal notranslate"><span class="pre">exclude_datasets=15</span></code> giving:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                                            <span class="n">Suggested</span>   <span class="n">Low</span>    <span class="n">High</span>  <span class="n">Overall</span>
+<span class="n">High</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">1.46</span>    <span class="mf">3.95</span>    <span class="mf">1.46</span>    <span class="mf">1.45</span>
+<span class="n">Low</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">79.21</span>   <span class="mf">79.32</span>    <span class="mf">1.48</span>   <span class="mf">79.21</span>
+<span class="n">Completeness</span>                                  <span class="mf">100.0</span>    <span class="mf">99.8</span>    <span class="mf">99.9</span>   <span class="mf">100.0</span>
+<span class="n">Multiplicity</span>                                   <span class="mf">14.1</span>    <span class="mf">13.8</span>    <span class="mf">14.7</span>    <span class="mf">14.1</span>
+<span class="n">I</span><span class="o">/</span><span class="n">sigma</span>                                         <span class="mf">8.9</span>    <span class="mf">38.1</span>     <span class="mf">0.6</span>     <span class="mf">8.8</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                     <span class="mf">0.139</span>   <span class="mf">0.079</span>   <span class="mf">2.238</span>   <span class="mf">0.140</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                  <span class="mf">0.131</span>   <span class="mf">0.071</span>   <span class="mf">2.185</span>   <span class="mf">0.132</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                      <span class="mf">0.144</span>   <span class="mf">0.082</span>   <span class="mf">2.322</span>   <span class="mf">0.145</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                   <span class="mf">0.141</span>   <span class="mf">0.076</span>   <span class="mf">2.346</span>   <span class="mf">0.142</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                       <span class="mf">0.038</span>   <span class="mf">0.021</span>   <span class="mf">0.602</span>   <span class="mf">0.038</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                    <span class="mf">0.050</span>   <span class="mf">0.026</span>   <span class="mf">0.831</span>   <span class="mf">0.050</span>
+<span class="n">CC</span> <span class="n">half</span>                                       <span class="mf">0.996</span>   <span class="mf">0.996</span>   <span class="mf">0.482</span>   <span class="mf">0.997</span>
+<span class="n">Anomalous</span> <span class="n">completeness</span>                         <span class="mf">99.9</span>    <span class="mf">99.9</span>    <span class="mf">99.8</span>    <span class="mf">99.9</span>
+<span class="n">Anomalous</span> <span class="n">multiplicity</span>                          <span class="mf">7.6</span>     <span class="mf">8.3</span>     <span class="mf">7.7</span>     <span class="mf">7.6</span>
+<span class="n">Anomalous</span> <span class="n">correlation</span>                         <span class="mf">0.196</span>   <span class="mf">0.153</span>  <span class="o">-</span><span class="mf">0.067</span>   <span class="mf">0.222</span>
+<span class="n">Anomalous</span> <span class="n">slope</span>                               <span class="mf">0.316</span>
+<span class="n">dF</span><span class="o">/</span><span class="n">F</span>                                          <span class="mf">0.088</span>
+<span class="n">dI</span><span class="o">/</span><span class="n">s</span><span class="p">(</span><span class="n">dI</span><span class="p">)</span>                                      <span class="mf">0.522</span>
+<span class="n">Total</span> <span class="n">observations</span>                           <span class="mi">300879</span>   <span class="mi">16563</span>   <span class="mi">15320</span>  <span class="mi">304888</span>
+<span class="n">Total</span> <span class="n">unique</span>                                  <span class="mi">21363</span>    <span class="mi">1203</span>    <span class="mi">1040</span>   <span class="mi">21637</span>
+</pre></div>
+</div>
+<p>This gives a small overall improvement in <span class="math notranslate nohighlight">\(R_\textrm{pim}\)</span> - we may
+exclude all negative contribution data sets with <code class="docutils literal notranslate"><span class="pre">exclude_dataset=15,12,14,9</span></code>
+giving:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                                             <span class="n">Overall</span>    <span class="n">Low</span>     <span class="n">High</span>
+<span class="n">High</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">1.45</span>    <span class="mf">3.94</span>    <span class="mf">1.45</span>
+<span class="n">Low</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">79.18</span>   <span class="mf">79.29</span>    <span class="mf">1.48</span>
+<span class="n">Completeness</span>                                   <span class="mf">99.6</span>    <span class="mf">99.2</span>    <span class="mf">99.2</span>
+<span class="n">Multiplicity</span>                                   <span class="mf">11.9</span>    <span class="mf">11.6</span>    <span class="mf">12.4</span>
+<span class="n">I</span><span class="o">/</span><span class="n">sigma</span>                                         <span class="mf">8.7</span>    <span class="mf">36.9</span>     <span class="mf">0.6</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                     <span class="mf">0.129</span>   <span class="mf">0.077</span>   <span class="mf">1.534</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                  <span class="mf">0.121</span>   <span class="mf">0.069</span>   <span class="mf">1.490</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                      <span class="mf">0.135</span>   <span class="mf">0.081</span>   <span class="mf">1.602</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                   <span class="mf">0.132</span>   <span class="mf">0.075</span>   <span class="mf">1.622</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                       <span class="mf">0.038</span>   <span class="mf">0.023</span>   <span class="mf">0.448</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                    <span class="mf">0.050</span>   <span class="mf">0.028</span>   <span class="mf">0.619</span>
+<span class="n">CC</span> <span class="n">half</span>                                       <span class="mf">0.996</span>   <span class="mf">0.995</span>   <span class="mf">0.482</span>
+<span class="n">Anomalous</span> <span class="n">completeness</span>                         <span class="mf">98.8</span>    <span class="mf">97.8</span>    <span class="mf">99.1</span>
+<span class="n">Anomalous</span> <span class="n">multiplicity</span>                          <span class="mf">6.4</span>     <span class="mf">7.0</span>     <span class="mf">6.5</span>
+<span class="n">Anomalous</span> <span class="n">correlation</span>                         <span class="mf">0.205</span>   <span class="mf">0.250</span>   <span class="mf">0.041</span>
+<span class="n">Anomalous</span> <span class="n">slope</span>                               <span class="mf">0.315</span>
+<span class="n">dF</span><span class="o">/</span><span class="n">F</span>                                          <span class="mf">0.092</span>
+<span class="n">dI</span><span class="o">/</span><span class="n">s</span><span class="p">(</span><span class="n">dI</span><span class="p">)</span>                                      <span class="mf">0.519</span>
+<span class="n">Total</span> <span class="n">observations</span>                           <span class="mi">255800</span>   <span class="mi">14071</span>   <span class="mi">13145</span>
+<span class="n">Total</span> <span class="n">unique</span>                                  <span class="mi">21540</span>    <span class="mi">1212</span>    <span class="mi">1061</span>
+</pre></div>
+</div>
+<p>It is <em>critical</em> to note that once a data set has been excluded it stays
+excluded if you work from the output of <code class="docutils literal notranslate"><span class="pre">dials.scale</span></code>. In the process
+we are working through here, this is good, as you have a realistic idea of
+how the data look, but once you’re done collecting data it may be worth
+revisiting this.</p>
+</section>
+<section id="sets-20-29">
+<h2>Sets 20-29<a class="headerlink" href="#sets-20-29" title="Permalink to this headline">¶</a></h2>
+<p>Now we add the next batch of 10 data sets to the 16 we kept from the run
+before:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-19 $ mkdir ../combine0-29
+combine0-29 $ cd ../combine0-29
+
+combine0-29 $ dials.cosym ../combine0-19/scaled.* ../sweep-2*/integrated.*
+combine0-29 $ dials.scale symmetrized.* d_min=1.45
+</pre></div>
+</div>
+<p>giving</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                                             <span class="n">Overall</span>    <span class="n">Low</span>     <span class="n">High</span>
+<span class="n">High</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">1.45</span>    <span class="mf">3.94</span>    <span class="mf">1.45</span>
+<span class="n">Low</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">79.19</span>   <span class="mf">79.31</span>    <span class="mf">1.48</span>
+<span class="n">Completeness</span>                                  <span class="mf">100.0</span>    <span class="mf">99.8</span>   <span class="mf">100.0</span>
+<span class="n">Multiplicity</span>                                   <span class="mf">19.2</span>    <span class="mf">18.8</span>    <span class="mf">19.9</span>
+<span class="n">I</span><span class="o">/</span><span class="n">sigma</span>                                         <span class="mf">9.5</span>    <span class="mf">40.0</span>     <span class="mf">0.7</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                     <span class="mf">0.193</span>   <span class="mf">0.088</span>   <span class="mf">5.094</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                  <span class="mf">0.186</span>   <span class="mf">0.081</span>   <span class="mf">5.054</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                      <span class="mf">0.198</span>   <span class="mf">0.090</span>   <span class="mf">5.239</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                   <span class="mf">0.196</span>   <span class="mf">0.085</span>   <span class="mf">5.331</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                       <span class="mf">0.045</span>   <span class="mf">0.020</span>   <span class="mf">1.180</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                    <span class="mf">0.060</span>   <span class="mf">0.025</span>   <span class="mf">1.639</span>
+<span class="n">CC</span> <span class="n">half</span>                                       <span class="mf">0.996</span>   <span class="mf">0.996</span>   <span class="mf">0.231</span>
+<span class="n">Anomalous</span> <span class="n">completeness</span>                        <span class="mf">100.0</span>   <span class="mf">100.0</span>   <span class="mf">100.0</span>
+<span class="n">Anomalous</span> <span class="n">multiplicity</span>                         <span class="mf">10.3</span>    <span class="mf">11.3</span>    <span class="mf">10.5</span>
+<span class="n">Anomalous</span> <span class="n">correlation</span>                         <span class="mf">0.145</span>   <span class="mf">0.389</span>   <span class="mf">0.046</span>
+<span class="n">Anomalous</span> <span class="n">slope</span>                               <span class="mf">0.366</span>
+<span class="n">dF</span><span class="o">/</span><span class="n">F</span>                                          <span class="mf">0.089</span>
+<span class="n">dI</span><span class="o">/</span><span class="n">s</span><span class="p">(</span><span class="n">dI</span><span class="p">)</span>                                      <span class="mf">0.626</span>
+<span class="n">Total</span> <span class="n">observations</span>                           <span class="mi">415898</span>   <span class="mi">22943</span>   <span class="mi">21222</span>
+<span class="n">Total</span> <span class="n">unique</span>                                  <span class="mi">21636</span>    <span class="mi">1220</span>    <span class="mi">1065</span>
+</pre></div>
+</div>
+<p>Then</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-29 $ dials.compute_delta_cchalf scaled.*
+</pre></div>
+</div>
+<p>giving:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Dataset: 18, ΔCC½: -10.148
+Dataset: 19, ΔCC½: -0.252
+Dataset: 23, ΔCC½: -0.128
+Dataset: 22, ΔCC½: -0.023
+Dataset: 21, ΔCC½: 0.054
+Dataset: 5, ΔCC½: 0.153
+Dataset: 25, ΔCC½: 0.153
+Dataset: 16, ΔCC½: 0.240
+Dataset: 7, ΔCC½: 0.246
+Dataset: 14, ΔCC½: 0.272
+Dataset: 9, ΔCC½: 0.300
+Dataset: 2, ΔCC½: 0.319
+Dataset: 1, ΔCC½: 0.335
+Dataset: 0, ΔCC½: 0.399
+Dataset: 11, ΔCC½: 0.400
+Dataset: 4, ΔCC½: 0.461
+Dataset: 12, ΔCC½: 0.666
+Dataset: 13, ΔCC½: 0.674
+Dataset: 6, ΔCC½: 0.724
+Dataset: 15, ΔCC½: 0.749
+Dataset: 24, ΔCC½: 0.824
+Dataset: 8, ΔCC½: 1.097
+Dataset: 17, ΔCC½: 1.187
+Dataset: 3, ΔCC½: 1.225
+Dataset: 20, ΔCC½: 1.321
+Dataset: 10, ΔCC½: 1.422
+</pre></div>
+</div>
+<p>This is probably a good indicator that set 18 is <em>not good</em> so let’s
+remove it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-29 $ dials.scale symmetrized.* d_min=1.45 exclude_dataset=18
+</pre></div>
+</div>
+<p>Giving:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                                             <span class="n">Overall</span>    <span class="n">Low</span>     <span class="n">High</span>
+<span class="n">High</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">1.45</span>    <span class="mf">3.94</span>    <span class="mf">1.45</span>
+<span class="n">Low</span> <span class="n">resolution</span> <span class="n">limit</span>                           <span class="mf">79.21</span>   <span class="mf">79.33</span>    <span class="mf">1.48</span>
+<span class="n">Completeness</span>                                  <span class="mf">100.0</span>    <span class="mf">99.8</span>   <span class="mf">100.0</span>
+<span class="n">Multiplicity</span>                                   <span class="mf">18.5</span>    <span class="mf">18.1</span>    <span class="mf">19.2</span>
+<span class="n">I</span><span class="o">/</span><span class="n">sigma</span>                                         <span class="mf">9.5</span>    <span class="mf">40.2</span>     <span class="mf">0.7</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                     <span class="mf">0.164</span>   <span class="mf">0.081</span>   <span class="mf">3.042</span>
+<span class="n">Rmerge</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                  <span class="mf">0.157</span>   <span class="mf">0.074</span>   <span class="mf">3.004</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                      <span class="mf">0.169</span>   <span class="mf">0.083</span>   <span class="mf">3.127</span>
+<span class="n">Rmeas</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                   <span class="mf">0.165</span>   <span class="mf">0.077</span>   <span class="mf">3.169</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>                                       <span class="mf">0.038</span>   <span class="mf">0.019</span>   <span class="mf">0.699</span>
+<span class="n">Rpim</span><span class="p">(</span><span class="n">I</span><span class="o">+/-</span><span class="p">)</span>                                    <span class="mf">0.051</span>   <span class="mf">0.023</span>   <span class="mf">0.973</span>
+<span class="n">CC</span> <span class="n">half</span>                                       <span class="mf">0.997</span>   <span class="mf">0.996</span>   <span class="mf">0.359</span>
+<span class="n">Anomalous</span> <span class="n">completeness</span>                        <span class="mf">100.0</span>   <span class="mf">100.0</span>   <span class="mf">100.0</span>
+<span class="n">Anomalous</span> <span class="n">multiplicity</span>                          <span class="mf">9.9</span>    <span class="mf">10.9</span>    <span class="mf">10.1</span>
+<span class="n">Anomalous</span> <span class="n">correlation</span>                         <span class="mf">0.226</span>   <span class="mf">0.321</span>   <span class="mf">0.089</span>
+<span class="n">Anomalous</span> <span class="n">slope</span>                               <span class="mf">0.365</span>
+<span class="n">dF</span><span class="o">/</span><span class="n">F</span>                                          <span class="mf">0.089</span>
+<span class="n">dI</span><span class="o">/</span><span class="n">s</span><span class="p">(</span><span class="n">dI</span><span class="p">)</span>                                      <span class="mf">0.616</span>
+<span class="n">Total</span> <span class="n">observations</span>                           <span class="mi">400223</span>   <span class="mi">22084</span>   <span class="mi">20368</span>
+<span class="n">Total</span> <span class="n">unique</span>                                  <span class="mi">21639</span>    <span class="mi">1221</span>    <span class="mi">1063</span>
+</pre></div>
+</div>
+<p>By this point there is a good chance you are becoming “snow blind” from
+all the numbers in the output and they cease to have meaning - and you
+could not be blamed for this. Once you have complete data which appears
+to be internally isomorphous, actually attempting structure solution on
+the processed data will be key, e.g. trying to find the heavy atom
+substructure or similar, as a more robust measure.</p>
+</section>
+<section id="explorations-of-reciprocal-space">
+<h2>Explorations of Reciprocal Space<a class="headerlink" href="#explorations-of-reciprocal-space" title="Permalink to this headline">¶</a></h2>
+<p>So far the process has been very focussed on getting the processing done
+with minimal exploration. There is however something to explore here -
+loading the data we have processed in
+<code class="docutils literal notranslate"><span class="pre">dials.reciprocal_lattice_viewer</span></code> will give a real insight into what
+the data sets are adding:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>combine0-29 $ dials.reciprocal_lattice_viewer scaled.*
+</pre></div>
+</div>
+<figure class="align-default">
+<img alt="reciprocal space all data" src="https://dials.github.io/images/br-lyso-multi/rlv-all.png" />
+</figure>
+<p>Note here we are looking in the crystal frame (see toggle in the tool panel), a
+sensible resolution limit has been set, and the integrated data are being
+projected. You can also “switch on” individual data sets to really see what
+bits of reciprocal space we are adding.</p>
+<figure class="align-default">
+<img alt="reciprocal space all data" src="https://dials.github.io/images/br-lyso-multi/rlv-subset.png" />
+</figure>
+<p>If you zoom in and switch on the reciprocal cells, this also allows you
+to actually <em>see</em> the Miller indices by counting from the origin
+outwards in multiples of the reciprocal cell:</p>
+<figure class="align-default">
+<img alt="reciprocal space all data" src="https://dials.github.io/images/br-lyso-multi/rlv-index.png" />
+</figure>
+</section>
+<section id="post-experiment-processing">
+<h2>Post Experiment Processing<a class="headerlink" href="#post-experiment-processing" title="Permalink to this headline">¶</a></h2>
+<p>Once all the data are processed you can use a tool from <code class="docutils literal notranslate"><span class="pre">xia2</span></code> called
+<code class="docutils literal notranslate"><span class="pre">xia.multiplex</span></code> - this will do many of the steps listed above and more, to
+assess how well the data sets agree in a pairwise manner:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>mplex $ xia2.multiplex ../sweep-*/integrated.* min_completeness=0.9
+</pre></div>
+</div>
+<p>Now we can start asking some tricky questions about the <em>best</em> subsets
+of data to use for the next steps in your data analysis. This command
+will keep all the clusters which are &gt;= 90% complete, then scale and
+merge the data for each of those clusters to allow direct comparison -
+here inspection of the generated <code class="docutils literal notranslate"><span class="pre">xia2.multiplex.html</span></code> is critical. There is
+a <em>lot</em> of information in there so worth paying attention to. Here we go over
+some of the commonly useful sections of the report.</p>
+<section id="preferential-orientation">
+<h3>Preferential Orientation<a class="headerlink" href="#preferential-orientation" title="Permalink to this headline">¶</a></h3>
+<p>One risk with <em>in situ</em> data collection is that the samples can grow
+with a particular crystallographic axis, perpendicular to the plate. This
+in turn means that small rotations with the plate perpendicular to the
+beam will repeatedly record the same small volumes of reciprocal space.
+This may be assessed by considering the distributions of the unit cell
+axes in reciprocal space - via a stereographic projection:</p>
+<figure class="align-default">
+<img alt="Stereographic projection of unit cell axes" src="https://dials.github.io/images/br-lyso-multi/stereo.png" />
+</figure>
+<p>If all the dots are widely distributed around the circles - then there is
+no evidence of preferred orientation. If you have the dots all in the
+centre or all around the edge, then the axis is preferentially aligned
+with the beam or with the plate respectively, and you will need to
+consider carefully how to proceed with data collection.</p>
+</section>
+<section id="unit-cell-comparisons">
+<h3>Unit Cell Comparisons<a class="headerlink" href="#unit-cell-comparisons" title="Permalink to this headline">¶</a></h3>
+<p>The crystallographic unit cell can be used to give some hints of
+isomorphism, before intensity data are compared. If you have two distinct
+crystal forms they will be visible in these histograms:</p>
+<figure class="align-default">
+<img alt="Unit cell comparisons" src="https://dials.github.io/images/br-lyso-multi/cells.png" />
+</figure>
+<p>In this case, we have a reasonable spread of unit cells with two apparent
+outliers - with these data they are most likely to be better identified
+by intensity comparisons, but in some cases the unit cell information
+could provide more useful insight.</p>
+</section>
+<section id="delta-cc-half">
+<h3>Delta CC-half<a class="headerlink" href="#delta-cc-half" title="Permalink to this headline">¶</a></h3>
+<p>This is possibly more useful than specific unit cell outliers - showing the
+data which add or detract from the data set as a whole - this was already
+touched upon in the discussion above. The data may be excluded by taking the
+data from the scaled full cluster, and passing this <em>in</em> to <code class="docutils literal notranslate"><span class="pre">dials.scale</span></code> with
+the <code class="docutils literal notranslate"><span class="pre">exclude_datasets=</span></code> option.</p>
+<figure class="align-default">
+<img alt="Delta CC half" src="https://dials.github.io/images/br-lyso-multi/delta-cchalf.png" />
+</figure>
+</section>
+<section id="intensity-clustering">
+<h3>Intensity Clustering<a class="headerlink" href="#intensity-clustering" title="Permalink to this headline">¶</a></h3>
+<p>Here we are assessing the correlation between pairs of data sets - if these are
+relatively complete this can very rapidly give you an idea of which data should
+be merged. Here we see the so-called <a class="reference external" href="https://doi.org/10.1107/S2059798317000699">“cos angle”</a>
+clustering which is an assessment of the similarity independent of the strength
+of the individual data sets, and there are (depending on your criteria) maybe
+three or four distinct clusters. It is these clusters which are then considered
+in the next section.</p>
+<figure class="align-default">
+<img alt="Data set comparisons" src="https://dials.github.io/images/br-lyso-multi/cos-cluster.png" />
+</figure>
+</section>
+<section id="cluster-comparisons">
+<h3>Cluster Comparisons<a class="headerlink" href="#cluster-comparisons" title="Permalink to this headline">¶</a></h3>
+<p>This is where we can really start to inspect the details of relations between
+data sets: the possible clusters that have been identified by
+<code class="docutils literal notranslate"><span class="pre">xia2.multiplex</span></code>, with completeness &gt;= 90%, can be compared by their overall
+and per-resolution-shell merging statistics:</p>
+<figure class="align-default">
+<img alt="Merging statistic graphs" src="https://dials.github.io/images/br-lyso-multi/clusters.png" />
+</figure>
+<p>These allow you to select the best cluster according to your own
+criteria, before proceeding.</p>
+<p>For each cluster here, you will find a subdirectory inside the folder you ran
+<code class="docutils literal notranslate"><span class="pre">xia2.multiplex</span></code>. This subdirectory containing all of the analysis output and
+the final scaled data for that cluster, scaled independently of the other
+clusters. For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>mplex $ cd cluster_20
+cluster_20 $ ls
+27_dials.two_theta_refine.cif       dials.estimate_resolution.log
+27_dials.two_theta_refine.json      dials.scale.log
+27_dials.two_theta_refine.log       dials.two_theta_refine.log
+27_dials.two_theta_refine.mmcif     models.expt
+27_dials.two_theta_refine.p4p       multiplicities_h_0.json
+27_dials.two_theta_refine_2theta.png    multiplicities_h_0.png
+27_refined_cell.expt            multiplicities_k_0.json
+28_dials.scale.log          multiplicities_k_0.png
+28_scaled.expt              multiplicities_l_0.json
+28_scaled.mtz               multiplicities_l_0.png
+28_scaled.refl              observations.refl
+28_scaled_unmerged.mtz          scaled.expt
+28_scaling.html             scaled.mtz
+29_dials.estimate_resolution.html   scaled.refl
+29_dials.estimate_resolution.json   scaled_unmerged.mtz
+29_dials.estimate_resolution.log
+</pre></div>
+</div>
+<p>contains everything you would need to take forward for that cluster,
+allowing you to evaluate the success of processing for each downstream
+step. The merging statistics for every cluster are also highlighted in
+the tabs of the output in <code class="docutils literal notranslate"><span class="pre">xia2.multiplex.html</span></code>.</p>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://dials.github.io/kb">Knowledge Base</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../projects.html">Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &copy;2022, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
