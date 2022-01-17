@@ -47,20 +47,22 @@
 <span class="sd">LevenbergMarquardtIterations, GaussNewtonIterations, SimpleLBFGS and LBFGScurvs</span>
 <span class="sd">are the current concrete implementations&quot;&quot;&quot;</span>
 
-
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">StringIO</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">libtbx</span>
 <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">easy_mp</span>
 <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
-<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">lbfgs</span>
+<span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">lbfgs</span><span class="p">,</span> <span class="n">sparse</span>
 <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 <span class="kn">from</span> <span class="nn">scitbx.lstbx</span> <span class="kn">import</span> <span class="n">normal_eqns</span><span class="p">,</span> <span class="n">normal_eqns_solving</span>
 
 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement</span> <span class="kn">import</span> <span class="n">DialsRefineRuntimeError</span>
+
+<span class="kn">from</span> <span class="nn">.target</span> <span class="kn">import</span> <span class="n">Target</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -213,7 +215,7 @@
 
 <div class="viewcode-block" id="Refinery.__init__"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">target</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Target</span><span class="p">,</span>
         <span class="n">prediction_parameterisation</span><span class="p">,</span>
         <span class="n">constraints_manager</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">log</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -236,7 +238,7 @@
         <span class="c1"># undefined initial functional and gradients values</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_f</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_g</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">,</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="c1"># filename for an optional log file</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">log</span>
@@ -320,15 +322,15 @@
                 <span class="s2">&quot;out_of_sample_rmsd&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsds_for_reflection_table</span><span class="p">(</span><span class="n">preds</span><span class="p">)</span>
             <span class="p">)</span></div>
 
-<div class="viewcode-block" id="Refinery.split_jacobian_into_blocks"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.split_jacobian_into_blocks">[docs]</a>    <span class="k">def</span> <span class="nf">split_jacobian_into_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Refinery.split_jacobian_into_blocks"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.engine.Refinery.split_jacobian_into_blocks">[docs]</a>    <span class="k">def</span> <span class="nf">split_jacobian_into_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Split the Jacobian into blocks each corresponding to a separate</span>
-<span class="sd">        residual&quot;&quot;&quot;</span>
+<span class="sd">        residual, converting sparse to flex.double if appropriate&quot;&quot;&quot;</span>
 
         <span class="n">nblocks</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># The Jacobian might be a sparse matrix</span>
-            <span class="n">j</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="o">.</span><span class="n">as_dense_matrix</span><span class="p">()</span>
+            <span class="n">j</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span><span class="o">.</span><span class="n">as_dense_matrix</span><span class="p">()</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
             <span class="n">j</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jacobian</span>
 
@@ -340,28 +342,18 @@
         <span class="k">return</span> <span class="n">blocks</span></div>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_packed_corr_mat</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return a 1D flex array containing the upper diagonal values of the</span>
-<span class="sd">        correlation matrix calculated between columns of 2D matrix m&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_packed_corr_mat</span><span class="p">(</span><span class="n">m</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Return a list containing the upper diagonal values of the</span>
+<span class="sd">        correlation matrix calculated between columns of 2D matrix flex.double</span>
+<span class="sd">        matrix m&quot;&quot;&quot;</span>
 
-        <span class="n">nr</span><span class="p">,</span> <span class="n">nc</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">nc</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
-        <span class="k">try</span><span class="p">:</span>  <span class="c1"># convert a flex.double matrix to sparse</span>
-            <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">sparse</span>
-
-            <span class="n">m2</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">nr</span><span class="p">,</span> <span class="n">nc</span><span class="p">)</span>
-            <span class="n">m2</span><span class="o">.</span><span class="n">assign_block</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-            <span class="n">m</span> <span class="o">=</span> <span class="n">m2</span>
-        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-            <span class="k">pass</span>  <span class="c1"># assume m is already scitbx_sparse_ext.matrix</span>
-
-        <span class="n">packed_len</span> <span class="o">=</span> <span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">n_cols</span> <span class="o">*</span> <span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">n_cols</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">tmp</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">packed_len</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">col1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">n_cols</span><span class="p">):</span>
-            <span class="k">for</span> <span class="n">col2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">col1</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">n_cols</span><span class="p">):</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">col1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nc</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">col2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">col1</span><span class="p">,</span> <span class="n">nc</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">col1</span> <span class="o">==</span> <span class="n">col2</span><span class="p">:</span>
-                    <span class="n">tmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+                    <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="c1"># Avoid spuriously high correlation between a column that should be</span>
                     <span class="c1"># zero (such as the gradient of X residuals wrt the Shift2 parameter)</span>
@@ -369,10 +361,9 @@
                     <span class="c1"># Dist parameter) by rounding values to 15 places. It seems that such</span>
                     <span class="c1"># spurious correlations may occur in cases where gradients are</span>
                     <span class="c1"># calculated to be zero by matrix operations, rather than set to zero.</span>
-                    <span class="n">v1</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col1</span><span class="p">)</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
-                    <span class="n">v2</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col2</span><span class="p">)</span><span class="o">.</span><span class="n">as_dense_vector</span><span class="p">()</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
-                    <span class="n">tmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">linear_correlation</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">)</span><span class="o">.</span><span class="n">coefficient</span><span class="p">()</span>
-                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">v1</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">matrix_copy_column</span><span class="p">(</span><span class="n">col1</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+                    <span class="n">v2</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">matrix_copy_column</span><span class="p">(</span><span class="n">col2</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+                    <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">linear_correlation</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">)</span><span class="o">.</span><span class="n">coefficient</span><span class="p">())</span>
 
         <span class="k">return</span> <span class="n">tmp</span>
 
