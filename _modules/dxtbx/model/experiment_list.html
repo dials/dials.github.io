@@ -43,7 +43,9 @@
           <div class="body" role="main">
             
   <h1>Source code for dxtbx.model.experiment_list</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">collections</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">errno</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
@@ -52,6 +54,7 @@
 <span class="kn">import</span> <span class="nn">operator</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">Iterable</span>
 
 <span class="kn">import</span> <span class="nn">pkg_resources</span>
 
@@ -85,21 +88,6 @@
 <span class="kn">from</span> <span class="nn">dxtbx.serialize</span> <span class="kn">import</span> <span class="n">xds</span>
 <span class="kn">from</span> <span class="nn">dxtbx.serialize.filename</span> <span class="kn">import</span> <span class="n">resolve_path</span>
 <span class="kn">from</span> <span class="nn">dxtbx.util</span> <span class="kn">import</span> <span class="n">get_url_scheme</span>
-
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
-        <span class="n">Any</span><span class="p">,</span>
-        <span class="n">Callable</span><span class="p">,</span>
-        <span class="n">Dict</span><span class="p">,</span>
-        <span class="n">Generator</span><span class="p">,</span>
-        <span class="n">Iterable</span><span class="p">,</span>
-        <span class="n">List</span><span class="p">,</span>
-        <span class="n">Optional</span><span class="p">,</span>
-        <span class="n">Tuple</span><span class="p">,</span>
-        <span class="n">Type</span><span class="p">,</span>
-    <span class="p">)</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="k">pass</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;BeamComparison&quot;</span><span class="p">,</span>
@@ -214,8 +202,9 @@
 
         <span class="k">return</span> <span class="n">mlist</span>
 
-    <span class="k">def</span> <span class="nf">_load_pickle_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset_data</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
-        <span class="c1"># type: (Dict, str) -&gt; Tuple[Optional[str], Any]</span>
+    <span class="k">def</span> <span class="nf">_load_pickle_path</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">imageset_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Read a filename from an imageset dict and load if required.</span>
 
@@ -574,7 +563,7 @@
         <span class="n">scan_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">load_models</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="p">):</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExperimentList</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Create a list of data blocks from a list of directory or file names.&quot;&quot;&quot;</span>
         <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentList</span><span class="p">()</span>
 
@@ -644,8 +633,9 @@
                 <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">records</span> <span class="o">=</span> <span class="n">_merge_scans</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">)</span>
-            <span class="n">imagesets</span> <span class="o">=</span> <span class="n">_convert_to_imagesets</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="p">)</span>
-            <span class="n">imagesets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">imagesets</span><span class="p">)</span>
+            <span class="n">imagesets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+                <span class="n">_convert_to_imagesets</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="p">)</span>
+            <span class="p">)</span>
 
             <span class="c1"># Validate this datablock and store it</span>
             <span class="k">assert</span> <span class="n">imagesets</span><span class="p">,</span> <span class="s2">&quot;Datablock got no imagesets?&quot;</span>
@@ -958,15 +948,14 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">goniometer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">scan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">beam</span><span class="p">:</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Beam</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">detector</span><span class="p">:</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Detector</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">goniometer</span><span class="p">:</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Goniometer</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scan</span><span class="p">:</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Scan</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">template</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="c1"># type: (dxtbx.model.Beam, dxtbx.model.Detector, dxtbx.model.Goniometer, dxtbx.model.Scan, str, str, int)</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            beam:       Stores a beam model</span>
@@ -992,12 +981,11 @@
 
     <span class="k">def</span> <span class="nf">merge_metadata_from</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">other_record</span><span class="p">,</span>
-        <span class="n">compare_beam</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
-        <span class="n">compare_detector</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
-        <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
-    <span class="p">):</span>
-        <span class="c1"># type: (ImageMetadataRecord, Callable, Callable, Callable) -&gt; bool</span>
+        <span class="n">other_record</span><span class="p">:</span> <span class="n">ImageMetadataRecord</span><span class="p">,</span>
+        <span class="n">compare_beam</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
+        <span class="n">compare_detector</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
+        <span class="n">compare_goniometer</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compare two record objects and merge equivalent data.</span>
 
@@ -1042,8 +1030,7 @@
         <span class="k">return</span> <span class="n">record_altered</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_format</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
-        <span class="c1"># type: (Format) -&gt; Any</span>
+    <span class="k">def</span> <span class="nf">from_format</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fmt</span><span class="p">:</span> <span class="n">Format</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Read metadata information from a Format instance.</span>
 
@@ -1138,8 +1125,9 @@
         <span class="n">previous</span> <span class="o">=</span> <span class="n">val</span>
 
 
-<span class="k">def</span> <span class="nf">_groupby_template_is_none</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
-    <span class="c1"># type: (Iterable[ImageMetadataRecord]) -&gt; Generator[List[ImageMetadataRecord]]</span>
+<span class="k">def</span> <span class="nf">_groupby_template_is_none</span><span class="p">(</span>
+    <span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">ImageMetadataRecord</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">ImageMetadataRecord</span><span class="p">],</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Specialization of groupby that groups records by format=None&quot;&quot;&quot;</span>
     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span>
         <span class="nb">enumerate</span><span class="p">(</span><span class="n">records</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">template</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -1195,9 +1183,11 @@
 
 
 <span class="k">def</span> <span class="nf">_merge_model_metadata</span><span class="p">(</span>
-    <span class="n">records</span><span class="p">,</span> <span class="n">compare_beam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compare_detector</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compare_goniometer</span><span class="o">=</span><span class="kc">None</span>
+    <span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">ImageMetadataRecord</span><span class="p">],</span>
+    <span class="n">compare_beam</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">compare_detector</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">compare_goniometer</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
-    <span class="c1"># type: (Iterable[ImageMetadataRecord], Callable, Callable, Callable)</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Merge metadata between consecutive record objects.</span>
 
@@ -1221,8 +1211,9 @@
         <span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">_merge_scans</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">scan_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="c1"># type: (Iterable[ImageMetadataRecord], float) -&gt; List[ImageMetadataRecord]</span>
+<span class="k">def</span> <span class="nf">_merge_scans</span><span class="p">(</span>
+    <span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">ImageMetadataRecord</span><span class="p">],</span> <span class="n">scan_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ImageMetadataRecord</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Merge consecutive scan records with identical metadata.</span>
 
@@ -1282,8 +1273,11 @@
     <span class="k">return</span> <span class="n">merged_records</span>
 
 
-<span class="k">def</span> <span class="nf">_convert_to_imagesets</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="c1"># type: (Iterable[ImageMetadataRecord], Type[dxtbx.format.Format], Dict) -&gt; Generator[dxtbx.imageset.ImageSet]</span>
+<span class="k">def</span> <span class="nf">_convert_to_imagesets</span><span class="p">(</span>
+    <span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">ImageMetadataRecord</span><span class="p">],</span>
+    <span class="n">format_class</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Format</span><span class="p">],</span>
+    <span class="n">format_kwargs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSet</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Convert records into imagesets.</span>
 
@@ -1316,8 +1310,11 @@
             <span class="k">yield</span> <span class="n">_create_imageset</span><span class="p">(</span><span class="n">setgroup</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">_create_imageset</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="c1"># type: (Iterable[ImageMetadataRecord], Type[dxtbx.format.Format], Dict) -&gt; dxtbx.imageset.ImageSet</span>
+<span class="k">def</span> <span class="nf">_create_imageset</span><span class="p">(</span>
+    <span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">ImageMetadataRecord</span><span class="p">],</span>
+    <span class="n">format_class</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Format</span><span class="p">],</span>
+    <span class="n">format_kwargs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSet</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create an ImageSet object from a set of single-image records.</span>
 
@@ -1333,10 +1330,13 @@
     <span class="n">records</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
     <span class="c1"># Nothing here should have been assigned a template parameter</span>
     <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">template</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">records</span><span class="p">)</span>
+    <span class="c1"># Everything should have a filename</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">filename</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">records</span><span class="p">)</span>
     <span class="c1"># Extract the filenames from the records</span>
     <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">x</span><span class="o">.</span><span class="n">filename</span> <span class="k">if</span> <span class="n">get_url_scheme</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">records</span>
+        <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">filename</span>
     <span class="p">]</span>
     <span class="c1"># Create the imageset</span>
     <span class="n">imageset</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">make_imageset</span><span class="p">(</span>
@@ -1351,8 +1351,11 @@
     <span class="k">return</span> <span class="n">imageset</span>
 
 
-<span class="k">def</span> <span class="nf">_create_imagesequence</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="c1"># type: (ImageMetadataRecord, Type[Format], Dict) -&gt; dxtbx.imageset.ImageSequence</span>
+<span class="k">def</span> <span class="nf">_create_imagesequence</span><span class="p">(</span>
+    <span class="n">record</span><span class="p">:</span> <span class="n">ImageMetadataRecord</span><span class="p">,</span>
+    <span class="n">format_class</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Format</span><span class="p">],</span>
+    <span class="n">format_kwargs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSequence</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create an ImageSequence object from a single rotation data image.</span>
 
@@ -1365,6 +1368,8 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        An imageset representing the sequence of data</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">record</span><span class="o">.</span><span class="n">scan</span>
+    <span class="k">assert</span> <span class="n">record</span><span class="o">.</span><span class="n">template</span>
     <span class="n">index_start</span><span class="p">,</span> <span class="n">index_end</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()</span>
     <span class="c1"># Create the sequence</span>
     <span class="n">sequence</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">imageset</span><span class="o">.</span><span class="n">ImageSetFactory</span><span class="o">.</span><span class="n">make_sequence</span><span class="p">(</span>
