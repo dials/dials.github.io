@@ -68,13 +68,74 @@
     <span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="groups_cache"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.symmetry.groups_cache">[docs]</a><span class="k">def</span> <span class="nf">groups_cache</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">MultiClassCache</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+        <span class="s2">&quot;A set of caches for different bravais types&quot;</span>
+
+        <span class="n">instances</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">def</span> <span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">classname</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">classname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">instances</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">instances</span><span class="p">[</span><span class="n">classname</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">instances</span><span class="p">[</span><span class="n">classname</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">wrapped_calc</span><span class="p">(</span><span class="n">group_info</span><span class="p">:</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">,</span> <span class="n">bravais_t</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="n">MultiClassCache</span><span class="p">(</span><span class="n">bravais_t</span><span class="p">)</span>
+        <span class="n">info_str</span> <span class="o">=</span> <span class="n">group_info</span><span class="o">.</span><span class="n">type</span><span class="p">()</span><span class="o">.</span><span class="n">lookup_symbol</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="n">info_str</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="n">group_info</span><span class="p">,</span> <span class="n">bravais_t</span><span class="p">)</span>
+            <span class="n">cache</span><span class="p">[</span><span class="n">info_str</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">return</span> <span class="n">wrapped_calc</span></div>
+
+
+<div class="viewcode-block" id="calc_acentric_subgroups"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.symmetry.calc_acentric_subgroups">[docs]</a><span class="nd">@groups_cache</span>
+<span class="k">def</span> <span class="nf">calc_acentric_subgroups</span><span class="p">(</span>
+    <span class="n">lattice_group_info</span><span class="p">:</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">,</span> <span class="n">target_bravais_str</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">):</span>
+    <span class="c1"># Get list of sub-spacegroups</span>
+    <span class="n">subgrs</span> <span class="o">=</span> <span class="n">subgroups</span><span class="o">.</span><span class="n">subgroups</span><span class="p">(</span><span class="n">lattice_group_info</span><span class="p">)</span><span class="o">.</span><span class="n">groups_parent_setting</span><span class="p">()</span>
+
+    <span class="c1"># Order sub-groups</span>
+    <span class="n">sort_values</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">subgrs</span><span class="p">:</span>
+        <span class="n">order_z</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">order_z</span><span class="p">()</span>
+        <span class="n">space_group_number</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group_type</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">number</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">space_group_number</span> <span class="o">&lt;=</span> <span class="mi">230</span>
+        <span class="n">sort_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">order_z</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">+</span> <span class="n">space_group_number</span><span class="p">)</span>
+    <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">sort_values</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">acentric_subgroups</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">acentric_supergroups</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">cb_ops</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i_perm</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">:</span>
+        <span class="n">acentric_subgroup</span> <span class="o">=</span> <span class="n">subgrs</span><span class="p">[</span><span class="n">i_perm</span><span class="p">]</span>
+        <span class="n">cb_op</span> <span class="o">=</span> <span class="n">acentric_subgroup</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">type</span><span class="p">()</span><span class="o">.</span><span class="n">cb_op</span><span class="p">()</span>
+        <span class="n">ref_acentric_subgroup</span> <span class="o">=</span> <span class="n">acentric_subgroup</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
+        <span class="c1"># Ignore unwanted groups</span>
+        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">bravais_lattice</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="n">ref_acentric_subgroup</span><span class="p">))</span> <span class="o">!=</span> <span class="n">target_bravais_str</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">acentric_subgroups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">acentric_subgroup</span><span class="p">)</span>
+        <span class="n">cb_ops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cb_op</span><span class="p">)</span>
+        <span class="n">acentric_supergroups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metric_supergroup</span><span class="p">(</span><span class="n">acentric_subgroup</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">acentric_subgroups</span><span class="p">,</span> <span class="n">acentric_supergroups</span><span class="p">,</span> <span class="n">cb_ops</span></div>
+
+
 <div class="viewcode-block" id="find_matching_symmetry"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.symmetry.find_matching_symmetry">[docs]</a><span class="k">def</span> <span class="nf">find_matching_symmetry</span><span class="p">(</span>
-    <span class="n">unit_cell</span><span class="p">,</span> <span class="n">target_space_group</span><span class="p">,</span> <span class="n">max_delta</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">best_monoclinic_beta</span><span class="o">=</span><span class="kc">True</span>
+    <span class="n">unit_cell</span><span class="p">,</span>
+    <span class="n">target_space_group</span><span class="p">,</span>
+    <span class="n">max_delta</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">best_monoclinic_beta</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">target_bravais_str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
     <span class="n">cs</span> <span class="o">=</span> <span class="n">crystal</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span><span class="n">unit_cell</span><span class="o">=</span><span class="n">unit_cell</span><span class="p">,</span> <span class="n">space_group</span><span class="o">=</span><span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group</span><span class="p">())</span>
-    <span class="n">target_bravais_t</span> <span class="o">=</span> <span class="n">bravais_lattice</span><span class="p">(</span>
-        <span class="n">group</span><span class="o">=</span><span class="n">target_space_group</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">reference_setting</span><span class="p">()</span><span class="o">.</span><span class="n">group</span><span class="p">()</span>
-    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">target_bravais_str</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">target_bravais_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="n">bravais_lattice</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="n">target_space_group</span><span class="o">.</span><span class="n">info</span><span class="p">()</span><span class="o">.</span><span class="n">reference_setting</span><span class="p">()</span><span class="o">.</span><span class="n">group</span><span class="p">())</span>
+        <span class="p">)</span>
     <span class="n">best_subgroup</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">best_angular_difference</span> <span class="o">=</span> <span class="mf">1e8</span>
 
@@ -95,21 +156,16 @@
         <span class="n">enforce_max_delta_for_generated_two_folds</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># Get list of sub-spacegroups</span>
-    <span class="n">subgrs</span> <span class="o">=</span> <span class="n">subgroups</span><span class="o">.</span><span class="n">subgroups</span><span class="p">(</span><span class="n">lattice_group</span><span class="o">.</span><span class="n">info</span><span class="p">())</span><span class="o">.</span><span class="n">groups_parent_setting</span><span class="p">()</span>
+    <span class="n">lattice_group_info</span> <span class="o">=</span> <span class="n">lattice_group</span><span class="o">.</span><span class="n">info</span><span class="p">()</span>
+    <span class="n">acentric_subgroups</span><span class="p">,</span> <span class="n">acentric_supergroups</span><span class="p">,</span> <span class="n">cb_ops</span> <span class="o">=</span> <span class="n">calc_acentric_subgroups</span><span class="p">(</span>
+        <span class="n">lattice_group_info</span><span class="p">,</span>
+        <span class="n">target_bravais_str</span><span class="p">,</span>
+    <span class="p">)</span>
 
-    <span class="c1"># Order sub-groups</span>
-    <span class="n">sort_values</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">subgrs</span><span class="p">:</span>
-        <span class="n">order_z</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">order_z</span><span class="p">()</span>
-        <span class="n">space_group_number</span> <span class="o">=</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">space_group_type</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">number</span><span class="p">()</span>
-        <span class="k">assert</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">space_group_number</span> <span class="o">&lt;=</span> <span class="mi">230</span>
-        <span class="n">sort_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">order_z</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">+</span> <span class="n">space_group_number</span><span class="p">)</span>
-    <span class="n">perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">sort_values</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">acentric_subgroup</span><span class="p">,</span> <span class="n">acentric_supergroup</span><span class="p">,</span> <span class="n">cb_op_minimum_ref</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+        <span class="n">acentric_subgroups</span><span class="p">,</span> <span class="n">acentric_supergroups</span><span class="p">,</span> <span class="n">cb_ops</span>
+    <span class="p">):</span>
 
-    <span class="k">for</span> <span class="n">i_subgr</span> <span class="ow">in</span> <span class="n">perm</span><span class="p">:</span>
-        <span class="n">acentric_subgroup</span> <span class="o">=</span> <span class="n">subgrs</span><span class="p">[</span><span class="n">i_subgr</span><span class="p">]</span>
-        <span class="n">acentric_supergroup</span> <span class="o">=</span> <span class="n">metric_supergroup</span><span class="p">(</span><span class="n">acentric_subgroup</span><span class="p">)</span>
         <span class="c1"># Make symmetry object: unit-cell + space-group</span>
         <span class="c1"># The unit cell is potentially modified to be exactly compatible</span>
         <span class="c1"># with the space group symmetry.</span>
@@ -119,12 +175,7 @@
             <span class="n">assert_is_compatible_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="c1"># Convert subgroup to reference setting</span>
-        <span class="n">cb_op_minimum_ref</span> <span class="o">=</span> <span class="n">subsym</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">()</span><span class="o">.</span><span class="n">type</span><span class="p">()</span><span class="o">.</span><span class="n">cb_op</span><span class="p">()</span>
         <span class="n">ref_subsym</span> <span class="o">=</span> <span class="n">subsym</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span><span class="n">cb_op_minimum_ref</span><span class="p">)</span>
-        <span class="c1"># Ignore unwanted groups</span>
-        <span class="n">bravais_t</span> <span class="o">=</span> <span class="n">bravais_lattice</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="n">ref_subsym</span><span class="o">.</span><span class="n">space_group</span><span class="p">())</span>
-        <span class="k">if</span> <span class="n">bravais_t</span> <span class="o">!=</span> <span class="n">target_bravais_t</span><span class="p">:</span>
-            <span class="k">continue</span>
 
         <span class="c1"># Choose best setting for monoclinic and orthorhombic systems</span>
         <span class="n">cb_op_best_cell</span> <span class="o">=</span> <span class="n">ref_subsym</span><span class="o">.</span><span class="n">change_of_basis_op_to_best_cell</span><span class="p">(</span>
