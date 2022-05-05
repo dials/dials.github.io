@@ -48,6 +48,7 @@
 <span class="kn">import</span> <span class="nn">argparse</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">sys</span>
@@ -70,6 +71,8 @@
     <span class="n">sort_tables_to_experiments_order</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">FilenameDataWrapper</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 <span class="n">tolerance_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -306,26 +309,36 @@
         <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
             <span class="c1"># Don&#39;t expand wildcards if URI-style filename</span>
             <span class="k">if</span> <span class="s2">&quot;*&quot;</span> <span class="ow">in</span> <span class="n">arg</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">get_url_scheme</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
-                <span class="n">args_new</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span>
+                <span class="n">filenames</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">filenames</span><span class="p">:</span>
+                    <span class="n">args_new</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No files found with pattern </span><span class="si">{</span><span class="n">arg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">args_new</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
         <span class="n">args</span> <span class="o">=</span> <span class="n">args_new</span>
 
         <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_filenames</span><span class="p">(</span>
-            <span class="n">args</span><span class="p">,</span>
-            <span class="n">unhandled</span><span class="o">=</span><span class="n">unhandled</span><span class="p">,</span>
-            <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
-            <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
-            <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
-            <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">,</span>
-            <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
-            <span class="n">load_models</span><span class="o">=</span><span class="n">load_models</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="n">experiments</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="n">FilenameDataWrapper</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;&lt;image files&gt;&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">experiments</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">experiments</span> <span class="o">=</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_filenames</span><span class="p">(</span>
+                <span class="n">args</span><span class="p">,</span>
+                <span class="n">unhandled</span><span class="o">=</span><span class="n">unhandled</span><span class="p">,</span>
+                <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
+                <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
+                <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
+                <span class="n">scan_tolerance</span><span class="o">=</span><span class="n">scan_tolerance</span><span class="p">,</span>
+                <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">,</span>
+                <span class="n">load_models</span><span class="o">=</span><span class="n">load_models</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">FileNotFoundError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">filename</span><span class="si">}</span><span class="s2"> not found&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">experiments</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">FilenameDataWrapper</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;&lt;image files&gt;&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">experiments</span><span class="p">)</span>
+                <span class="p">)</span>
+
         <span class="k">return</span> <span class="n">unhandled</span></div>
 
 <div class="viewcode-block" id="Importer.try_read_experiments"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.try_read_experiments">[docs]</a>    <span class="k">def</span> <span class="nf">try_read_experiments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">check_format</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
