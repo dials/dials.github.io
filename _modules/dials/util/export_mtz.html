@@ -50,9 +50,14 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span>
 <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">isclose</span>
 
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">uctbx</span>
 <span class="kn">from</span> <span class="nn">iotbx</span> <span class="kn">import</span> <span class="n">mtz</span>
 <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">env</span>
+<span class="kn">from</span> <span class="nn">rstbx.cftbx.coordinate_frame_helpers</span> <span class="kn">import</span> <span class="n">align_reference_frame</span>
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+<span class="kn">from</span> <span class="nn">scitbx.math</span> <span class="kn">import</span> <span class="n">r3_rotation_axis_and_angle_from_matrix</span>
 
 <span class="kn">import</span> <span class="nn">dials.util.ext</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.scaling.scaling_library</span> <span class="kn">import</span> <span class="n">determine_best_unit_cell</span>
@@ -202,11 +207,13 @@
         <span class="n">umat_array</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">n_batches</span><span class="p">,</span> <span class="mi">9</span><span class="p">))</span>
         <span class="n">cell_array</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">n_batches</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
 
-        <span class="n">U</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_U</span><span class="p">())</span>
-        <span class="k">if</span> <span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">F</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_fixed_rotation</span><span class="p">())</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">F</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="c1"># Reciprocal lattice vectors in the lab frame at zero scan angle</span>
+        <span class="n">S</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_setting_rotation</span><span class="p">())</span>
+        <span class="n">F</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_fixed_rotation</span><span class="p">())</span>
+        <span class="n">UBlab</span> <span class="o">=</span> <span class="n">S</span> <span class="o">*</span> <span class="n">F</span> <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_A</span><span class="p">())</span>
+
+        <span class="n">axis</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_rotation_axis</span><span class="p">())</span>
+        <span class="n">axis_datum</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_rotation_axis_datum</span><span class="p">())</span>
 
         <span class="n">i0</span> <span class="o">=</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_batches</span><span class="p">):</span>
@@ -215,38 +222,69 @@
                     <span class="n">i</span> <span class="o">+</span> <span class="n">i0</span>
                 <span class="p">)</span>
 
-            <span class="c1"># unit cell (this is fine) and the what-was-refined-flags hardcoded</span>
-            <span class="c1"># take time-varying parameters from the *end of the frame* unlikely to</span>
-            <span class="c1"># be much different at the end - however only exist if scan-varying</span>
-            <span class="c1"># refinement was used</span>
+            <span class="c1"># Unit cell and UB matrix for the centre of the image for scan-varying model</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">force_static_model</span> <span class="ow">and</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">num_scan_points</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+
                 <span class="c1"># Get the index of the image in the sequence e.g. first =&gt; 0, second =&gt; 1</span>
                 <span class="n">image_index</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="n">i0</span> <span class="o">-</span> <span class="n">experiment</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_image_range</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">_unit_cell</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell_at_scan_point</span><span class="p">(</span><span class="n">image_index</span><span class="p">)</span>
-                <span class="n">_U</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_U_at_scan_point</span><span class="p">(</span><span class="n">image_index</span><span class="p">))</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">_unit_cell</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
-                <span class="n">_U</span> <span class="o">=</span> <span class="n">U</span>
 
-            <span class="c1"># apply the fixed rotation to this to unify matrix definitions - F * U</span>
-            <span class="c1"># was what was used in the actual prediction: U appears to be stored</span>
-            <span class="c1"># as the transpose?! At least is for Mosflm...</span>
-            <span class="c1">#</span>
-            <span class="c1"># FIXME Do we need to apply the setting rotation here somehow? i.e. we have</span>
-            <span class="c1"># the U.B. matrix assuming that the axis is equal to S * axis_datum but</span>
-            <span class="c1"># here we are just giving the effective axis so at scan angle 0 this will</span>
-            <span class="c1"># not be correct... FIXME 2 not even sure we can express the stack of</span>
-            <span class="c1"># matrices S * R * F * U * B in MTZ format?... see [=A=] below</span>
-            <span class="n">_U</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">dials</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">dials_u_to_mosflm</span><span class="p">(</span><span class="n">F</span> <span class="o">*</span> <span class="n">_U</span><span class="p">,</span> <span class="n">_unit_cell</span><span class="p">))</span>
+                <span class="c1"># Find the U matrix at the frame centre by calculating the linear transform</span>
+                <span class="c1"># that goes from the start of the frame to the end, and then applying half of</span>
+                <span class="c1"># that to the start value</span>
+                <span class="n">U0</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_U_at_scan_point</span><span class="p">(</span><span class="n">image_index</span><span class="p">))</span>
+                <span class="n">U1</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_U_at_scan_point</span><span class="p">(</span><span class="n">image_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="n">M</span> <span class="o">=</span> <span class="n">U1</span> <span class="o">*</span> <span class="n">U0</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+                <span class="p">(</span>
+                    <span class="n">angle_M</span><span class="p">,</span>
+                    <span class="n">axis_M</span><span class="p">,</span>
+                <span class="p">)</span> <span class="o">=</span> <span class="n">M</span><span class="o">.</span><span class="n">r3_rotation_matrix_as_unit_quaternion</span><span class="p">()</span><span class="o">.</span><span class="n">unit_quaternion_as_axis_and_angle</span><span class="p">(</span>
+                    <span class="n">deg</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+                <span class="n">M_half</span> <span class="o">=</span> <span class="n">axis_M</span><span class="o">.</span><span class="n">axis_and_angle_as_r3_rotation_matrix</span><span class="p">(</span>
+                    <span class="n">angle_M</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+                <span class="n">Ucentre</span> <span class="o">=</span> <span class="n">M_half</span> <span class="o">*</span> <span class="n">U0</span>
+
+                <span class="c1"># Find the B matrix at the frame centre by interpolation</span>
+                <span class="n">B0</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_B_at_scan_point</span><span class="p">(</span><span class="n">image_index</span><span class="p">))</span>
+                <span class="n">B1</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_B_at_scan_point</span><span class="p">(</span><span class="n">image_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="n">Bcentre</span> <span class="o">=</span> <span class="p">(</span><span class="n">B0</span> <span class="o">+</span> <span class="n">B1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+
+                <span class="c1"># Unit cell at the frame centre</span>
+                <span class="n">unit_cell</span> <span class="o">=</span> <span class="n">uctbx</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(</span>
+                    <span class="n">orthogonalization_matrix</span><span class="o">=</span><span class="n">Bcentre</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+                <span class="p">)</span>
+
+                <span class="c1"># Get full lab frame UB then unwind to zero scan angle</span>
+                <span class="n">phi_centre</span> <span class="o">=</span> <span class="n">phi_start</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">phi_range</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="n">R</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span>
+                    <span class="n">axis_datum</span><span class="o">.</span><span class="n">axis_and_angle_as_r3_rotation_matrix</span><span class="p">(</span>
+                        <span class="n">phi_centre</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">Rlab_inv</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span>
+                    <span class="n">axis</span><span class="o">.</span><span class="n">axis_and_angle_as_r3_rotation_matrix</span><span class="p">(</span><span class="o">-</span><span class="n">phi_centre</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">_UBlab</span> <span class="o">=</span> <span class="n">Rlab_inv</span> <span class="o">*</span> <span class="n">S</span> <span class="o">*</span> <span class="n">R</span> <span class="o">*</span> <span class="n">F</span> <span class="o">*</span> <span class="n">Ucentre</span> <span class="o">*</span> <span class="n">Bcentre</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">unit_cell</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_unit_cell</span><span class="p">()</span>
+                <span class="n">_UBlab</span> <span class="o">=</span> <span class="n">UBlab</span>
+
+            <span class="c1"># We assume a single-axis goniometer as it is not clear that multi-</span>
+            <span class="c1"># axis goniometry was ever fully supported in MTZ format. Orientation</span>
+            <span class="c1"># will be taken from the laboratory frame for this image.</span>
+            <span class="n">U</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">dials</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">ub_to_mosflm_u</span><span class="p">(</span><span class="n">_UBlab</span><span class="p">,</span> <span class="n">unit_cell</span><span class="p">))</span>
 
             <span class="c1"># FIXME need to get what was refined and what was constrained from the</span>
             <span class="c1"># crystal model - see https://github.com/dials/dials/issues/355</span>
-            <span class="n">_unit_cell_params</span> <span class="o">=</span> <span class="n">_unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span>
+            <span class="n">_unit_cell_params</span> <span class="o">=</span> <span class="n">unit_cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
                 <span class="n">cell_array</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">_unit_cell_params</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
-            <span class="n">_U_t_elements</span> <span class="o">=</span> <span class="n">_U</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span>
+            <span class="c1"># Transpose to put in column-major order for MTZ export</span>
+            <span class="n">U_t_elements</span> <span class="o">=</span> <span class="n">U</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span>
             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">9</span><span class="p">):</span>
-                <span class="n">umat_array</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">_U_t_elements</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">umat_array</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">U_t_elements</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
 
         <span class="c1"># We ignore panels beyond the first one, at the moment</span>
         <span class="n">panel</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -258,9 +296,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">axis</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
 
-        <span class="c1"># FIXME hard-coded assumption on idealized beam vector below... this may be</span>
-        <span class="c1"># broken when we come to process data from a non-imgCIF frame</span>
-        <span class="n">s0n</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_sample_to_source_direction</span><span class="p">())</span>
 
         <span class="c1"># get the mosaic spread though today it may not actually be set - should</span>
         <span class="c1"># this be in the BATCH headers?</span>
@@ -284,7 +320,7 @@
             <span class="n">panel_size</span><span class="p">,</span>
             <span class="n">panel_distance</span><span class="p">,</span>
             <span class="n">axis</span><span class="p">,</span>
-            <span class="n">s0n</span><span class="p">,</span>
+            <span class="n">source</span><span class="p">,</span>
         <span class="p">)</span></div>
 
 <div class="viewcode-block" id="UnmergedMTZWriter.write_columns"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.UnmergedMTZWriter.write_columns">[docs]</a>    <span class="k">def</span> <span class="nf">write_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflection_table</span><span class="p">):</span>
@@ -469,6 +505,9 @@
     <span class="n">reflection_table</span><span class="o">.</span><span class="n">assert_experiment_identifiers_are_consistent</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span>
     <span class="n">expids_in_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">experiment_list</span><span class="o">.</span><span class="n">identifiers</span><span class="p">())</span>
 
+    <span class="c1"># Convert geometry to the Cambridge frame</span>
+    <span class="n">experiment_list</span> <span class="o">=</span> <span class="n">convert_to_cambridge</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span>
+
     <span class="c1"># Convert experiment_list to a real python list or else identity assumptions</span>
     <span class="c1"># fail like:</span>
     <span class="c1">#   assert experiment_list[0] is experiment_list[0]</span>
@@ -652,6 +691,60 @@
             <span class="n">match_w</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">wavelengths</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">matches</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="kc">True</span><span class="p">)]</span>
             <span class="n">wavelengths</span><span class="p">[</span><span class="n">match_w</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">wavelengths</span></div>
+
+
+<div class="viewcode-block" id="convert_to_cambridge"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.convert_to_cambridge">[docs]</a><span class="k">def</span> <span class="nf">convert_to_cambridge</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Rotate the geometry of an experiment list to match the Cambridge frame,</span>
+<span class="sd">    in which X is along the idealized X-ray beam and Z is along the primary</span>
+<span class="sd">    rotation axis&quot;&quot;&quot;</span>
+
+    <span class="k">for</span> <span class="n">expt</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="p">:</span>
+            <span class="n">primary_axis</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_rotation_axis_datum</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">primary_axis</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+        <span class="n">us0</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_unit_s0</span><span class="p">()</span>
+
+        <span class="n">R</span> <span class="o">=</span> <span class="n">align_reference_frame</span><span class="p">(</span><span class="n">primary_axis</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">us0</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">axis_angle</span> <span class="o">=</span> <span class="n">r3_rotation_axis_and_angle_from_matrix</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">axis_angle</span><span class="o">.</span><span class="n">axis</span><span class="p">)</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">axis_angle</span><span class="o">.</span><span class="n">angle</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Rotating experiment</span><span class="si">{</span><span class="s1">&#39;s&#39;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2"> about axis </span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">elems</span><span class="si">}</span><span class="s2"> by </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">°&quot;</span>
+        <span class="p">)</span>
+        <span class="n">expt</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">rotate_around_origin</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">expt</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">rotate_around_origin</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># For the goniometer, each component needs transformation</span>
+        <span class="n">F</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_fixed_rotation</span><span class="p">())</span>
+        <span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">set_fixed_rotation</span><span class="p">(</span><span class="n">R</span> <span class="o">*</span> <span class="n">F</span> <span class="o">*</span> <span class="n">R</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span>
+        <span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">set_rotation_axis_datum</span><span class="p">(</span><span class="n">R</span> <span class="o">*</span> <span class="n">primary_axis</span><span class="p">)</span>
+        <span class="n">S</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_setting_rotation</span><span class="p">())</span>
+        <span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">set_setting_rotation</span><span class="p">(</span><span class="n">R</span> <span class="o">*</span> <span class="n">S</span> <span class="o">*</span> <span class="n">R</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="n">expt</span><span class="o">.</span><span class="n">crystal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">expt</span><span class="o">.</span><span class="n">crystal</span> <span class="o">=</span> <span class="n">rotate_crystal</span><span class="p">(</span><span class="n">expt</span><span class="o">.</span><span class="n">crystal</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">experiments</span></div>
+
+
+<div class="viewcode-block" id="rotate_crystal"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.rotate_crystal">[docs]</a><span class="k">def</span> <span class="nf">rotate_crystal</span><span class="p">(</span><span class="n">crystal</span><span class="p">,</span> <span class="n">Rmat</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">):</span>
+
+    <span class="n">Amats</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">crystal</span><span class="o">.</span><span class="n">num_scan_points</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">scan_pts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">crystal</span><span class="o">.</span><span class="n">num_scan_points</span><span class="p">))</span>
+        <span class="n">Amats</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">Rmat</span>
+            <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_U_at_scan_point</span><span class="p">(</span><span class="n">t</span><span class="p">))</span>
+            <span class="o">*</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_B_at_scan_point</span><span class="p">(</span><span class="n">t</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">scan_pts</span>
+        <span class="p">]</span>
+
+    <span class="n">crystal</span><span class="o">.</span><span class="n">rotate_around_origin</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">Amats</span><span class="p">:</span>
+        <span class="n">crystal</span><span class="o">.</span><span class="n">set_A_at_scan_points</span><span class="p">(</span><span class="n">Amats</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">crystal</span></div>
 </pre></div>
 
           </div>
