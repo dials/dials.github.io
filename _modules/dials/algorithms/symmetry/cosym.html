@@ -57,15 +57,17 @@
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">sklearn.neighbors</span> <span class="kn">import</span> <span class="n">NearestNeighbors</span>
 
 <span class="kn">import</span> <span class="nn">iotbx.phil</span>
-<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">sgtbx</span>
+<span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">miller</span><span class="p">,</span> <span class="n">sgtbx</span>
+<span class="kn">from</span> <span class="nn">cctbx.sgtbx.lattice_symmetry</span> <span class="kn">import</span> <span class="n">metric_subgroups</span>
 <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">Auto</span>
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 
 <span class="kn">import</span> <span class="nn">dials.util</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.symmetry</span> <span class="kn">import</span> <span class="n">find_matching_symmetry</span>
@@ -74,6 +76,7 @@
 <span class="kn">from</span> <span class="nn">dials.algorithms.symmetry.cosym</span> <span class="kn">import</span> <span class="n">target</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.symmetry.laue_group</span> <span class="kn">import</span> <span class="n">ScoreCorrelationCoefficient</span>
 <span class="kn">from</span> <span class="nn">dials.util.observer</span> <span class="kn">import</span> <span class="n">Subject</span>
+<span class="kn">from</span> <span class="nn">dials.util.reference</span> <span class="kn">import</span> <span class="n">intensities_from_reference_file</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -161,14 +164,25 @@
 <span class="sd">    the presence of an indexing ambiguity.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="CosymAnalysis.__init__"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.CosymAnalysis.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">intensities</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<div class="viewcode-block" id="CosymAnalysis.__init__"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.CosymAnalysis.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">intensities</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">seed_dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialise a CosymAnalysis object.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">          intensities (cctbx.miller.array): The intensities on which to perform</span>
 <span class="sd">            cosym analysis.</span>
 <span class="sd">          params (libtbx.phil.scope_extract): Parameters for the analysis.</span>
+<span class="sd">          seed_dataset (int): The index into the intensities list to use when</span>
+<span class="sd">            choosing a seed dataset for the reindexing analysis (the x,y,z reindex</span>
+<span class="sd">            mode will be used for this dataset).</span>
+<span class="sd">            If None, a high density cluster point is chosen.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed_dataset</span> <span class="o">=</span> <span class="n">seed_dataset</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed_dataset</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">seed_dataset</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seed_dataset</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">seed_dataset</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
+            <span class="p">),</span> <span class="s2">&quot;cosym_analysis: seed_dataset parameter must be an integer that can be used to index the intensities list&quot;</span>
+
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="n">intensities</span><span class="p">,</span>
             <span class="n">normalisation</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">normalisation</span><span class="p">,</span>
@@ -428,15 +442,22 @@
         <span class="n">coord_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_datasets</span> <span class="o">*</span> <span class="n">n_sym_ops</span><span class="p">)</span>
         <span class="n">dataset_ids</span> <span class="o">=</span> <span class="n">coord_ids</span> <span class="o">%</span> <span class="n">n_datasets</span>
 
-        <span class="c1"># choose a high density point as seed</span>
-        <span class="n">X</span> <span class="o">=</span> <span class="n">coords</span>
-        <span class="n">nbrs</span> <span class="o">=</span> <span class="n">NearestNeighbors</span><span class="p">(</span>
-            <span class="n">n_neighbors</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span> <span class="n">algorithm</span><span class="o">=</span><span class="s2">&quot;brute&quot;</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s2">&quot;cosine&quot;</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-        <span class="n">distances</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">nbrs</span><span class="o">.</span><span class="n">kneighbors</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-        <span class="n">average_distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dist</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="k">for</span> <span class="n">dist</span> <span class="ow">in</span> <span class="n">distances</span><span class="p">])</span>
-        <span class="n">i</span> <span class="o">=</span> <span class="n">average_distance</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span>
-        <span class="n">xis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed_dataset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># if seed dataset was specified, use the reindexing op xyz as seed</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dataset_ids</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed_dataset</span><span class="p">)</span>
+            <span class="n">xis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">coords</span><span class="p">[</span><span class="n">sel</span><span class="p">][</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># choose a high density point as seed</span>
+            <span class="n">X</span> <span class="o">=</span> <span class="n">coords</span>
+            <span class="n">nbrs</span> <span class="o">=</span> <span class="n">NearestNeighbors</span><span class="p">(</span>
+                <span class="n">n_neighbors</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)),</span> <span class="n">algorithm</span><span class="o">=</span><span class="s2">&quot;brute&quot;</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s2">&quot;cosine&quot;</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+            <span class="n">distances</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">nbrs</span><span class="o">.</span><span class="n">kneighbors</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+            <span class="n">average_distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dist</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="k">for</span> <span class="n">dist</span> <span class="ow">in</span> <span class="n">distances</span><span class="p">])</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="n">average_distance</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span>
+            <span class="n">xis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span>
+        <span class="n">coordstr</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xis</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Coordinate of cluster seed dataset: </span><span class="si">{</span><span class="n">coordstr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_datasets</span><span class="p">):</span>
             <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dataset_ids</span> <span class="o">==</span> <span class="n">j</span><span class="p">)</span>
@@ -877,6 +898,39 @@
             <span class="s2">&quot;cb_op&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subgroup</span><span class="p">[</span><span class="s1">&#39;cb_op_inp_best&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="s2">&quot;stars&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">,</span>
         <span class="p">}</span></div></div>
+
+
+<div class="viewcode-block" id="extract_reference_intensities"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.extract_reference_intensities">[docs]</a><span class="k">def</span> <span class="nf">extract_reference_intensities</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="n">iotbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">scope_extract</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">miller</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+    <span class="c1"># Extract/calculate a set of intensities from a reference.</span>
+    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">d_min</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="n">Auto</span><span class="p">,</span> <span class="kc">None</span><span class="p">}:</span>
+        <span class="n">reference_intensities</span> <span class="o">=</span> <span class="n">intensities_from_reference_file</span><span class="p">(</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">reference</span><span class="p">,</span> <span class="n">d_min</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">d_min</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">reference_intensities</span> <span class="o">=</span> <span class="n">intensities_from_reference_file</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">reference</span><span class="p">)</span>
+    <span class="n">initial_space_group_info</span> <span class="o">=</span> <span class="n">reference_intensities</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">()</span>
+    <span class="n">group</span> <span class="o">=</span> <span class="n">metric_subgroups</span><span class="p">(</span>
+        <span class="n">reference_intensities</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">(),</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">lattice_symmetry_max_delta</span><span class="p">,</span>
+        <span class="n">enforce_max_delta_for_generated_two_folds</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">result_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ref_cb_op</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">group</span><span class="p">[</span><span class="s2">&quot;best_subsym&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">change_of_basis_op_to_minimum_cell</span><span class="p">()</span>
+        <span class="o">*</span> <span class="n">group</span><span class="p">[</span><span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+
+    <span class="n">reference_intensities</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">reference_intensities</span><span class="o">.</span><span class="n">change_basis</span><span class="p">(</span>
+            <span class="n">ref_cb_op</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">expand_to_p1</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">as_non_anomalous_array</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">merge_equivalents</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">reference_intensities</span><span class="o">.</span><span class="n">sigmas</span><span class="p">():</span>
+        <span class="n">reference_intensities</span><span class="o">.</span><span class="n">set_sigmas</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">reference_intensities</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">reference_intensities</span><span class="p">,</span> <span class="n">initial_space_group_info</span></div>
 </pre></div>
 
           </div>
