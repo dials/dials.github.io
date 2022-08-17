@@ -438,24 +438,23 @@
 <span class="sd">        it is assumed that the file has already been read.&quot;&quot;&quot;</span>
 
         <span class="c1"># find the goniometer axes and dependencies</span>
-        <span class="n">axis_names</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">()</span>
-        <span class="n">depends_on</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">()</span>
-        <span class="n">axes</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">()</span>
-        <span class="n">angles</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+        <span class="n">dependants</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">axis_vectors</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">angles</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">scan_axis</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_category</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;axis&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">count_rows</span><span class="p">()):</span>
             <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;equipment&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span> <span class="o">==</span> <span class="sa">b</span><span class="s2">&quot;goniometer&quot;</span><span class="p">:</span>
                 <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
-                <span class="n">axis_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">())</span>
-                <span class="n">axis</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">axis_name</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+                <span class="n">axis_vector</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
                     <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;vector[</span><span class="si">%i</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
-                    <span class="n">axis</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()))</span>
-                <span class="n">axes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+                    <span class="n">axis_vector</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()))</span>
+                <span class="n">axis_vectors</span><span class="p">[</span><span class="n">axis_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">axis_vector</span>
                 <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;depends_on&quot;</span><span class="p">)</span>
-                <span class="n">depends_on</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">())</span>
+                <span class="n">dependants</span><span class="p">[</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()]</span> <span class="o">=</span> <span class="n">axis_name</span>
             <span class="n">cbf_handle</span><span class="o">.</span><span class="n">next_row</span><span class="p">()</span>
 
         <span class="c1"># find the starting angles of each goniometer axis and figure out which one</span>
@@ -463,46 +462,47 @@
         <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_category</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;diffrn_scan_axis&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">count_rows</span><span class="p">()):</span>
             <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;axis_id&quot;</span><span class="p">)</span>
-            <span class="n">axis_name</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">axis_name</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">axis_names</span><span class="p">:</span>
+            <span class="n">axis_name</span> <span class="o">=</span> <span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">axis_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">axis_vectors</span><span class="p">:</span>
                 <span class="n">cbf_handle</span><span class="o">.</span><span class="n">next_row</span><span class="p">()</span>
                 <span class="k">continue</span>
             <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;angle_start&quot;</span><span class="p">)</span>
             <span class="n">axis_angle</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">())</span>
             <span class="n">cbf_handle</span><span class="o">.</span><span class="n">find_column</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;angle_increment&quot;</span><span class="p">)</span>
             <span class="n">increment</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cbf_handle</span><span class="o">.</span><span class="n">get_value</span><span class="p">())</span>
-            <span class="n">angles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">axis_angle</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">increment</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">assert</span> <span class="p">(</span>
-                    <span class="n">scan_axis</span> <span class="ow">is</span> <span class="kc">None</span>
-                <span class="p">),</span> <span class="s2">&quot;More than one scan axis is defined: not currently supported&quot;</span>
-                <span class="n">scan_axis</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">first_index</span><span class="p">(</span><span class="n">axis_names</span><span class="p">,</span> <span class="n">axis_name</span><span class="p">)</span>
+            <span class="n">angles</span><span class="p">[</span><span class="n">axis_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">axis_angle</span>
+            <span class="k">if</span> <span class="n">increment</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">scan_axis</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;More than one scan axis is defined: not currently supported.&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">scan_axis</span> <span class="o">=</span> <span class="n">axis_name</span>
             <span class="n">cbf_handle</span><span class="o">.</span><span class="n">next_row</span><span class="p">()</span>
-        <span class="k">assert</span> <span class="n">axes</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="n">angles</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">scan_axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># probably a still shot -&gt; scan axis arbitrary as no scan</span>
-            <span class="n">scan_axis</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">axis_vectors</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">angles</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The number of goniometer axes specified in the &#39;axis&#39; category of the &quot;</span>
+                <span class="s2">&quot;raw data does not match the number specified in the &quot;</span>
+                <span class="s2">&quot;&#39;diffrn_scan_axis&#39; category.&quot;</span>
+            <span class="p">)</span>
 
         <span class="c1"># figure out the order of the axes from the depends_on values</span>
-        <span class="n">order</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">axes</span><span class="o">.</span><span class="n">size</span><span class="p">()):</span>
-            <span class="k">if</span> <span class="n">depends_on</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;.&quot;</span><span class="p">:</span>
-                <span class="n">o</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">o</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">first_index</span><span class="p">(</span><span class="n">axis_names</span><span class="p">,</span> <span class="n">depends_on</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span>
-            <span class="k">assert</span> <span class="n">o</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">order</span>
-            <span class="n">order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+        <span class="n">ordered_axes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span>
+        <span class="k">while</span> <span class="n">axis</span> <span class="o">:=</span> <span class="n">dependants</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">axis</span><span class="p">):</span>
+            <span class="n">ordered_axes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
 
         <span class="c1"># multi-axis gonio requires axes in order as viewed from crystal to gonio base</span>
         <span class="c1"># i.e. the reverse of the order we have from cbf header</span>
-        <span class="n">order</span> <span class="o">=</span> <span class="n">order</span><span class="o">.</span><span class="n">reversed</span><span class="p">()</span>
-        <span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
-        <span class="n">angles</span> <span class="o">=</span> <span class="n">angles</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
-        <span class="n">axis_names</span> <span class="o">=</span> <span class="n">axis_names</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
-        <span class="n">scan_axis</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">-</span> <span class="n">scan_axis</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">ordered_axes</span> <span class="o">=</span> <span class="n">ordered_axes</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">axis_vectors</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">axis_vectors</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">ordered_axes</span><span class="p">)</span>
+        <span class="n">angles</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">angles</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">ordered_axes</span><span class="p">)</span>
+        <span class="c1"># If no scan_axis, probably a still shot ⇒ scan axis arbitrary, set to 0.</span>
+        <span class="n">scan_axis</span> <span class="o">=</span> <span class="n">ordered_axes</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">scan_axis</span><span class="p">)</span> <span class="k">if</span> <span class="n">scan_axis</span> <span class="k">else</span> <span class="mi">0</span>
 
         <span class="c1"># construct a multi-axis goniometer</span>
-        <span class="n">gonio</span> <span class="o">=</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">multi_axis</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">axis_names</span><span class="p">,</span> <span class="n">scan_axis</span><span class="p">)</span>
+        <span class="n">gonio</span> <span class="o">=</span> <span class="n">GoniometerFactory</span><span class="o">.</span><span class="n">multi_axis</span><span class="p">(</span>
+            <span class="n">axis_vectors</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span> <span class="n">flex</span><span class="o">.</span><span class="n">std_string</span><span class="p">(</span><span class="n">ordered_axes</span><span class="p">),</span> <span class="n">scan_axis</span>
+        <span class="p">)</span>
         <span class="k">return</span> <span class="n">gonio</span></div></div>
 </pre></div>
 
