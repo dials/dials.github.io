@@ -56,6 +56,9 @@
 <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">Auto</span><span class="p">,</span> <span class="n">phil</span>
 
 <span class="kn">from</span> <span class="nn">dials.algorithms.scaling.error_model.error_model</span> <span class="kn">import</span> <span class="n">BasicErrorModel</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.scaling.model.components.analytical_component</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AnalyticalComponent</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.scaling.model.components.scale_components</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">LinearDoseDecay</span><span class="p">,</span>
     <span class="n">QuadraticDoseDecay</span><span class="p">,</span>
@@ -95,6 +98,11 @@
 <span class="s2">correction.fix = None</span>
 <span class="s2">    .type = strings</span>
 <span class="s2">    .help = &quot;If specified, this correction will not be refined in this scaling run&quot;</span>
+<span class="s2">analytical_correction = False</span>
+<span class="s2">    .type = bool</span>
+<span class="s2">    .help = &quot;If True, the &quot;analytical_correction&quot; column from the reflection table will&quot;</span>
+<span class="s2">            &quot;be used as a fixed correction during scaling (in addition to any corrections&quot;</span>
+<span class="s2">            &quot;specified as fixed with the option correction.fix=)&quot;</span>
 <span class="s2">&quot;&quot;&quot;</span>
 
 <span class="n">kb_model_phil_str</span> <span class="o">=</span> <span class="p">(</span>
@@ -528,7 +536,9 @@
             <span class="n">absorption_setup</span> <span class="o">=</span> <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SHScaleComponent</span><span class="p">(</span>
                 <span class="n">absorption_setup</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span> <span class="n">absorption_setup</span><span class="p">[</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">]</span>
-            <span class="p">)</span></div>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;analytical&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;analytical&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">AnalyticalComponent</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([]))</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">consecutive_refinement_order</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -566,7 +576,16 @@
         <span class="k">if</span> <span class="s2">&quot;absorption&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
             <span class="n">_add_absorption_component_to_physically_derived_model</span><span class="p">(</span>
                 <span class="bp">self</span><span class="p">,</span> <span class="n">reflection_table</span>
-            <span class="p">)</span></div>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;analytical&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;analytical_correction&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflection_table</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The reflection table must contain the column &#39;analytical_correction&#39;&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">when using the option analytical_correction=True.&quot;</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;analytical&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;correction&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;analytical_correction&quot;</span><span class="p">]</span>
+            <span class="p">}</span></div>
 
 <div class="viewcode-block" id="DoseDecay.limit_image_range"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.limit_image_range">[docs]</a>    <span class="k">def</span> <span class="nf">limit_image_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_image_range</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Modify the model to be suitable for a reduced image range.</span>
@@ -667,6 +686,13 @@
                 <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">n_abs_param</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
                 <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="p">}</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">analytical_correction</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;analytical_correction&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflection_table</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The reflection table must contain the column &#39;analytical_correction&#39;&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">when using the option analytical_correction=True.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;analytical&quot;</span><span class="p">)</span>
 
         <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">correction</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
@@ -675,7 +701,7 @@
 
 <div class="viewcode-block" id="DoseDecay.from_dict"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.DoseDecay.from_dict">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a :obj:`PhysicalScalingModel` from a dictionary.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a :obj:`DoseDecayScalingModel` from a dictionary.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">id_</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;expected __id__ </span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="n">id_</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">obj</span><span class="p">[</span><span class="s1">&#39;__id__&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="p">(</span><span class="n">s_params</span><span class="p">,</span> <span class="n">d_params</span><span class="p">,</span> <span class="n">abs_params</span><span class="p">,</span> <span class="n">B</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -752,7 +778,9 @@
             <span class="n">absorption_setup</span> <span class="o">=</span> <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;absorption&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SHScaleComponent</span><span class="p">(</span>
                 <span class="n">absorption_setup</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span> <span class="n">absorption_setup</span><span class="p">[</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">]</span>
-            <span class="p">)</span></div>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;analytical&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;analytical&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">AnalyticalComponent</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([]))</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">consecutive_refinement_order</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -780,7 +808,16 @@
         <span class="k">if</span> <span class="s2">&quot;absorption&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
             <span class="n">_add_absorption_component_to_physically_derived_model</span><span class="p">(</span>
                 <span class="bp">self</span><span class="p">,</span> <span class="n">reflection_table</span>
-            <span class="p">)</span></div>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;analytical&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;analytical_correction&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflection_table</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The reflection table must contain the column &#39;analytical_correction&#39;&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">when using the option analytical_correction=True.&quot;</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;analytical&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;correction&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;analytical_correction&quot;</span><span class="p">]</span>
+            <span class="p">}</span></div>
 
 <div class="viewcode-block" id="PhysicalScalingModel.limit_image_range"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.PhysicalScalingModel.limit_image_range">[docs]</a>    <span class="k">def</span> <span class="nf">limit_image_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_image_range</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Modify the model to be suitable for a reduced image range.</span>
@@ -933,6 +970,13 @@
                 <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">n_abs_param</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
                 <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="p">}</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">analytical_correction</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;analytical_correction&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflection_table</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The reflection table must contain the column &#39;analytical_correction&#39;&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">when using the option analytical_correction=True.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;analytical&quot;</span><span class="p">)</span>
 
         <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">correction</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
@@ -1059,7 +1103,9 @@
                 <span class="n">mod_setup</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span>
                 <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;n_x_mod_param&quot;</span><span class="p">],</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;n_y_mod_param&quot;</span><span class="p">]),</span>
                 <span class="n">parameter_esds</span><span class="o">=</span><span class="n">mod_setup</span><span class="p">[</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">],</span>
-            <span class="p">)</span></div>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;analytical&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;analytical&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">AnalyticalComponent</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([]))</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">consecutive_refinement_order</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1099,7 +1145,16 @@
             <span class="n">norm_y_det</span> <span class="o">=</span> <span class="p">(</span><span class="n">xyz</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;ymin&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">configdict</span><span class="p">[</span>
                 <span class="s2">&quot;y_det_bin_width&quot;</span>
             <span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;modulation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">norm_x_det</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">norm_y_det</span><span class="p">}</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;modulation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">norm_x_det</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">norm_y_det</span><span class="p">}</span>
+        <span class="k">if</span> <span class="s2">&quot;analytical&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;analytical_correction&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflection_table</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The reflection table must contain the column &#39;analytical_correction&#39;&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">when using the option analytical_correction=True.&quot;</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;analytical&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;correction&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;analytical_correction&quot;</span><span class="p">]</span>
+            <span class="p">}</span></div>
 
 <div class="viewcode-block" id="ArrayScalingModel.limit_image_range"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.ArrayScalingModel.limit_image_range">[docs]</a>    <span class="k">def</span> <span class="nf">limit_image_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_image_range</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Modify the model to be suitable for a reduced image range.</span>
@@ -1266,6 +1321,13 @@
                 <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">((</span><span class="n">n_x_mod_param</span> <span class="o">*</span> <span class="n">n_y_mod_param</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">),</span>
                 <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="p">}</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">analytical_correction</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;analytical_correction&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflection_table</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The reflection table must contain the column &#39;analytical_correction&#39;&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">when using the option analytical_correction=True.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;analytical&quot;</span><span class="p">)</span>
 
         <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">correction</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
@@ -1331,7 +1393,9 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SingleBScaleFactor</span><span class="p">(</span>
                 <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">][</span><span class="s2">&quot;parameters&quot;</span><span class="p">],</span>
                 <span class="n">parameters_dict</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">][</span><span class="s2">&quot;parameter_esds&quot;</span><span class="p">],</span>
-            <span class="p">)</span></div>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;analytical&quot;</span> <span class="ow">in</span> <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">[</span><span class="s2">&quot;analytical&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">AnalyticalComponent</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([]))</span></div>
 
 <div class="viewcode-block" id="KBScalingModel.configure_components"><a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.scaling.html#dials.algorithms.scaling.model.model.KBScalingModel.configure_components">[docs]</a>    <span class="k">def</span> <span class="nf">configure_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflection_table</span><span class="p">,</span> <span class="n">experiment</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Add the required reflection table data to the model components.&quot;&quot;&quot;</span>
@@ -1340,6 +1404,15 @@
         <span class="k">if</span> <span class="s2">&quot;decay&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;decay&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
                 <span class="s2">&quot;d&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">],</span>
+            <span class="p">}</span>
+        <span class="k">if</span> <span class="s2">&quot;analytical&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;analytical_correction&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflection_table</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The reflection table must contain the column &#39;analytical_correction&#39;&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">when using the option analytical_correction=True.&quot;</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;analytical&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;correction&quot;</span><span class="p">:</span> <span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;analytical_correction&quot;</span><span class="p">]</span>
             <span class="p">}</span></div>
 
     <span class="nd">@property</span>
@@ -1392,6 +1465,13 @@
             <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">([</span><span class="mf">1.0</span><span class="p">]),</span>
             <span class="s2">&quot;parameter_esds&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
         <span class="p">}</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">KB</span><span class="o">.</span><span class="n">analytical_correction</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;analytical_correction&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reflection_table</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The reflection table must contain the column &#39;analytical_correction&#39;&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">when using the option analytical_correction=True.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">configdict</span><span class="p">[</span><span class="s2">&quot;corrections&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;analytical&quot;</span><span class="p">)</span>
 
         <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">parameters_dict</span><span class="p">,</span> <span class="n">configdict</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">KB</span><span class="o">.</span><span class="n">correction</span><span class="o">.</span><span class="n">fix</span><span class="p">:</span>
