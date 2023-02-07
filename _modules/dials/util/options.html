@@ -71,6 +71,11 @@
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">FilenameDataWrapper</span>
 
+
+<div class="viewcode-block" id="InvalidPhilError"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.InvalidPhilError">[docs]</a><span class="k">class</span> <span class="nc">InvalidPhilError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 <span class="n">tolerance_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
@@ -543,7 +548,10 @@
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The following definitions were not recognised</span><span class="se">\n</span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="c1"># Extract the parameters</span>
-        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidPhilError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
 
         <span class="c1"># Stop at this point if quick_parse is set. A second pass may be needed.</span>
         <span class="k">if</span> <span class="n">quick_parse</span><span class="p">:</span>
@@ -908,12 +916,15 @@
             <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="c1"># Parse the phil parameters</span>
-        <span class="n">params</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span>
-            <span class="n">args</span><span class="p">,</span>
-            <span class="n">options</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span>
-            <span class="n">return_unhandled</span><span class="o">=</span><span class="n">return_unhandled</span><span class="p">,</span>
-            <span class="n">quick_parse</span><span class="o">=</span><span class="n">quick_parse</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">params</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span>
+                <span class="n">args</span><span class="p">,</span>
+                <span class="n">options</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="n">return_unhandled</span><span class="o">=</span><span class="n">return_unhandled</span><span class="p">,</span>
+                <span class="n">quick_parse</span><span class="o">=</span><span class="n">quick_parse</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">InvalidPhilError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Invalid phil parameter: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="c1"># Print the diff phil</span>
         <span class="k">if</span> <span class="n">show_diff_phil</span><span class="p">:</span>
