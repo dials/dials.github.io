@@ -304,10 +304,6 @@
 
 <div class="viewcode-block" id="RefinerFactory.from_parameters_data_experiments"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.from_parameters_data_experiments">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_parameters_data_experiments</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
-        <span class="c1"># TODO Checks on the input</span>
-        <span class="c1"># E.g. does every experiment contain at least one overlapping model with at</span>
-        <span class="c1"># least one other experiment? Are all the experiments either rotation series</span>
-        <span class="c1"># or stills (the combination of both not yet supported)?</span>
 
         <span class="c1"># copy the experiments</span>
         <span class="n">experiments</span> <span class="o">=</span> <span class="n">_copy_experiments_for_refining</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
@@ -315,11 +311,34 @@
         <span class="c1"># copy and filter the reflections</span>
         <span class="n">reflections</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_filter_reflections</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_build_components</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span></div>
+        <span class="p">(</span>
+            <span class="n">experiments</span><span class="p">,</span>
+            <span class="n">refman</span><span class="p">,</span>
+            <span class="n">ref_predictor</span><span class="p">,</span>
+            <span class="n">do_stills</span><span class="p">,</span>
+        <span class="p">)</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_build_reflection_manager_and_predictor</span><span class="p">(</span>
+            <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_build_refiner</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">ref_predictor</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RefinerFactory.reflections_after_outlier_rejection"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.RefinerFactory.reflections_after_outlier_rejection">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">reflections_after_outlier_rejection</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+
+        <span class="c1"># copy the experiments</span>
+        <span class="n">experiments</span> <span class="o">=</span> <span class="n">_copy_experiments_for_refining</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+
+        <span class="c1"># copy and filter the reflections</span>
+        <span class="n">reflections</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_filter_reflections</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+        <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_build_reflection_manager_and_predictor</span><span class="p">(</span>
+            <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">refman</span><span class="o">.</span><span class="n">get_obs</span><span class="p">()</span></div>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">_build_components</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;low level build&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_build_reflection_manager_and_predictor</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
 
         <span class="c1"># Currently a refinement job can only have one parameterisation of the</span>
         <span class="c1"># prediction equation. This can either be of the XYDelPsi (stills) type, the</span>
@@ -391,7 +410,6 @@
 
         <span class="c1"># configure use of sparse data types</span>
         <span class="n">params</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">config_sparse</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">)</span>
-        <span class="n">do_sparse</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span>
 
         <span class="c1"># create managed reflection predictor</span>
         <span class="n">ref_predictor</span> <span class="o">=</span> <span class="n">ExperimentsPredictorFactory</span><span class="o">.</span><span class="n">from_experiments</span><span class="p">(</span>
@@ -421,6 +439,14 @@
         <span class="c1"># Now predictions and centroid analysis are available, so we can finalise</span>
         <span class="c1"># the reflection manager</span>
         <span class="n">refman</span><span class="o">.</span><span class="n">finalise</span><span class="p">(</span><span class="n">analysis</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">ref_predictor</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_build_refiner</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">refman</span><span class="p">,</span> <span class="n">ref_predictor</span><span class="p">,</span> <span class="n">do_stills</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;low level build&quot;&quot;&quot;</span>
+
+        <span class="n">do_sparse</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">parameterisation</span><span class="o">.</span><span class="n">sparse</span>
 
         <span class="c1"># Create model parameterisations</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Building prediction equation parameterisation&quot;</span><span class="p">)</span>
@@ -760,6 +786,8 @@
         <span class="c1"># Keep track of whether this is stills or scans type refinement</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">experiment_type</span> <span class="o">=</span> <span class="n">refman</span><span class="o">.</span><span class="n">experiment_type</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exp_rmsd_table_data</span> <span class="o">=</span> <span class="kc">None</span>
+
         <span class="k">return</span></div>
 
 <div class="viewcode-block" id="Refiner.get_experiments"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.get_experiments">[docs]</a>    <span class="k">def</span> <span class="nf">get_experiments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -908,10 +936,9 @@
 
         <span class="k">return</span></div>
 
-<div class="viewcode-block" id="Refiner.print_exp_rmsd_table"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.print_exp_rmsd_table">[docs]</a>    <span class="k">def</span> <span class="nf">print_exp_rmsd_table</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;print useful output about refinement steps in the form of a simple table&quot;&quot;&quot;</span>
-
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">RMSDs by experiment:&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="Refiner.calc_exp_rmsd_table"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.calc_exp_rmsd_table">[docs]</a>    <span class="k">def</span> <span class="nf">calc_exp_rmsd_table</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exp_rmsd_table_data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exp_rmsd_table_data</span>
 
         <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Exp</span><span class="se">\n</span><span class="s2">id&quot;</span><span class="p">,</span> <span class="s2">&quot;Nref&quot;</span><span class="p">]</span>
         <span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">units</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsd_units</span><span class="p">):</span>
@@ -965,6 +992,16 @@
                 <span class="k">elif</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;rad&quot;</span><span class="p">:</span>
                     <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">RAD2DEG</span><span class="p">)</span>
             <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">iexp</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">num</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">r</span><span class="si">:</span><span class="s2">.5g</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rmsds</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exp_rmsd_table_data</span> <span class="o">=</span> <span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">rows</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exp_rmsd_table_data</span></div>
+
+<div class="viewcode-block" id="Refiner.print_exp_rmsd_table"><a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.refiner.Refiner.print_exp_rmsd_table">[docs]</a>    <span class="k">def</span> <span class="nf">print_exp_rmsd_table</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;print useful output about refinement steps in the form of a simple table&quot;&quot;&quot;</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">RMSDs by experiment:&quot;</span><span class="p">)</span>
+
+        <span class="n">header</span><span class="p">,</span> <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_exp_rmsd_table</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">dials</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">tabulate</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">header</span><span class="p">))</span>
