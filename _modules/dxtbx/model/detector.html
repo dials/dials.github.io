@@ -44,6 +44,7 @@
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
 
 <span class="kn">import</span> <span class="nn">pycbf</span>
 
@@ -255,6 +256,42 @@
 <span class="p">)</span>
 
 
+<div class="viewcode-block" id="merge_panel_scope_extracts_by_id"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/detector.html#dxtbx.model.detector.merge_panel_scope_extracts_by_id">[docs]</a><span class="k">def</span> <span class="nf">merge_panel_scope_extracts_by_id</span><span class="p">(</span><span class="n">panel_params</span><span class="p">):</span>
+
+    <span class="n">id_to_params</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">panel_params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">id_to_params</span><span class="p">:</span>
+            <span class="n">id_to_params</span><span class="p">[</span><span class="n">params</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">i</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">id_to_params</span><span class="p">[</span><span class="n">params</span><span class="o">.</span><span class="n">id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="n">merged_params</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">params_set</span> <span class="ow">in</span> <span class="n">id_to_params</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">params0</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">panel_params</span><span class="p">[</span><span class="n">params_set</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">params_set</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">params1</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">panel_params</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">params1</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+                    <span class="ow">or</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;id&quot;</span>
+                    <span class="ow">or</span> <span class="n">params0</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="n">params1</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="n">params0</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                    <span class="ow">and</span> <span class="n">params1</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Multiple definitions for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> for panel id=</span><span class="si">{</span><span class="n">params0</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+                <span class="k">if</span> <span class="n">params0</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">params0</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">params1</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="n">merged_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">params0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">merged_params</span></div>
+
+
 <div class="viewcode-block" id="DetectorFactory"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/detector.html#dxtbx.model.detector.DetectorFactory">[docs]</a><span class="k">class</span> <span class="nc">DetectorFactory</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A factory class for detector objects, which will encapsulate standard</span>
 <span class="sd">    detector designs to make it a little easier to get started with these. In</span>
@@ -272,7 +309,11 @@
 
         <span class="c1"># Create a list of panels</span>
         <span class="n">panel_list</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">panel_params</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panel</span><span class="p">:</span>
+
+        <span class="c1"># merge panel params by id first</span>
+        <span class="n">merged</span> <span class="o">=</span> <span class="n">merge_panel_scope_extracts_by_id</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panel</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">panel_params</span> <span class="ow">in</span> <span class="n">merged</span><span class="p">:</span>
             <span class="n">panel</span> <span class="o">=</span> <span class="n">Panel</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">panel_params</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">panel</span><span class="o">.</span><span class="n">set_name</span><span class="p">(</span><span class="n">panel_params</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
@@ -378,8 +419,11 @@
 <span class="sd">        Overwrite from phil parameters</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># merge panel params by id first</span>
+        <span class="n">merged</span> <span class="o">=</span> <span class="n">merge_panel_scope_extracts_by_id</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panel</span><span class="p">)</span>
+
         <span class="c1"># Override any panel parameters</span>
-        <span class="k">for</span> <span class="n">panel_params</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">detector</span><span class="o">.</span><span class="n">panel</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">panel_params</span> <span class="ow">in</span> <span class="n">merged</span><span class="p">:</span>
             <span class="n">panel</span> <span class="o">=</span> <span class="n">detector</span><span class="p">[</span><span class="n">panel_params</span><span class="o">.</span><span class="n">id</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">panel_params</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">panel</span><span class="o">.</span><span class="n">set_name</span><span class="p">(</span><span class="n">panel_params</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
