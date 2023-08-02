@@ -44,15 +44,18 @@
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span>
 
 <span class="kn">import</span> <span class="nn">pycbf</span>
 
 <span class="kn">import</span> <span class="nn">libtbx.phil</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">..dxtbx_model_ext</span> <span class="kn">import</span> <span class="n">Beam</span>
+    <span class="kn">from</span> <span class="nn">..dxtbx_model_ext</span> <span class="kn">import</span> <span class="n">Beam</span><span class="p">,</span> <span class="n">PolychromaticBeam</span>
 <span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">dxtbx_model_ext</span> <span class="kn">import</span> <span class="n">Beam</span>  <span class="c1"># type: ignore</span>
+    <span class="kn">from</span> <span class="nn">dxtbx_model_ext</span> <span class="kn">import</span> <span class="n">Beam</span><span class="p">,</span> <span class="n">PolychromaticBeam</span>  <span class="c1"># type: ignore</span>
+
+<span class="n">Vec3Float</span> <span class="o">=</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
 
 <span class="n">beam_phil_scope</span> <span class="o">=</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -60,6 +63,10 @@
 <span class="sd">    .expert_level = 1</span>
 <span class="sd">    .short_caption = &quot;Beam overrides&quot;</span>
 <span class="sd">  {</span>
+<span class="sd">    type = *monochromatic polychromatic</span>
+<span class="sd">      .type = choice</span>
+<span class="sd">      .help = &quot;Override the beam type&quot;</span>
+<span class="sd">      .short_caption = &quot;beam_type&quot;</span>
 
 <span class="sd">    wavelength = None</span>
 <span class="sd">      .type = float</span>
@@ -69,6 +76,14 @@
 <span class="sd">      .type = floats(size=3)</span>
 <span class="sd">      .help = &quot;Override the sample to source direction&quot;</span>
 <span class="sd">      .short_caption = &quot;Sample to source direction&quot;</span>
+
+<span class="sd">    divergence = None</span>
+<span class="sd">        .type = float</span>
+<span class="sd">        .help = &quot;Override the beam divergence&quot;</span>
+
+<span class="sd">    sigma_divergence = None</span>
+<span class="sd">        .type = float</span>
+<span class="sd">        .help = &quot;Override the beam sigma divergence&quot;</span>
 
 <span class="sd">    polarization_normal = None</span>
 <span class="sd">      .type = floats(size=3)</span>
@@ -100,62 +115,77 @@
 <span class="sd">    will be used, otherwise simplified descriptions can be applied.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="BeamFactory.from_phil"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.from_phil">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">from_phil</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">from_phil</span><span class="p">(</span>
+        <span class="n">params</span><span class="p">:</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">scope_extract</span><span class="p">,</span>
+        <span class="n">reference</span><span class="p">:</span> <span class="n">Beam</span> <span class="o">|</span> <span class="n">PolychromaticBeam</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span> <span class="o">|</span> <span class="n">PolychromaticBeam</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert the phil parameters into a beam model</span>
-
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="c1"># Check the input</span>
         <span class="k">if</span> <span class="n">reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">beam</span> <span class="o">=</span> <span class="n">Beam</span><span class="p">()</span>
+            <span class="n">beam</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">PolychromaticBeam</span><span class="p">()</span> <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;polychromatic&quot;</span> <span class="k">else</span> <span class="n">Beam</span><span class="p">()</span>
+            <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">beam</span> <span class="o">=</span> <span class="n">reference</span>
 
         <span class="c1"># Set the parameters</span>
-        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">wavelength</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">beam</span><span class="o">.</span><span class="n">set_wavelength</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">wavelength</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No wavelength set&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;monochromatic&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">wavelength</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">beam</span><span class="o">.</span><span class="n">set_wavelength</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">wavelength</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No wavelength set&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">direction</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">beam</span><span class="o">.</span><span class="n">set_direction</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">direction</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">reference</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No beam direction set&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">divergence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">set_divergence</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">divergence</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">sigma_divergence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">set_sigma_divergence</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">sigma_divergence</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">polarization_normal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">beam</span><span class="o">.</span><span class="n">set_polarization_normal</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">polarization_normal</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">polarization_fraction</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">beam</span><span class="o">.</span><span class="n">set_polarization_fraction</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">polarization_fraction</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">transmission</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">set_transmission</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">transmission</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">flux</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">set_flux</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">flux</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">beam</span></div>
 
 <div class="viewcode-block" id="BeamFactory.from_dict"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.from_dict">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert the dictionary to a beam model</span>
+    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="nb">dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">template</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span> <span class="o">|</span> <span class="n">PolychromaticBeam</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert the dictionary to a beam model&quot;&quot;&quot;</span>
 
-<span class="sd">        Params:</span>
-<span class="sd">            d The dictionary of parameters</span>
-<span class="sd">            t The template dictionary to use</span>
+        <span class="k">if</span> <span class="n">template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;__id__&quot;</span> <span class="ow">in</span> <span class="nb">dict</span> <span class="ow">and</span> <span class="s2">&quot;__id__&quot;</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="p">(</span>
+                    <span class="nb">dict</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">template</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span>
+                <span class="p">),</span> <span class="s2">&quot;Beam and template dictionaries are not the same type.&quot;</span>
 
-<span class="sd">        Returns:</span>
-<span class="sd">            The beam model</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">d</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">dict</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">template</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="n">joint</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="n">t</span> <span class="k">else</span> <span class="p">{}</span>
-        <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="n">joint</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="n">template</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
 
         <span class="c1"># Create the model from the joint dictionary</span>
+        <span class="k">if</span> <span class="n">joint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;__id__&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;polychromatic&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">PolychromaticBeam</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Beam</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="BeamFactory.make_beam"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.make_beam">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">make_beam</span><span class="p">(</span>
-        <span class="n">sample_to_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">wavelength</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">s0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">unit_s0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">divergence</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">sigma_divergence</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="p">):</span>
-
+        <span class="n">sample_to_source</span><span class="p">:</span> <span class="n">Vec3Float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">s0</span><span class="p">:</span> <span class="n">Vec3Float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">unit_s0</span><span class="p">:</span> <span class="n">Vec3Float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">divergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sigma_divergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">divergence</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">sigma_divergence</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">divergence</span> <span class="o">=</span> <span class="mf">0.0</span>
             <span class="n">sigma_divergence</span> <span class="o">=</span> <span class="mf">0.0</span>
@@ -180,19 +210,41 @@
             <span class="k">assert</span> <span class="n">s0</span>
             <span class="k">return</span> <span class="n">Beam</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">s0</span><span class="p">)))</span></div>
 
+<div class="viewcode-block" id="BeamFactory.make_polychromatic_beam"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.make_polychromatic_beam">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_polychromatic_beam</span><span class="p">(</span>
+        <span class="n">direction</span><span class="p">:</span> <span class="n">Vec3Float</span><span class="p">,</span>
+        <span class="n">divergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">sigma_divergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">polarization_normal</span><span class="p">:</span> <span class="n">Vec3Float</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="n">polarization_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">flux</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">transmission</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">deg</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PolychromaticBeam</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">PolychromaticBeam</span><span class="p">(</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">direction</span><span class="p">)),</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">divergence</span><span class="p">),</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">sigma_divergence</span><span class="p">),</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">polarization_normal</span><span class="p">)),</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">polarization_fraction</span><span class="p">),</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">flux</span><span class="p">),</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">transmission</span><span class="p">),</span>
+            <span class="nb">bool</span><span class="p">(</span><span class="n">deg</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
 <div class="viewcode-block" id="BeamFactory.make_polarized_beam"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.make_polarized_beam">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">make_polarized_beam</span><span class="p">(</span>
-        <span class="n">sample_to_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">wavelength</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">s0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">unit_s0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">polarization</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">polarization_fraction</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">divergence</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">sigma_divergence</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">flux</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">transmission</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="p">):</span>
+        <span class="n">sample_to_source</span><span class="p">:</span> <span class="n">Vec3Float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">s0</span><span class="p">:</span> <span class="n">Vec3Float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">unit_s0</span><span class="p">:</span> <span class="n">Vec3Float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">polarization</span><span class="p">:</span> <span class="n">Vec3Float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">polarization_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">divergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sigma_divergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">flux</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transmission</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">polarization</span>
         <span class="k">assert</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">polarization_fraction</span> <span class="o">&lt;=</span> <span class="mf">1.0</span>
 
@@ -242,7 +294,7 @@
             <span class="p">)</span></div>
 
 <div class="viewcode-block" id="BeamFactory.simple"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.simple">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">simple</span><span class="p">(</span><span class="n">wavelength</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">simple</span><span class="p">(</span><span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a beam object on the principle that the beam is aligned</span>
 <span class="sd">        with the +z axis, as is quite normal. Also assume the beam has</span>
 <span class="sd">        polarization fraction 0.999 and is polarized in the x-z plane, unless</span>
@@ -262,7 +314,7 @@
             <span class="p">)</span></div>
 
 <div class="viewcode-block" id="BeamFactory.simple_directional"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.simple_directional">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">simple_directional</span><span class="p">(</span><span class="n">sample_to_source</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">simple_directional</span><span class="p">(</span><span class="n">sample_to_source</span><span class="p">:</span> <span class="n">Vec3Float</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a beam with direction and wavelength.&quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="n">wavelength</span> <span class="o">&gt;</span> <span class="mf">0.05</span><span class="p">:</span>
@@ -279,8 +331,11 @@
 
 <div class="viewcode-block" id="BeamFactory.complex"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.complex">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">complex</span><span class="p">(</span>
-        <span class="n">sample_to_source</span><span class="p">,</span> <span class="n">polarization_fraction</span><span class="p">,</span> <span class="n">polarization_plane_normal</span><span class="p">,</span> <span class="n">wavelength</span>
-    <span class="p">):</span>
+        <span class="n">sample_to_source</span><span class="p">:</span> <span class="n">Vec3Float</span><span class="p">,</span>
+        <span class="n">polarization_fraction</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">polarization_plane_normal</span><span class="p">:</span> <span class="n">Vec3Float</span><span class="p">,</span>
+        <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Full access to the constructor for cases where we do know everything</span>
 <span class="sd">        that we need...&quot;&quot;&quot;</span>
 
@@ -292,7 +347,7 @@
         <span class="p">)</span></div>
 
 <div class="viewcode-block" id="BeamFactory.imgCIF"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.imgCIF">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">imgCIF</span><span class="p">(</span><span class="n">cif_file</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">imgCIF</span><span class="p">(</span><span class="n">cif_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a detector model from an imgCIF file. N.B. the</span>
 <span class="sd">        definition of the polarization plane is not completely helpful</span>
 <span class="sd">        in this - it is the angle between the polarization plane and the</span>
@@ -306,7 +361,7 @@
         <span class="k">return</span> <span class="n">result</span></div>
 
 <div class="viewcode-block" id="BeamFactory.imgCIF_H"><a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/beam.html#dxtbx.model.beam.BeamFactory.imgCIF_H">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">imgCIF_H</span><span class="p">(</span><span class="n">cbf_handle</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">imgCIF_H</span><span class="p">(</span><span class="n">cbf_handle</span><span class="p">:</span> <span class="n">pycbf</span><span class="o">.</span><span class="n">cbf_handle_struct</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Beam</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a detector model from an imgCIF file. N.B. the</span>
 <span class="sd">        definition of the polarization plane is not completely helpful</span>
 <span class="sd">        in this - it is the angle between the polarization plane and the</span>
