@@ -47,8 +47,9 @@
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span>
 <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">isclose</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -529,6 +530,7 @@
     <span class="n">force_static_model</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">crystal_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">project_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">wavelength_tolerance</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Export data from reflection_table corresponding to experiment_list to an</span>
 <span class="sd">    MTZ file hklout.&quot;&quot;&quot;</span>
@@ -570,18 +572,25 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">({</span><span class="n">x</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_space_group</span><span class="p">()</span><span class="o">.</span><span class="n">make_tidy</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">})</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Experiments do not have a unique space group&quot;</span><span class="p">)</span>
 
-        <span class="n">wavelengths</span> <span class="o">=</span> <span class="n">match_wavelengths</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">wavelengths</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="s2">&quot;Multiple wavelengths found: </span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-                    <span class="s2">&quot;  Wavlength: </span><span class="si">%.5f</span><span class="s2">, experiment numbers: </span><span class="si">%s</span><span class="s2"> &quot;</span>
-                    <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">v</span><span class="p">)))</span>
-                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">wavelengths</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-                <span class="p">),</span>
-            <span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">wavelengths</span> <span class="o">=</span> <span class="p">{</span><span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">():</span> <span class="p">[</span><span class="mi">0</span><span class="p">]}</span>
+    <span class="n">wavelengths</span> <span class="o">=</span> <span class="n">match_wavelengths</span><span class="p">(</span><span class="n">experiment_list</span><span class="p">,</span> <span class="n">wavelength_tolerance</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">wavelengths</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">w</span><span class="o">.</span><span class="n">calculate_weighted_mean</span><span class="p">([</span><span class="n">reflection_table</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">wavelengths</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">identifiers_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">identifier</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Multiple wavelengths found: </span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="s2">&quot;  Wavlength: </span><span class="si">%.5f</span><span class="s2">, experiment numbers: </span><span class="si">%s</span><span class="s2"> &quot;</span>
+                <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">v</span><span class="o">.</span><span class="n">weighted_mean</span><span class="p">,</span>
+                    <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                        <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="p">[</span><span class="n">identifiers_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">identifiers</span><span class="p">])</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">wavelengths</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
 
     <span class="c1"># also only work correctly with one panel (for the moment)</span>
     <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">experiment</span><span class="o">.</span><span class="n">detector</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">experiment</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">):</span>
@@ -646,15 +655,18 @@
             <span class="n">expids_in_table</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span>
         <span class="p">)</span>  <span class="c1"># get strid and use to find loc in list</span>
         <span class="n">experiment</span> <span class="o">=</span> <span class="n">experiment_list</span><span class="p">[</span><span class="n">loc</span><span class="p">]</span>
+        <span class="n">identifier</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">identifier</span>
+
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">wavelengths</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">wl</span><span class="p">,</span> <span class="n">exps</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">wavelengths</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
-                <span class="k">if</span> <span class="n">loc</span> <span class="ow">in</span> <span class="n">exps</span><span class="p">:</span>
-                    <span class="n">wavelength</span> <span class="o">=</span> <span class="n">wl</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">wl</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">wavelengths</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">identifier</span> <span class="ow">in</span> <span class="n">wl</span><span class="o">.</span><span class="n">identifiers</span><span class="p">:</span>
+                    <span class="n">wavelength</span> <span class="o">=</span> <span class="n">wl</span><span class="o">.</span><span class="n">weighted_mean</span>
                     <span class="n">dataset_id</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
                     <span class="k">break</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">wavelength</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">wavelengths</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">wavelength</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">wavelengths</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">weighted_mean</span>
             <span class="n">dataset_id</span> <span class="o">=</span> <span class="mi">1</span>
+
         <span class="n">reflections</span> <span class="o">=</span> <span class="n">reflection_table</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">reflection_table</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">id_</span><span class="p">)</span>
         <span class="n">batch_offset</span> <span class="o">=</span> <span class="n">batch_offsets</span><span class="p">[</span><span class="n">loc</span><span class="p">]</span>
         <span class="n">image_range</span> <span class="o">=</span> <span class="n">image_ranges</span><span class="p">[</span><span class="n">loc</span><span class="p">]</span>
@@ -695,8 +707,8 @@
     <span class="c1"># For multi-wave unmerged mtz, we add an empty dataset for each wavelength,</span>
     <span class="c1"># but only write the data into the final dataset (for unmerged the batches</span>
     <span class="c1"># link the unmerged data to the individual wavelengths).</span>
-    <span class="k">for</span> <span class="n">wavelength</span> <span class="ow">in</span> <span class="n">wavelengths</span><span class="p">:</span>
-        <span class="n">mtz_writer</span><span class="o">.</span><span class="n">add_empty_dataset</span><span class="p">(</span><span class="n">wavelength</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">wavelength</span> <span class="ow">in</span> <span class="n">wavelengths</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">mtz_writer</span><span class="o">.</span><span class="n">add_empty_dataset</span><span class="p">(</span><span class="n">wavelength</span><span class="o">.</span><span class="n">weighted_mean</span><span class="p">)</span>
 
     <span class="c1"># Combine all of the experiment data columns before writing</span>
     <span class="n">combined_data</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">deep_copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">experiment_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
@@ -721,17 +733,49 @@
     <span class="k">return</span> <span class="n">mtz_file</span></div>
 
 
+<div class="viewcode-block" id="WavelengthGroup"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.WavelengthGroup">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">WavelengthGroup</span><span class="p">:</span>
+    <span class="n">min_wl</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_possible_wl</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">identifiers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">exp_nos</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">wavelengths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">weighted_mean</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="WavelengthGroup.add_experiment"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.WavelengthGroup.add_experiment">[docs]</a>    <span class="k">def</span> <span class="nf">add_experiment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">loc_in_list</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">wl</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exp_nos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loc_in_list</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wavelengths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wl</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WavelengthGroup.calculate_weighted_mean"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.WavelengthGroup.calculate_weighted_mean">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_weighted_mean</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">reflection_tables</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">flex</span><span class="o">.</span><span class="n">reflection_table</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">nw</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavelengths</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">reflection_tables</span><span class="p">:</span>
+                <span class="n">refls</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">select_on_experiment_identifiers</span><span class="p">([</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">n_this</span> <span class="o">=</span> <span class="n">refls</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                    <span class="n">refls</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">refls</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">integrated</span><span class="p">,</span> <span class="nb">all</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">n_this</span><span class="p">:</span>
+                    <span class="n">n</span> <span class="o">+=</span> <span class="n">n_this</span>
+                    <span class="n">nw</span> <span class="o">+=</span> <span class="n">n_this</span> <span class="o">*</span> <span class="n">w</span>
+                    <span class="k">break</span>
+        <span class="k">if</span> <span class="n">n</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weighted_mean</span> <span class="o">=</span> <span class="n">nw</span> <span class="o">/</span> <span class="n">n</span></div></div>
+
+
 <div class="viewcode-block" id="match_wavelengths"><a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.export_mtz.match_wavelengths">[docs]</a><span class="k">def</span> <span class="nf">match_wavelengths</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">absolute_tolerance</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a dictionary matching wavelength to experiments (index in list)&quot;&quot;&quot;</span>
     <span class="n">wavelengths</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
         <span class="n">w</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
         <span class="n">matches</span> <span class="o">=</span> <span class="p">[</span><span class="n">isclose</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">abs_tol</span><span class="o">=</span><span class="n">absolute_tolerance</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">wavelengths</span><span class="p">]</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
-            <span class="n">wavelengths</span><span class="p">[</span><span class="n">w</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">wavelengths</span><span class="p">[</span><span class="n">w</span><span class="p">]</span> <span class="o">=</span> <span class="n">WavelengthGroup</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">w</span> <span class="o">+</span> <span class="n">absolute_tolerance</span><span class="p">)</span>
+            <span class="n">wavelengths</span><span class="p">[</span><span class="n">w</span><span class="p">]</span><span class="o">.</span><span class="n">add_experiment</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">match_w</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">wavelengths</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">matches</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="kc">True</span><span class="p">)]</span>
-            <span class="n">wavelengths</span><span class="p">[</span><span class="n">match_w</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">wavelengths</span><span class="p">[</span><span class="n">match_w</span><span class="p">]</span><span class="o">.</span><span class="n">add_experiment</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">wavelengths</span></div>
 
 
