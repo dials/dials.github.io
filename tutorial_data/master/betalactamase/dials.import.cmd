@@ -1,1 +1,1 @@
-dials.import /dls/i03/data/2017/mx19576-1/tutorial_data/summed/summed/C2sum_1*.cbf.gz
+dials.import /dls/mx-scratch/dials/tutorial_data/betalactamase_summed/C2sum_1*.cbf.gz
