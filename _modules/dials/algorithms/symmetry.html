@@ -202,6 +202,7 @@
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;ml_aniso&quot;</span><span class="p">:</span>
             <span class="n">normalise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml_aniso_normalisation</span>
 
+        <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)):</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Normalising intensities for dataset </span><span class="si">%i</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
@@ -219,12 +220,10 @@
                     <span class="n">method</span><span class="p">,</span>
                     <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="p">)</span>
-                <span class="k">return</span>
-            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">normalised_intensities</span><span class="p">:</span>
                 <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">intensities</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">normalised_intensities</span> <span class="o">=</span> <span class="n">normalised_intensities</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="n">normalised_intensities</span><span class="o">.</span><span class="n">set_info</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">info</span><span class="p">()</span>
         <span class="p">)</span><span class="o">.</span><span class="n">set_observation_type_xray_intensity</span><span class="p">()</span>
@@ -300,11 +299,15 @@
             <span class="n">normalisation</span> <span class="o">=</span> <span class="n">absolute_scaling</span><span class="o">.</span><span class="n">ml_aniso_absolute_scaling</span><span class="p">(</span>
                 <span class="n">intensities</span><span class="p">,</span> <span class="n">n_residues</span><span class="o">=</span><span class="n">n_residues</span>
             <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">p_scale</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unsuccessful normalisation&quot;</span><span class="p">)</span>
             <span class="n">u_star</span> <span class="o">=</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">u_star</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">normalisation</span> <span class="o">=</span> <span class="n">absolute_scaling</span><span class="o">.</span><span class="n">ml_iso_absolute_scaling</span><span class="p">(</span>
                 <span class="n">intensities</span><span class="p">,</span> <span class="n">n_residues</span><span class="o">=</span><span class="n">n_residues</span>
             <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">normalisation</span><span class="o">.</span><span class="n">b_wilson</span> <span class="ow">and</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">p_scale</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unsuccessful normalisation&quot;</span><span class="p">)</span>
             <span class="n">u_star</span> <span class="o">=</span> <span class="n">adptbx</span><span class="o">.</span><span class="n">b_as_u</span><span class="p">(</span>
                 <span class="n">adptbx</span><span class="o">.</span><span class="n">u_iso_as_u_star</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span> <span class="n">normalisation</span><span class="o">.</span><span class="n">b_wilson</span><span class="p">)</span>
             <span class="p">)</span>
