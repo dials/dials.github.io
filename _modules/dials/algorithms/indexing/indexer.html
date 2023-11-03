@@ -574,7 +574,7 @@
             <span class="k">if</span> <span class="n">had_refinement_error</span> <span class="ow">or</span> <span class="n">have_similar_crystal_models</span><span class="p">:</span>
                 <span class="k">break</span>
             <span class="n">max_lattices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">max_lattices</span>
-            <span class="k">if</span> <span class="n">max_lattices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_lattices</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">max_lattices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">())</span> <span class="o">&gt;=</span> <span class="n">max_lattices</span><span class="p">:</span>
                 <span class="k">break</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">cutoff_fraction</span> <span class="o">=</span> <span class="p">(</span>
@@ -714,18 +714,35 @@
                         <span class="n">had_refinement_error</span> <span class="o">=</span> <span class="kc">True</span>
                         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Refinement failed:&quot;</span><span class="p">)</span>
                         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-                        <span class="k">del</span> <span class="n">experiments</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-
-                        <span class="c1"># remove experiment id from the reflections associated</span>
-                        <span class="c1"># with this deleted experiment - indexed flag removed</span>
-                        <span class="c1"># below</span>
-                        <span class="n">last</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
-                        <span class="n">sel</span> <span class="o">=</span> <span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">last</span>
-                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                            <span class="s2">&quot;Removing </span><span class="si">%d</span><span class="s2"> reflections with id </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">),</span> <span class="n">last</span>
+                        <span class="c1"># need to remove crystals - may be shared!</span>
+                        <span class="n">models_to_remove</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                            <span class="n">crystal</span><span class="o">=</span><span class="n">experiments</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span>
                         <span class="p">)</span>
-                        <span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-
+                        <span class="k">for</span> <span class="n">model_id</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">models_to_remove</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                            <span class="k">del</span> <span class="n">experiments</span><span class="p">[</span><span class="n">model_id</span><span class="p">]</span>
+                            <span class="c1"># remove experiment id from the reflections associated</span>
+                            <span class="c1"># with this deleted experiment - indexed flag removed</span>
+                            <span class="c1"># below</span>
+                            <span class="c1"># note here we are acting on the table from the last macrocycle</span>
+                            <span class="c1"># This is guaranteed to exist due to the check if len(experiments) == 1: above</span>
+                            <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">model_id</span>
+                            <span class="k">if</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span>
+                                <span class="kc">True</span>
+                            <span class="p">):</span>  <span class="c1"># not the case if failure on first cycle of refinement of new xtal</span>
+                                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                                    <span class="s2">&quot;Removing </span><span class="si">%d</span><span class="s2"> reflections with id </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+                                    <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">),</span>
+                                    <span class="n">model_id</span><span class="p">,</span>
+                                <span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                                <span class="c1"># N.B. Need to unset the flags here as the break below means we</span>
+                                <span class="c1"># don&#39;t enter the code after</span>
+                                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()[</span>
+                                    <span class="n">model_id</span>
+                                <span class="p">]</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="o">.</span><span class="n">unset_flags</span><span class="p">(</span>
+                                    <span class="n">sel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">refined_reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">indexed</span>
+                                <span class="p">)</span>
                         <span class="k">break</span>
 
                 <span class="bp">self</span><span class="o">.</span><span class="n">_unit_cell_volume_sanity_check</span><span class="p">(</span><span class="n">experiments</span><span class="p">,</span> <span class="n">refined_experiments</span><span class="p">)</span>
@@ -851,14 +868,12 @@
             <span class="p">)</span>
             <span class="n">min_angle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">multiple_lattice_search</span><span class="o">.</span><span class="n">minimum_angular_separation</span>
             <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_angle</span><span class="p">:</span>  <span class="c1"># degrees</span>
+                <span class="c1"># account for potential shared crystal model</span>
+                <span class="n">models_to_reject</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">crystal</span><span class="o">=</span><span class="n">cryst_b</span><span class="p">)</span>
+                <span class="n">reject</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">())</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Crystal models too similar, rejecting crystal </span><span class="si">{</span><span class="n">reject</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="s2">&quot;Crystal models too similar, rejecting crystal </span><span class="si">%i</span><span class="s2">:&quot;</span><span class="p">,</span>
-                    <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">),</span>
-                <span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="s2">&quot;Rotation matrix to transform crystal </span><span class="si">%i</span><span class="s2"> to crystal </span><span class="si">%i</span><span class="s2">&quot;</span><span class="p">,</span>
-                    <span class="n">i_a</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
-                    <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">),</span>
+                    <span class="sa">f</span><span class="s2">&quot;Rotation matrix to transform crystal </span><span class="si">{</span><span class="n">i_a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> to crystal </span><span class="si">{</span><span class="n">reject</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">R_ab</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
@@ -866,7 +881,8 @@
                     <span class="o">+</span> <span class="s2">&quot; about axis (</span><span class="si">%.3f</span><span class="s2">, </span><span class="si">%.3f</span><span class="s2">, </span><span class="si">%.3f</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="n">axis</span>
                 <span class="p">)</span>
                 <span class="n">have_similar_crystal_models</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="k">del</span> <span class="n">experiments</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">id_</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">models_to_reject</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                    <span class="k">del</span> <span class="n">experiments</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span>
                 <span class="k">break</span>
         <span class="k">return</span> <span class="n">have_similar_crystal_models</span>
 
