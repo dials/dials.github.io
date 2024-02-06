@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dials.algorithms.symmetry.cosym &#8212; DIALS  documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=039e1c02" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=12dfc556" />
     <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
     <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
     <script src="../../../../_static/doctools.js?v=888ff710"></script>
@@ -20,8 +20,9 @@
    
   <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
   
+
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+  
 
   </head><body>
   <div class="logoheader container">
@@ -67,7 +68,7 @@
 
 <span class="kn">import</span> <span class="nn">dials.util</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.symmetry</span> <span class="kn">import</span> <span class="n">find_matching_symmetry</span>
-<span class="kn">from</span> <span class="nn">dials.algorithms.symmetry</span> <span class="kn">import</span> <span class="n">symmetry_base</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.symmetry</span> <span class="kn">import</span> <span class="n">median_unit_cell</span><span class="p">,</span> <span class="n">symmetry_base</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.symmetry.cosym</span> <span class="kn">import</span> <span class="n">engine</span> <span class="k">as</span> <span class="n">cosym_engine</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.symmetry.cosym</span> <span class="kn">import</span> <span class="n">target</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.symmetry.laue_group</span> <span class="kn">import</span> <span class="n">ScoreCorrelationCoefficient</span>
@@ -992,6 +993,56 @@
         <span class="n">reference_intensities</span><span class="o">.</span><span class="n">set_sigmas</span><span class="p">(</span><span class="n">reference_intensities</span><span class="o">.</span><span class="n">data</span><span class="p">()</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">reference_intensities</span><span class="p">,</span> <span class="n">initial_space_group_info</span></div>
 
+
+
+<div class="viewcode-block" id="change_of_basis_op_to_best_cell">
+<a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.change_of_basis_op_to_best_cell">[docs]</a>
+<span class="k">def</span> <span class="nf">change_of_basis_op_to_best_cell</span><span class="p">(</span>
+    <span class="n">experiments</span><span class="p">,</span>
+    <span class="n">max_delta</span><span class="p">,</span>
+    <span class="n">relative_length_tolerance</span><span class="p">,</span>
+    <span class="n">absolute_angle_tolerance</span><span class="p">,</span>
+    <span class="n">best_subgroup</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute change of basis op to map experiments from P1 cell to the best cell</span>
+<span class="sd">    that matches the best subgroup</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">median_cell</span> <span class="o">=</span> <span class="n">median_unit_cell</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="n">metric_subgroups</span><span class="p">(</span>
+        <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_crystal_symmetry</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">customized_copy</span><span class="p">(</span><span class="n">unit_cell</span><span class="o">=</span><span class="n">median_cell</span><span class="p">),</span>
+        <span class="n">max_delta</span><span class="p">,</span>
+        <span class="n">enforce_max_delta_for_generated_two_folds</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">groups</span><span class="o">.</span><span class="n">result_groups</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">g</span><span class="p">[</span><span class="s2">&quot;best_subsym&quot;</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">is_similar_to</span><span class="p">(</span>
+                <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;best_subsym&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span>
+                <span class="n">relative_length_tolerance</span><span class="o">=</span><span class="n">relative_length_tolerance</span><span class="p">,</span>
+                <span class="n">absolute_angle_tolerance</span><span class="o">=</span><span class="n">absolute_angle_tolerance</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="n">sgtbx</span><span class="o">.</span><span class="n">lattice_symmetry_group</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s2">&quot;best_subsym&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span> <span class="n">max_delta</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="o">==</span> <span class="n">sgtbx</span><span class="o">.</span><span class="n">lattice_symmetry_group</span><span class="p">(</span>
+                <span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;best_subsym&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">(),</span> <span class="n">max_delta</span><span class="o">=</span><span class="mi">0</span>
+            <span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="n">g</span>
+            <span class="k">break</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s2">&quot;Unable to determine reindexing operator from minumum cells to best cell.</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;This may be fixed by increasing relative_length_tolerance or absolute_angle_tolerance.&quot;</span>
+        <span class="p">)</span>
+    <span class="n">cb_op</span> <span class="o">=</span> <span class="n">match</span><span class="p">[</span><span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">cb_op</span></div>
+
 </pre></div>
 
           </div>
@@ -1039,7 +1090,7 @@
   </script>
   
     <div class="footer">
-      &copy;2023, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      &#169;2024, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
       
     </div>
 

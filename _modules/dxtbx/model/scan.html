@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dxtbx.model.scan &#8212; DIALS  documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=039e1c02" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=12dfc556" />
     <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
     <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
     <script src="../../../_static/doctools.js?v=888ff710"></script>
@@ -20,8 +20,9 @@
    
   <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
   
+
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+  
 
   </head><body>
   <div class="logoheader container">
@@ -162,17 +163,68 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            The scan model</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">convert_oscillation_to_vec2</span><span class="p">(</span><span class="n">properties_dict</span><span class="p">):</span>
+
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            If oscillation is in properties_dict,</span>
+<span class="sd">            shared&lt;double&gt; is converted to vec2&lt;double&gt; and</span>
+<span class="sd">            oscillation_width is removed (if present) to ensure</span>
+<span class="sd">            it is replaced correctly if updating t dict from d dict</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+
+            <span class="k">if</span> <span class="s2">&quot;oscillation&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties_dict</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="s2">&quot;oscillation_width&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties_dict</span>
+                <span class="k">return</span> <span class="n">properties_dict</span>
+            <span class="k">if</span> <span class="s2">&quot;oscillation_width&quot;</span> <span class="ow">in</span> <span class="n">properties_dict</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="s2">&quot;oscillation&quot;</span> <span class="ow">in</span> <span class="n">properties_dict</span>
+                <span class="n">properties_dict</span><span class="p">[</span><span class="s2">&quot;oscillation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">properties_dict</span><span class="p">[</span><span class="s2">&quot;oscillation&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">properties_dict</span><span class="p">[</span><span class="s2">&quot;oscillation_width&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="k">del</span> <span class="n">properties_dict</span><span class="p">[</span><span class="s2">&quot;oscillation_width&quot;</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">properties_dict</span>
+            <span class="n">properties_dict</span><span class="p">[</span><span class="s2">&quot;oscillation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">properties_dict</span><span class="p">[</span><span class="s2">&quot;oscillation&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">properties_dict</span><span class="p">[</span><span class="s2">&quot;oscillation&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">properties_dict</span><span class="p">[</span><span class="s2">&quot;oscillation&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">properties_dict</span>
+
         <span class="k">if</span> <span class="n">d</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="n">joint</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="n">t</span> <span class="k">else</span> <span class="p">{}</span>
-        <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">joint</span><span class="p">[</span><span class="s2">&quot;exposure_time&quot;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="c1"># Accounting for legacy cases where t or d does not</span>
+        <span class="c1"># contain properties dict</span>
+        <span class="k">if</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">in</span> <span class="n">joint</span> <span class="ow">and</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+            <span class="n">properties</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">properties</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">])</span>
+            <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+            <span class="n">joint</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">properties</span>
+        <span class="k">elif</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+            <span class="n">d_copy</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">d_copy</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">convert_oscillation_to_vec2</span><span class="p">(</span>
+                <span class="n">d_copy</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="o">**</span><span class="n">d_copy</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">])</span>
+            <span class="k">del</span> <span class="n">d_copy</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span>
+            <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">d_copy</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">in</span> <span class="n">joint</span><span class="p">:</span>
+            <span class="n">joint</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">convert_oscillation_to_vec2</span><span class="p">(</span>
+                <span class="n">joint</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="o">**</span><span class="n">joint</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">])</span>
+            <span class="k">del</span> <span class="n">joint</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span>
+            <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">joint</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">d</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">joint</span><span class="p">[</span><span class="s2">&quot;exposure_time&quot;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">joint</span><span class="p">[</span><span class="s2">&quot;exposure_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">joint</span><span class="p">[</span><span class="s2">&quot;exposure_time&quot;</span><span class="p">]]</span>
         <span class="n">joint</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;batch_offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># backwards compatibility 20180205</span>
         <span class="n">joint</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;valid_image_ranges&quot;</span><span class="p">,</span> <span class="p">{})</span>  <span class="c1"># backwards compatibility 20181113</span>
 
-        <span class="c1"># Create the model from the joint dictionary</span>
         <span class="k">return</span> <span class="n">Scan</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">joint</span><span class="p">)</span></div>
 
 
@@ -206,6 +258,14 @@
             <span class="n">batch_offset</span><span class="p">,</span>
             <span class="n">deg</span><span class="p">,</span>
         <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ScanFactory.make_scan_from_properties">
+<a class="viewcode-back" href="../../../documentation/library_reference/dxtbx/scan.html#dxtbx.model.scan.ScanFactory.make_scan_from_properties">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_scan_from_properties</span><span class="p">(</span><span class="n">image_range</span><span class="p">,</span> <span class="n">properties</span><span class="p">,</span> <span class="n">batch_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+        <span class="k">return</span> <span class="n">Scan</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">image_range</span><span class="p">)),</span> <span class="n">properties</span><span class="p">,</span> <span class="n">batch_offset</span><span class="p">,</span> <span class="n">deg</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ScanFactory.single_file">
@@ -354,7 +414,7 @@
   </script>
   
     <div class="footer">
-      &copy;2023, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      &#169;2024, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
       
     </div>
 
