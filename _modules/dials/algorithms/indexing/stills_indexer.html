@@ -53,6 +53,7 @@
 
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing</span> <span class="kn">import</span> <span class="n">DialsIndexError</span><span class="p">,</span> <span class="n">DialsIndexRefineError</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.indexer</span> <span class="kn">import</span> <span class="n">Indexer</span>
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing.indexer</span> <span class="kn">import</span> <span class="n">phil_scope</span> <span class="k">as</span> <span class="n">defaults_phil_scope</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.known_orientation</span> <span class="kn">import</span> <span class="n">IndexerKnownOrientation</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.lattice_search</span> <span class="kn">import</span> <span class="n">BasisVectorSearch</span><span class="p">,</span> <span class="n">LatticeSearch</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.nave_parameters</span> <span class="kn">import</span> <span class="n">NaveParameters</span>
@@ -153,7 +154,8 @@
         <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">):</span>
             <span class="c1"># The stills_indexer provides its own outlier rejection</span>
             <span class="n">params</span><span class="o">.</span><span class="n">refinement</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">outlier</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">=</span> <span class="s2">&quot;null&quot;</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warn_if_setting_unused_refinement_protocol_params</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="StillsIndexer.index">
@@ -890,6 +892,21 @@
                 <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">ref_experiments</span><span class="p">,</span> <span class="n">reflections</span></div>
+
+
+<div class="viewcode-block" id="StillsIndexer.warn_if_setting_unused_refinement_protocol_params">
+<a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.stills_indexer.StillsIndexer.warn_if_setting_unused_refinement_protocol_params">[docs]</a>
+    <span class="k">def</span> <span class="nf">warn_if_setting_unused_refinement_protocol_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">warning_message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;Warning: the value of indexing.refinement_protocol.</span><span class="si">{}</span><span class="s2"> has been &quot;</span>
+            <span class="s2">&quot;changed to </span><span class="si">{}</span><span class="s2">, but this parameter is unused by stills indexer.&quot;</span>
+        <span class="p">)</span>
+        <span class="n">unused_param_keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;n_macro_cycles&quot;</span><span class="p">,</span> <span class="s2">&quot;d_min_step&quot;</span><span class="p">,</span> <span class="s2">&quot;d_min_final&quot;</span><span class="p">]</span>
+        <span class="n">defaults</span> <span class="o">=</span> <span class="n">defaults_phil_scope</span><span class="o">.</span><span class="n">extract</span><span class="p">()</span><span class="o">.</span><span class="n">indexing</span><span class="o">.</span><span class="n">refinement_protocol</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">unused_param_keys</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">refinement_protocol</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">defaults</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">warning_message</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)))</span></div>
 </div>
 
 
