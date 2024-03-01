@@ -64,7 +64,6 @@
     <span class="n">ProcessorFlat3D</span><span class="p">,</span>
     <span class="n">ProcessorSingle2D</span><span class="p">,</span>
     <span class="n">ProcessorStills</span><span class="p">,</span>
-    <span class="n">assess_available_memory</span><span class="p">,</span>
     <span class="n">build_processor</span><span class="p">,</span>
     <span class="n">job</span><span class="p">,</span>
 <span class="p">)</span>
@@ -83,6 +82,7 @@
 <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">Sorry</span><span class="p">,</span> <span class="n">phil</span><span class="p">,</span> <span class="n">pprint</span><span class="p">,</span> <span class="n">tabulate</span>
 <span class="kn">from</span> <span class="nn">dials.util.command_line</span> <span class="kn">import</span> <span class="n">heading</span>
 <span class="kn">from</span> <span class="nn">dials.util.report</span> <span class="kn">import</span> <span class="n">Report</span>
+<span class="kn">from</span> <span class="nn">dials.util.system</span> <span class="kn">import</span> <span class="n">MEMORY_LIMIT</span>
 <span class="kn">from</span> <span class="nn">dials_algorithms_integration_integrator_ext</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">Executor</span><span class="p">,</span>
     <span class="n">JobList</span><span class="p">,</span>
@@ -1143,7 +1143,6 @@
 
         <span class="c1"># Do profile modelling</span>
         <span class="k">if</span> <span class="n">profile_fitting</span><span class="p">:</span>
-
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">heading</span><span class="p">(</span><span class="s2">&quot;Modelling reflection profiles&quot;</span><span class="p">))</span>
@@ -1163,7 +1162,6 @@
                     <span class="s2">&quot;** Skipping profile modelling - no reference profiles given **&quot;</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-
                 <span class="c1"># Try to set up the validation</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">number_of_partitions</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reference</span><span class="p">)</span>
@@ -1278,7 +1276,6 @@
 
                 <span class="c1"># If we have more than 1 fold then do the validation</span>
                 <span class="k">if</span> <span class="n">num_folds</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-
                     <span class="c1"># Create the data processor</span>
                     <span class="n">executor</span> <span class="o">=</span> <span class="n">ProfileValidatorExecutor</span><span class="p">(</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span> <span class="n">profile_fitter</span>
@@ -1430,24 +1427,21 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span> <span class="o">!=</span> <span class="s2">&quot;multiprocessing&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="n">time_info</span> <span class="o">=</span> <span class="n">_run_processor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># need to do a memory check and decide whether to split table</span>
-            <span class="n">available_immediate</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">__</span> <span class="o">=</span> <span class="n">assess_available_memory</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span>
-            <span class="p">)</span>
-
-            <span class="c1">#  here don&#39;t consider nproc as the processor will reduce nproc to 1</span>
-            <span class="c1"># if necessary, only want to split if we can&#39;t even process with</span>
-            <span class="c1"># nproc = 1</span>
+            <span class="c1"># Here, don&#39;t consider nproc as the processor will reduce nproc to 1 if</span>
+            <span class="c1"># necessary. Only want to split if we can&#39;t even process with nproc = 1</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">n_subset_split</span><span class="p">:</span>
                 <span class="n">tables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="o">.</span><span class="n">random_split</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">n_subset_split</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Need to do a memory check and decide whether to split table.</span>
+                <span class="c1"># Split if its size in memory exceeds the fraction of available memory</span>
+                <span class="c1"># specified by the PHIL parameter integration.block.max_memory_usage.</span>
                 <span class="n">tables</span> <span class="o">=</span> <span class="n">_iterative_table_split</span><span class="p">(</span>
                     <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">],</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">,</span>
-                    <span class="n">available_immediate</span><span class="p">,</span>
+                    <span class="n">MEMORY_LIMIT</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span><span class="p">,</span>
                 <span class="p">)</span>
 
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tables</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -1710,7 +1704,6 @@
 
         <span class="c1"># Do profile modelling</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">integration</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">fitting</span><span class="p">:</span>
-
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">heading</span><span class="p">(</span><span class="s2">&quot;Modelling reflection profiles&quot;</span><span class="p">))</span>

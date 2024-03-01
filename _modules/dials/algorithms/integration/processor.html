@@ -47,11 +47,7 @@
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">pathlib</span>
 <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
-
-<span class="kn">import</span> <span class="nn">psutil</span>
 
 <span class="kn">import</span> <span class="nn">boost_adaptbx.boost.python</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
@@ -63,7 +59,8 @@
 <span class="kn">from</span> <span class="nn">dials.model.data</span> <span class="kn">import</span> <span class="n">make_image</span>
 <span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">tabulate</span>
 <span class="kn">from</span> <span class="nn">dials.util.log</span> <span class="kn">import</span> <span class="n">rehandle_cached_records</span>
-<span class="kn">from</span> <span class="nn">dials.util.mp</span> <span class="kn">import</span> <span class="n">available_cores</span><span class="p">,</span> <span class="n">multi_node_parallel_map</span>
+<span class="kn">from</span> <span class="nn">dials.util.mp</span> <span class="kn">import</span> <span class="n">multi_node_parallel_map</span>
+<span class="kn">from</span> <span class="nn">dials.util.system</span> <span class="kn">import</span> <span class="n">CPU_COUNT</span><span class="p">,</span> <span class="n">MEMORY_LIMIT</span>
 <span class="kn">from</span> <span class="nn">dials_algorithms_integration_integrator_ext</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">Executor</span><span class="p">,</span>
     <span class="n">Group</span><span class="p">,</span>
@@ -108,90 +105,6 @@
 <span class="p">]</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-
-<span class="k">def</span> <span class="nf">assess_available_memory</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
-
-    <span class="c1"># Obtain information about system memory</span>
-    <span class="n">available_memory</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">available</span>
-    <span class="n">available_swap</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">swap_memory</span><span class="p">()</span><span class="o">.</span><span class="n">free</span>
-
-    <span class="c1"># https://htcondor.readthedocs.io/en/latest/users-manual/services-for-jobs.html#extra-environment-variables-htcondor-sets-for-jobs</span>
-    <span class="n">condor_job_ad</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_CONDOR_JOB_AD&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">condor_job_ad</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">job_classad</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">parse_htcondor_job_classad</span><span class="p">(</span>
-                <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">condor_job_ad</span><span class="p">)</span>
-            <span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Error parsing _CONDOR_JOB_AD </span><span class="si">{</span><span class="n">condor_job_ad</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-                <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">job_classad</span><span class="o">.</span><span class="n">memory_provisioned</span><span class="p">:</span>
-                <span class="c1"># Convert MB to bytes</span>
-                <span class="n">available_memory</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
-                    <span class="n">available_memory</span><span class="p">,</span> <span class="n">job_classad</span><span class="o">.</span><span class="n">memory_provisioned</span> <span class="o">*</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span>
-                <span class="p">)</span>
-
-    <span class="n">available_incl_swap</span> <span class="o">=</span> <span class="n">available_memory</span> <span class="o">+</span> <span class="n">available_swap</span>
-    <span class="n">available_limit</span> <span class="o">=</span> <span class="n">available_incl_swap</span> <span class="o">*</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
-    <span class="n">available_immediate_limit</span> <span class="o">=</span> <span class="n">available_memory</span> <span class="o">*</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
-
-    <span class="c1"># Compile a memory report</span>
-    <span class="n">report</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="s2">&quot;Memory situation report:&quot;</span><span class="p">,</span>
-    <span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">_report</span><span class="p">(</span><span class="n">description</span><span class="p">,</span> <span class="n">numbytes</span><span class="p">):</span>
-        <span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">description</span><span class="si">:</span><span class="s2">&lt;50</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">numbytes</span><span class="o">/</span><span class="mf">1e9</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2"> GB&quot;</span><span class="p">)</span>
-
-    <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Available system memory (excluding swap)&quot;</span><span class="p">,</span> <span class="n">available_memory</span><span class="p">)</span>
-    <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Available swap memory&quot;</span><span class="p">,</span> <span class="n">available_swap</span><span class="p">)</span>
-    <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Available system memory (including swap)&quot;</span><span class="p">,</span> <span class="n">available_incl_swap</span><span class="p">)</span>
-    <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Maximum memory for processing (including swap)&quot;</span><span class="p">,</span> <span class="n">available_limit</span><span class="p">)</span>
-    <span class="n">_report</span><span class="p">(</span>
-        <span class="s2">&quot;Maximum memory for processing (excluding swap)&quot;</span><span class="p">,</span>
-        <span class="n">available_immediate_limit</span><span class="p">,</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Check if a ulimit applies</span>
-    <span class="c1"># Note that resource may be None on non-Linux platforms.</span>
-    <span class="c1"># We can&#39;t use psutil as platform-independent solution in this instance due to</span>
-    <span class="c1"># https://github.com/conda-forge/psutil-feedstock/issues/47</span>
-    <span class="n">rlimit</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="s2">&quot;RLIMIT_VMEM&quot;</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="s2">&quot;RLIMIT_AS&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
-    <span class="k">if</span> <span class="n">rlimit</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">ulimit</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrlimit</span><span class="p">(</span><span class="n">rlimit</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">ulimit</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">ulimit</span> <span class="o">&gt;</span> <span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">62</span><span class="p">):</span>
-                <span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;  no memory ulimit set&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">ulimit_used</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">()</span><span class="o">.</span><span class="n">memory_info</span><span class="p">()</span><span class="o">.</span><span class="n">rss</span>
-                <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Memory ulimit detected&quot;</span><span class="p">,</span> <span class="n">ulimit</span><span class="p">)</span>
-                <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Memory ulimit in use&quot;</span><span class="p">,</span> <span class="n">ulimit_used</span><span class="p">)</span>
-                <span class="n">available_memory</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">available_memory</span><span class="p">,</span> <span class="n">ulimit</span> <span class="o">-</span> <span class="n">ulimit_used</span><span class="p">))</span>
-                <span class="n">available_incl_swap</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
-                    <span class="mi">0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">available_incl_swap</span><span class="p">,</span> <span class="n">ulimit</span> <span class="o">-</span> <span class="n">ulimit_used</span><span class="p">)</span>
-                <span class="p">)</span>
-                <span class="n">available_immediate_limit</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">available_memory</span> <span class="o">*</span> <span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
-                <span class="p">)</span>
-                <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Available system memory (limited)&quot;</span><span class="p">,</span> <span class="n">available_memory</span><span class="p">)</span>
-                <span class="n">_report</span><span class="p">(</span>
-                    <span class="s2">&quot;Available system memory (incl. swap; limited)&quot;</span><span class="p">,</span>
-                    <span class="n">available_incl_swap</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="n">_report</span><span class="p">(</span>
-                    <span class="s2">&quot;Maximum memory for processing (exc. swap; limited)&quot;</span><span class="p">,</span>
-                    <span class="n">available_immediate_limit</span><span class="p">,</span>
-                <span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                <span class="s2">&quot;Could not obtain ulimit values due to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span>
-            <span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">available_immediate_limit</span><span class="p">,</span> <span class="n">available_incl_swap</span><span class="p">,</span> <span class="n">report</span>
 
 
 <span class="k">def</span> <span class="nf">_average_bbox_size</span><span class="p">(</span><span class="n">reflections</span><span class="p">):</span>
@@ -692,7 +605,7 @@
         <span class="k">assert</span> <span class="s2">&quot;bbox&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="s2">&quot;Reflections have no bbox&quot;</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="ow">is</span> <span class="n">libtbx</span><span class="o">.</span><span class="n">Auto</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">available_cores</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">CPU_COUNT</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting nproc=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="c1"># Compute the block size and processors</span>
@@ -905,28 +818,31 @@
 <span class="sd">        Compute the number of processors</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
+        <span class="c1"># Obtain information about system memory</span>
+        <span class="n">available_memory</span> <span class="o">=</span> <span class="n">MEMORY_LIMIT</span>
+        <span class="n">available_limit</span> <span class="o">=</span> <span class="n">available_memory</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
+
         <span class="c1"># Get the maximum shoebox memory to estimate memory use for one process</span>
         <span class="n">memory_required_per_process</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">shoebox_memory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">shoebox</span><span class="o">.</span><span class="n">flatten</span><span class="p">)</span>
         <span class="p">)</span>
 
-        <span class="p">(</span>
-            <span class="n">available_immediate_limit</span><span class="p">,</span>
-            <span class="n">available_incl_swap</span><span class="p">,</span>
-            <span class="n">report</span><span class="p">,</span>
-        <span class="p">)</span> <span class="o">=</span> <span class="n">assess_available_memory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="c1"># Compile a memory report</span>
+        <span class="n">report</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Memory situation report:&quot;</span><span class="p">]</span>
 
-        <span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="s1">&#39;Memory required per process&#39;</span><span class="si">:</span><span class="s2">50</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">memory_required_per_process</span><span class="o">/</span><span class="mf">1e9</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2"> GB&quot;</span>
-        <span class="p">)</span>
+        <span class="k">def</span> <span class="nf">_report</span><span class="p">(</span><span class="n">description</span><span class="p">,</span> <span class="n">numbytes</span><span class="p">):</span>
+            <span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">description</span><span class="si">:</span><span class="s2">&lt;50</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">numbytes</span><span class="o">/</span><span class="mf">1e9</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2"> GB&quot;</span><span class="p">)</span>
+
+        <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Available system memory&quot;</span><span class="p">,</span> <span class="n">available_memory</span><span class="p">)</span>
+        <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Maximum memory for processing&quot;</span><span class="p">,</span> <span class="n">available_limit</span><span class="p">)</span>
+        <span class="n">_report</span><span class="p">(</span><span class="s2">&quot;Memory required per process&quot;</span><span class="p">,</span> <span class="n">memory_required_per_process</span><span class="p">)</span>
 
         <span class="n">output_level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span>
 
         <span class="c1"># Limit the number of parallel processes by amount of available memory</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;multiprocessing&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-
             <span class="c1"># Compute expected memory usage and warn if not enough</span>
-            <span class="n">njobs</span> <span class="o">=</span> <span class="n">available_immediate_limit</span> <span class="o">/</span> <span class="n">memory_required_per_process</span>
+            <span class="n">njobs</span> <span class="o">=</span> <span class="n">available_limit</span> <span class="o">/</span> <span class="n">memory_required_per_process</span>
             <span class="k">if</span> <span class="n">njobs</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">:</span>
                 <span class="c1"># There is enough memory. Take no action</span>
                 <span class="k">pass</span>
@@ -934,22 +850,10 @@
                 <span class="c1"># There is enough memory to run, but not as many processes as requested</span>
                 <span class="n">output_level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span>
                 <span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="s2">&quot;Reducing number of processes from </span><span class="si">%d</span><span class="s2"> to </span><span class="si">%d</span><span class="s2"> due to memory constraints.&quot;</span>
-                    <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">njobs</span><span class="p">))</span>
+                    <span class="sa">f</span><span class="s2">&quot;Reducing number of processes from </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="si">}</span><span class="s2"> to &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">njobs</span><span class="p">)</span><span class="si">}</span><span class="s2"> due to memory constraints.&quot;</span>
                 <span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">njobs</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="p">(</span>
-                <span class="n">available_incl_swap</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">max_memory_usage</span>
-                <span class="o">&gt;=</span> <span class="n">memory_required_per_process</span>
-            <span class="p">):</span>
-                <span class="c1"># There is enough memory to run, but only if we count swap.</span>
-                <span class="n">output_level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span>
-                <span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="s2">&quot;Reducing number of processes from </span><span class="si">%d</span><span class="s2"> to 1 due to memory constraints.&quot;</span>
-                    <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Running this process will rely on swap usage!&quot;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="mi">1</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># There is not enough memory to run</span>
                 <span class="n">output_level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span>
