@@ -765,9 +765,35 @@
         <span class="c1"># - Any consecutive still frames that share any metadata with the</span>
         <span class="c1">#   previous still fram get collected into one ImageSet</span>
 
+        <span class="n">all_tof</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">records</span> <span class="ow">in</span> <span class="n">format_groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>  <span class="c1"># records can be ImageMetadataRecord or ImageSequence</span>
+                    <span class="n">scan</span> <span class="o">=</span> <span class="n">i</span><span class="o">.</span><span class="n">get_scan</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">scan</span><span class="o">.</span><span class="n">has_property</span><span class="p">(</span><span class="s2">&quot;time_of_flight&quot;</span><span class="p">):</span>
+                        <span class="n">all_tof</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">elif</span> <span class="n">all_tof</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                            <span class="s2">&quot;Cannot process mix of ToF and non ToF experiments&quot;</span>
+                        <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">all_tof</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                            <span class="s2">&quot;Cannot process mix of ToF and non ToF experiments&quot;</span>
+                        <span class="p">)</span>
+
         <span class="c1"># Treat each format as a separate block of data</span>
         <span class="k">for</span> <span class="n">format_class</span><span class="p">,</span> <span class="n">records</span> <span class="ow">in</span> <span class="n">format_groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">format_class</span><span class="p">,</span> <span class="n">FormatMultiImage</span><span class="p">):</span>
+
+                <span class="k">if</span> <span class="n">all_tof</span><span class="p">:</span>
+                    <span class="n">_merge_sequence_model_metadata</span><span class="p">(</span>
+                        <span class="n">records</span><span class="p">,</span>
+                        <span class="n">compare_beam</span><span class="o">=</span><span class="n">compare_beam</span><span class="p">,</span>
+                        <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
+                        <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
+                    <span class="p">)</span>
+
                 <span class="k">for</span> <span class="n">imageset</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
                     <span class="n">experiments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
                         <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_imageset_and_crystal</span><span class="p">(</span>
@@ -1351,6 +1377,42 @@
             <span class="n">compare_detector</span><span class="o">=</span><span class="n">compare_detector</span><span class="p">,</span>
             <span class="n">compare_goniometer</span><span class="o">=</span><span class="n">compare_goniometer</span><span class="p">,</span>
         <span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_merge_sequence_model_metadata</span><span class="p">(</span>
+    <span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">ImageSequence</span><span class="p">],</span>
+    <span class="n">compare_beam</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">compare_detector</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">compare_goniometer</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">for</span> <span class="n">prev</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_iterate_with_previous</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">prev</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">record_beam</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span>
+        <span class="n">record_detector</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
+        <span class="n">record_goniometer</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span>
+        <span class="n">prev_beam</span> <span class="o">=</span> <span class="n">prev</span><span class="o">.</span><span class="n">get_beam</span><span class="p">()</span>
+        <span class="n">prev_detector</span> <span class="o">=</span> <span class="n">prev</span><span class="o">.</span><span class="n">get_detector</span><span class="p">()</span>
+        <span class="n">prev_goniometer</span> <span class="o">=</span> <span class="n">prev</span><span class="o">.</span><span class="n">get_goniometer</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">record_beam</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">prev_beam</span> <span class="ow">and</span> <span class="n">compare_beam</span><span class="p">(</span><span class="n">record_beam</span><span class="p">,</span> <span class="n">prev_beam</span><span class="p">):</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">set_beam</span><span class="p">(</span><span class="n">prev_beam</span><span class="p">)</span>
+            <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">record_detector</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">prev_detector</span> <span class="ow">and</span> <span class="n">compare_detector</span><span class="p">(</span>
+            <span class="n">record_detector</span><span class="p">,</span> <span class="n">prev_detector</span>
+        <span class="p">):</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">set_detector</span><span class="p">(</span><span class="n">prev_detector</span><span class="p">)</span>
+            <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">record_goniometer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">prev_goniometer</span> <span class="ow">and</span> <span class="n">compare_goniometer</span><span class="p">(</span>
+            <span class="n">record_goniometer</span><span class="p">,</span> <span class="n">prev_goniometer</span>
+        <span class="p">):</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">set_goniometer</span><span class="p">(</span><span class="n">prev_goniometer</span><span class="p">)</span>
+            <span class="n">record_altered</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">return</span> <span class="n">record_altered</span>
 
 
 <span class="k">def</span> <span class="nf">_merge_scans</span><span class="p">(</span>
