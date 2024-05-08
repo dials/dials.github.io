@@ -67,6 +67,7 @@
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
 
 <span class="kn">import</span> <span class="nn">dials.util</span>
+<span class="kn">import</span> <span class="nn">dials.util.system</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing.symmetry</span> <span class="kn">import</span> <span class="n">find_matching_symmetry</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.symmetry</span> <span class="kn">import</span> <span class="n">median_unit_cell</span><span class="p">,</span> <span class="n">symmetry_base</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.symmetry.cosym</span> <span class="kn">import</span> <span class="n">engine</span> <span class="k">as</span> <span class="n">cosym_engine</span>
@@ -123,6 +124,15 @@
 <span class="sd">weights = count standard_error</span>
 <span class="sd">  .type = choice</span>
 <span class="sd">  .short_caption = &quot;Weights&quot;</span>
+<span class="sd">  .help = &quot;If not None, a weights matrix is used in the cosym procedure.&quot;</span>
+<span class="sd">          &quot;weights=count uses the number of reflections used to calculate a pairwise correlation coefficient as its weight&quot;</span>
+<span class="sd">          &quot;weights=standard_error uses the reciprocal of the standard error as the weight. The standard error is given by&quot;</span>
+<span class="sd">          &quot;the sqrt of (1-CC*2)/(n-2), where (n-2) are the degrees of freedom in a pairwise CC calculation.&quot;</span>
+<span class="sd">cc_weights = None sigma</span>
+<span class="sd">  .type = choice</span>
+<span class="sd">  .help = &quot;If not None, a weighted cc-half formula is used for calculating pairwise correlation coefficients and degrees of&quot;</span>
+<span class="sd">          &quot;freedom in the cosym procedure.&quot;</span>
+<span class="sd">          &quot;weights=sigma uses the intensity uncertainties to perform inverse variance weighting during the cc calculation.&quot;</span>
 
 <span class="sd">min_pairs = 3</span>
 <span class="sd">  .type = int(value_min=1)</span>
@@ -143,10 +153,9 @@
 <span class="sd">    .short_caption = &quot;Maximum number of calls&quot;</span>
 <span class="sd">}</span>
 
-<span class="sd">nproc = None</span>
+<span class="sd">nproc = Auto</span>
 <span class="sd">  .type = int(value_min=1)</span>
-<span class="sd">  .help = &quot;Deprecated&quot;</span>
-<span class="sd">  .deprecated = True</span>
+<span class="sd">  .help = &quot;Number of processes&quot;</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="p">)</span>
 
@@ -255,7 +264,14 @@
             <span class="n">tmp_intensities</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_map_space_group_to_input_cell</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">lattice_group</span><span class="o">.</span><span class="n">group</span><span class="p">()</span>
             <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">lattice_group</span> <span class="o">=</span> <span class="n">tmp_intensities</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">()</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">lattice_group</span> <span class="o">=</span> <span class="n">tmp_intensities</span><span class="o">.</span><span class="n">space_group_info</span><span class="p">()</span>
+        <span class="c1"># N.B. currently only multiprocessing used if cc_weights=sigma</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">nproc</span> <span class="ow">is</span> <span class="n">Auto</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">cc_weights</span> <span class="o">==</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">CPU_COUNT</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting nproc=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">nproc</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="mi">1</span></div>
 
 
     <span class="k">def</span> <span class="nf">_intialise_target</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -278,6 +294,8 @@
             <span class="n">lattice_group</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lattice_group</span><span class="p">,</span>
             <span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">,</span>
             <span class="n">weights</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">weights</span><span class="p">,</span>
+            <span class="n">cc_weights</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">cc_weights</span><span class="p">,</span>
+            <span class="n">nproc</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_determine_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
