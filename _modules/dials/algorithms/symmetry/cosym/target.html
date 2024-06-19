@@ -76,7 +76,14 @@
 
 
 <span class="k">def</span> <span class="nf">_compute_rij_matrix_one_row_block</span><span class="p">(</span>
-    <span class="n">i</span><span class="p">,</span> <span class="n">lattices</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">sym_ops</span><span class="p">,</span> <span class="n">patterson_group</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">min_pairs</span><span class="o">=</span><span class="mi">3</span>
+    <span class="n">i</span><span class="p">,</span>
+    <span class="n">lattices</span><span class="p">,</span>
+    <span class="n">data</span><span class="p">,</span>
+    <span class="n">indices</span><span class="p">,</span>
+    <span class="n">sym_ops</span><span class="p">,</span>
+    <span class="n">patterson_group</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">min_pairs</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
 <span class="p">):</span>
     <span class="n">cs</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">crystal_symmetry</span><span class="p">()</span>
     <span class="n">n_lattices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lattices</span><span class="p">)</span>
@@ -118,7 +125,7 @@
 
                 <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cb_op_k</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span> <span class="o">*</span> <span class="n">cb_op_kk</span><span class="p">))</span>
                 <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">rij_cache</span><span class="p">:</span>
-                    <span class="n">cc</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="n">rij_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                    <span class="n">cc</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">n_pairs</span> <span class="o">=</span> <span class="n">rij_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">indices_j</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="n">cb_op_kk</span><span class="o">.</span><span class="n">as_xyz</span><span class="p">()][</span><span class="n">j_lower</span><span class="p">:</span><span class="n">j_upper</span><span class="p">]</span>
 
@@ -148,18 +155,26 @@
                         <span class="n">data</span><span class="o">=</span><span class="n">intensities_i</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel_i</span><span class="p">),</span>
                         <span class="n">sigmas</span><span class="o">=</span><span class="n">sigmas_i</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">isel_i</span><span class="p">),</span>
                     <span class="p">)</span>
-                    <span class="n">corr</span><span class="p">,</span> <span class="n">neff</span> <span class="o">=</span> <span class="n">ExtendedDatasetStatistics</span><span class="o">.</span><span class="n">weighted_cchalf</span><span class="p">(</span>
-                        <span class="n">ma_i</span><span class="p">,</span> <span class="n">ma_j</span><span class="p">,</span> <span class="n">assume_index_matching</span><span class="o">=</span><span class="kc">True</span>
-                    <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">neff</span><span class="p">:</span>
-                        <span class="n">cc</span> <span class="o">=</span> <span class="n">corr</span>
-                        <span class="n">n</span> <span class="o">=</span> <span class="n">neff</span>
-                    <span class="k">else</span><span class="p">:</span>
+                    <span class="n">n_pairs</span> <span class="o">=</span> <span class="n">ma_i</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">ma_i</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">min_pairs</span><span class="p">:</span>
                         <span class="n">n</span><span class="p">,</span> <span class="n">cc</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">corr</span><span class="p">,</span> <span class="n">neff</span> <span class="o">=</span> <span class="n">ExtendedDatasetStatistics</span><span class="o">.</span><span class="n">weighted_cchalf</span><span class="p">(</span>
+                            <span class="n">ma_i</span><span class="p">,</span> <span class="n">ma_j</span><span class="p">,</span> <span class="n">assume_index_matching</span><span class="o">=</span><span class="kc">True</span>
+                        <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">neff</span><span class="p">:</span>
+                            <span class="n">cc</span> <span class="o">=</span> <span class="n">corr</span>
+                            <span class="n">n</span> <span class="o">=</span> <span class="n">neff</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">n</span><span class="p">,</span> <span class="n">cc</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
-                    <span class="n">rij_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">cc</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+                    <span class="n">rij_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">cc</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">n_pairs</span><span class="p">)</span>
 
-                <span class="k">if</span> <span class="n">n</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">cc</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="n">min_pairs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="n">min_pairs</span><span class="p">):</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="n">n</span> <span class="ow">is</span> <span class="kc">None</span>
+                    <span class="ow">or</span> <span class="n">cc</span> <span class="ow">is</span> <span class="kc">None</span>
+                    <span class="ow">or</span> <span class="p">(</span><span class="n">min_pairs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">n_pairs</span> <span class="o">&lt;</span> <span class="n">min_pairs</span><span class="p">)</span>
+                <span class="p">):</span>
                     <span class="k">continue</span>
                 <span class="k">if</span> <span class="n">weights</span><span class="p">:</span>
                     <span class="n">wij_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ik</span><span class="p">)</span>
@@ -370,8 +385,11 @@
         <span class="k">if</span> <span class="n">wij_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">wij_matrix</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">==</span> <span class="s2">&quot;standard_error&quot;</span><span class="p">:</span>
-                <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">wij_matrix</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">)</span>
-                <span class="n">se</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">rij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]))</span> <span class="o">/</span> <span class="p">(</span><span class="n">wij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span><span class="p">))</span>
+                <span class="c1"># N.B. using effective n due to sigma weighting, which can be below 2</span>
+                <span class="c1"># but approches 1 in the limit, so rather say efective sample size</span>
+                <span class="c1"># for standard error calc is n-1</span>
+                <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">wij_matrix</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">se</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">rij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]))</span> <span class="o">/</span> <span class="p">(</span><span class="n">wij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
                 <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">rij_matrix</span><span class="p">)</span>
                 <span class="n">wij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">se</span>
 

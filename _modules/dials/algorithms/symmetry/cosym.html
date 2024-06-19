@@ -65,6 +65,7 @@
 <span class="kn">from</span> <span class="nn">cctbx.sgtbx.lattice_symmetry</span> <span class="kn">import</span> <span class="n">metric_subgroups</span>
 <span class="kn">from</span> <span class="nn">libtbx</span> <span class="kn">import</span> <span class="n">Auto</span>
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">matrix</span>
+<span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
 
 <span class="kn">import</span> <span class="nn">dials.util</span>
 <span class="kn">import</span> <span class="nn">dials.util.system</span>
@@ -256,6 +257,21 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">best_subgroup</span><span class="p">[</span><span class="s2">&quot;cb_op_inp_best&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_op_inp_min</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">input_space_group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">space_group</span><span class="p">()</span>
+
+            <span class="c1"># ensure still unique after mapping - merge equivalents in the higher symmetry</span>
+            <span class="n">new_intensities</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">new_dataset_ids</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">([])</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="p">):</span>
+                <span class="n">sel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">==</span> <span class="n">d</span>
+                <span class="n">these_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+                <span class="n">these_merged</span> <span class="o">=</span> <span class="n">these_i</span><span class="o">.</span><span class="n">merge_equivalents</span><span class="p">()</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">new_intensities</span><span class="p">:</span>
+                    <span class="n">new_intensities</span> <span class="o">=</span> <span class="n">these_merged</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">new_intensities</span> <span class="o">=</span> <span class="n">new_intensities</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">these_merged</span><span class="p">)</span>
+                <span class="n">new_dataset_ids</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">these_merged</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">d</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="n">new_intensities</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">=</span> <span class="n">new_dataset_ids</span>
 
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">input_space_group</span> <span class="o">=</span> <span class="kc">None</span>
