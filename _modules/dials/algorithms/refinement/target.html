@@ -49,7 +49,7 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">from</span> <span class="nn">libtbx.phil</span> <span class="kn">import</span> <span class="n">parse</span>
 <span class="kn">from</span> <span class="nn">scitbx</span> <span class="kn">import</span> <span class="n">sparse</span>
@@ -125,9 +125,23 @@
                 <span class="o">+</span> <span class="s2">&quot; not recognised&quot;</span>
             <span class="p">)</span>
 
+        <span class="n">all_tof_experiments</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">expt</span> <span class="ow">in</span> <span class="n">experiments</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">has_property</span><span class="p">(</span><span class="s2">&quot;time_of_flight&quot;</span><span class="p">):</span>
+                <span class="n">all_tof_experiments</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">all_tof_experiments</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Cannot refine ToF and non-ToF experiments at the same time&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">all_tof_experiments</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target</span> <span class="kn">import</span> <span class="p">(</span>
+                <span class="n">TOFLeastSquaresResidualWithRmsdCutoff</span> <span class="k">as</span> <span class="n">targ</span><span class="p">,</span>
+            <span class="p">)</span>
+
         <span class="c1"># Determine whether the target is in X, Y, Phi space or just X, Y to choose</span>
         <span class="c1"># the right Target to instantiate</span>
-        <span class="k">if</span> <span class="n">do_stills</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">do_stills</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">do_sparse</span><span class="p">:</span>
                 <span class="kn">from</span> <span class="nn">dials.algorithms.refinement.target_stills</span> <span class="kn">import</span> <span class="p">(</span>
                     <span class="n">LeastSquaresStillsResidualWithRmsdCutoffSparse</span> <span class="k">as</span> <span class="n">targ</span><span class="p">,</span>
@@ -296,7 +310,11 @@
             <span class="n">sel</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">iexp</span>
 
             <span class="c1"># keep all reflections if there is no rotation axis</span>
-            <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">exp</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="ow">or</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="ow">or</span> <span class="ow">not</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">has_property</span><span class="p">(</span><span class="s2">&quot;oscillation&quot;</span><span class="p">)</span>
+            <span class="p">):</span>
                 <span class="n">to_keep</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
                 <span class="k">continue</span>
 
@@ -825,6 +843,182 @@
 <span class="sd">    large number of Experiments&quot;&quot;&quot;</span>
 
     <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="LaueLeastSquaresResidualWithRmsdCutoff">
+<a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.LaueLeastSquaresResidualWithRmsdCutoff">[docs]</a>
+<span class="k">class</span> <span class="nc">LaueLeastSquaresResidualWithRmsdCutoff</span><span class="p">(</span><span class="n">Target</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Laue implementation of the target class providing a least squares</span>
+<span class="sd">    residual in terms of detector impact position X, Y, and observed</span>
+<span class="sd">    wavelength&quot;&quot;&quot;</span>
+
+    <span class="n">_grad_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;dX_dp&quot;</span><span class="p">,</span> <span class="s2">&quot;dY_dp&quot;</span><span class="p">,</span> <span class="s2">&quot;dwavelength_dp&quot;</span><span class="p">]</span>
+    <span class="n">rmsd_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;RMSD_X&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_Y&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_wavelength&quot;</span><span class="p">]</span>
+    <span class="n">rmsd_units</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;mm&quot;</span><span class="p">,</span> <span class="s2">&quot;mm&quot;</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="LaueLeastSquaresResidualWithRmsdCutoff.__init__">
+<a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.LaueLeastSquaresResidualWithRmsdCutoff.__init__">[docs]</a>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">experiments</span><span class="p">,</span>
+        <span class="n">predictor</span><span class="p">,</span>
+        <span class="n">reflection_manager</span><span class="p">,</span>
+        <span class="n">prediction_parameterisation</span><span class="p">,</span>
+        <span class="n">restraints_parameterisation</span><span class="p">,</span>
+        <span class="n">frac_binsize_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.33333</span><span class="p">,</span>
+        <span class="n">absolute_cutoffs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">gradient_calculation_blocksize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+
+        <span class="n">Target</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">experiments</span><span class="p">,</span>
+            <span class="n">predictor</span><span class="p">,</span>
+            <span class="n">reflection_manager</span><span class="p">,</span>
+            <span class="n">prediction_parameterisation</span><span class="p">,</span>
+            <span class="n">restraints_parameterisation</span><span class="p">,</span>
+            <span class="n">gradient_calculation_blocksize</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set up the RMSD achieved criterion.</span>
+<span class="sd">        For simplicity, we take models from the first Experiment only.</span>
+<span class="sd">        If this is not appropriate for refinement over all experiments</span>
+<span class="sd">        then absolute cutoffs should be used instead.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">absolute_cutoffs</span><span class="p">:</span>
+            <span class="c1"># Pixel cutoffs</span>
+            <span class="n">pixel_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">get_pixel_size</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">detector</span><span class="p">]</span>
+            <span class="n">min_px_size_x</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">pixel_sizes</span><span class="p">)</span>
+            <span class="n">min_px_size_y</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">pixel_sizes</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">min_px_size_x</span> <span class="o">*</span> <span class="n">frac_binsize_cutoff</span><span class="p">,</span>
+                <span class="n">min_px_size_y</span> <span class="o">*</span> <span class="n">frac_binsize_cutoff</span><span class="p">,</span>
+            <span class="p">]</span>
+            <span class="c1"># Wavelength cutoff</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">absolute_cutoffs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span> <span class="o">=</span> <span class="n">absolute_cutoffs</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_extract_residuals_and_weights</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
+
+        <span class="c1"># return residuals and weights as 1d flex.double vectors</span>
+        <span class="n">residuals</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s2">&quot;x_resid&quot;</span><span class="p">],</span> <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;y_resid&quot;</span><span class="p">])</span>
+
+        <span class="n">residuals</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;wavelength_resid&quot;</span><span class="p">])</span>
+
+        <span class="n">weights</span><span class="p">,</span> <span class="n">w_y</span><span class="p">,</span> <span class="n">w_z</span> <span class="o">=</span> <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.weights&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+        <span class="n">weights</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">w_y</span><span class="p">)</span>
+        <span class="n">weights</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">w_z</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">residuals</span><span class="p">,</span> <span class="n">weights</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_extract_squared_residuals</span><span class="p">(</span><span class="n">matches</span><span class="p">):</span>
+
+        <span class="k">return</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;x_resid2&quot;</span><span class="p">],</span>
+            <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="s2">&quot;y_resid2&quot;</span><span class="p">],</span> <span class="n">matches</span><span class="p">[</span><span class="s2">&quot;wavelength_resid2&quot;</span><span class="p">]),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the specified reflections&quot;&quot;&quot;</span>
+
+        <span class="n">resid_x</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid2&quot;</span><span class="p">])</span>
+        <span class="n">resid_y</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid2&quot;</span><span class="p">])</span>
+        <span class="n">resid_wavelength</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;wavelength_resid2&quot;</span><span class="p">])</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+        <span class="n">rmsds</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">resid_x</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">resid_y</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">resid_wavelength</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">rmsds</span>
+
+    <span class="k">def</span> <span class="nf">_predict_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;perform prediction for the specified reflections&quot;&quot;&quot;</span>
+
+        <span class="c1"># If the prediction parameterisation has a compose method (true for the scan</span>
+        <span class="c1"># varying case) then call it. Prefer hasattr to try-except duck typing to</span>
+        <span class="c1"># avoid masking AttributeErrors that could be raised within the method.</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="p">,</span> <span class="s2">&quot;compose&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_parameterisation</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">reflections</span><span class="p">,</span> <span class="n">skip_derivatives</span><span class="p">)</span>
+
+        <span class="c1"># do prediction (updates reflection table in situ). Scan-varying prediction</span>
+        <span class="c1"># is done automatically if the crystal has scan-points (assuming reflections</span>
+        <span class="c1"># have ub_matrix set)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reflection_predictor</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+        <span class="n">x_obs</span><span class="p">,</span> <span class="n">y_obs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+        <span class="n">x_calc</span><span class="p">,</span> <span class="n">y_calc</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzcal.mm&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+
+        <span class="c1"># calculate residuals and assign columns</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_calc</span> <span class="o">-</span> <span class="n">x_obs</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y_calc</span> <span class="o">-</span> <span class="n">y_obs</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">wavelength_obs</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;wavelength&quot;</span><span class="p">]</span>
+        <span class="n">wavelength_cal</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;wavelength_cal&quot;</span><span class="p">]</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;wavelength_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wavelength_cal</span> <span class="o">-</span> <span class="n">wavelength_obs</span>
+        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;wavelength_resid2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;wavelength_resid&quot;</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+
+        <span class="k">return</span> <span class="n">reflections</span>
+
+<div class="viewcode-block" id="LaueLeastSquaresResidualWithRmsdCutoff.achieved">
+<a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.LaueLeastSquaresResidualWithRmsdCutoff.achieved">[docs]</a>
+    <span class="k">def</span> <span class="nf">achieved</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;RMSD criterion for target achieved&quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">rmsds</span><span class="p">()</span>
+
+        <span class="c1"># reset cached rmsds to avoid getting out of step</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rmsds</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="ow">and</span> <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="ow">and</span> <span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binsize_cutoffs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TOFLeastSquaresResidualWithRmsdCutoff">
+<a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.refinement.html#dials.algorithms.refinement.target.TOFLeastSquaresResidualWithRmsdCutoff">[docs]</a>
+<span class="k">class</span> <span class="nc">TOFLeastSquaresResidualWithRmsdCutoff</span><span class="p">(</span><span class="n">LaueLeastSquaresResidualWithRmsdCutoff</span><span class="p">):</span>
+
+    <span class="n">_grad_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;dX_dp&quot;</span><span class="p">,</span> <span class="s2">&quot;dY_dp&quot;</span><span class="p">,</span> <span class="s2">&quot;dwavelength_dp&quot;</span><span class="p">]</span>
+    <span class="n">rmsd_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;RMSD_X&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_Y&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_wavelength&quot;</span><span class="p">,</span> <span class="s2">&quot;RMSD_wavelength&quot;</span><span class="p">]</span>
+    <span class="n">rmsd_units</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;mm&quot;</span><span class="p">,</span> <span class="s2">&quot;mm&quot;</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;frame&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_rmsds_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">):</span>
+
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;calculate unweighted RMSDs for the specified reflections&quot;&quot;&quot;</span>
+
+        <span class="n">resid_x</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;x_resid2&quot;</span><span class="p">])</span>
+        <span class="n">resid_y</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;y_resid2&quot;</span><span class="p">])</span>
+        <span class="n">resid_wavelength</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;wavelength_resid2&quot;</span><span class="p">])</span>
+        <span class="n">resid_frame</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;frame_resid2&quot;</span><span class="p">])</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+
+        <span class="n">rmsds</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">resid_x</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">resid_y</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">resid_wavelength</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">resid_frame</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">rmsds</span></div>
 
 </pre></div>
 

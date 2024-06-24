@@ -61,6 +61,7 @@
         <span class="n">percentile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">histogram_binning</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span>
         <span class="n">nn_per_bin</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+        <span class="n">convert_reflections_z_to_deg</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tolerance</span> <span class="o">=</span> <span class="n">tolerance</span>  <span class="c1"># Margin of error for max unit cell estimate</span>
         <span class="kn">from</span> <span class="nn">scitbx.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
@@ -76,7 +77,10 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">entering_flags</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
         <span class="n">rs_vectors</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]</span>
-        <span class="n">phi_deg</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">180</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+
+        <span class="n">z</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">parts</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">convert_reflections_z_to_deg</span><span class="p">:</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">z</span> <span class="o">*</span> <span class="p">(</span><span class="mi">180</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
 
         <span class="n">d_spacings</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
         <span class="c1"># nearest neighbor analysis</span>
@@ -86,16 +90,16 @@
             <span class="n">sel_imageset</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;imageset_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">imageset_id</span>
             <span class="k">if</span> <span class="n">sel_imageset</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">continue</span>
-            <span class="n">phi_min</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">phi_deg</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_imageset</span><span class="p">))</span>
-            <span class="n">phi_max</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">phi_deg</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_imageset</span><span class="p">))</span>
-            <span class="n">d_phi</span> <span class="o">=</span> <span class="n">phi_max</span> <span class="o">-</span> <span class="n">phi_min</span>
-            <span class="n">n_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">d_phi</span> <span class="o">/</span> <span class="n">step_size</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">z_min</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_imageset</span><span class="p">))</span>
+            <span class="n">z_max</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_imageset</span><span class="p">))</span>
+            <span class="n">d_z</span> <span class="o">=</span> <span class="n">z_max</span> <span class="o">-</span> <span class="n">z_min</span>
+            <span class="n">n_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">d_z</span> <span class="o">/</span> <span class="n">step_size</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span>
 
             <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_steps</span><span class="p">):</span>
                 <span class="n">sel_step</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="n">sel_imageset</span>
-                    <span class="o">&amp;</span> <span class="p">(</span><span class="n">phi_deg</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">phi_min</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">))</span>
-                    <span class="o">&amp;</span> <span class="p">(</span><span class="n">phi_deg</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">phi_min</span> <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">))</span>
+                    <span class="o">&amp;</span> <span class="p">(</span><span class="n">z</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">z_min</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">))</span>
+                    <span class="o">&amp;</span> <span class="p">(</span><span class="n">z</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">z_min</span> <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">))</span>
                 <span class="p">)</span>
 
                 <span class="k">for</span> <span class="n">entering</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>

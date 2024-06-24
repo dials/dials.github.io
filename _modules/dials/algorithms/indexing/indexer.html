@@ -52,7 +52,7 @@
 <span class="kn">import</span> <span class="nn">iotbx.phil</span>
 <span class="kn">import</span> <span class="nn">libtbx</span>
 <span class="kn">from</span> <span class="nn">cctbx</span> <span class="kn">import</span> <span class="n">sgtbx</span>
-<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="n">ExperimentList</span><span class="p">,</span> <span class="n">ImageSequence</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="n">ExperimentList</span><span class="p">,</span> <span class="n">ImageSequence</span><span class="p">,</span> <span class="n">tof_helpers</span>
 
 <span class="kn">import</span> <span class="nn">dials.util</span>
 <span class="kn">from</span> <span class="nn">dials.algorithms.indexing</span> <span class="kn">import</span> <span class="p">(</span>
@@ -931,7 +931,7 @@
             <span class="n">refined_reflections</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">imgset_sel</span><span class="p">)</span>
             <span class="n">panel_numbers</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">size_t</span><span class="p">(</span><span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;panel&quot;</span><span class="p">])</span>
             <span class="n">xyzcal_mm</span> <span class="o">=</span> <span class="n">refined_reflections</span><span class="p">[</span><span class="s2">&quot;xyzcal.mm&quot;</span><span class="p">]</span>
-            <span class="n">x_mm</span><span class="p">,</span> <span class="n">y_mm</span><span class="p">,</span> <span class="n">z_rad</span> <span class="o">=</span> <span class="n">xyzcal_mm</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+            <span class="n">x_mm</span><span class="p">,</span> <span class="n">y_mm</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">xyzcal_mm</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
             <span class="n">xy_cal_mm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec2_double</span><span class="p">(</span><span class="n">x_mm</span><span class="p">,</span> <span class="n">y_mm</span><span class="p">)</span>
             <span class="n">xy_cal_px</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec2_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">xy_cal_mm</span><span class="p">))</span>
             <span class="k">for</span> <span class="n">i_panel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">expt</span><span class="o">.</span><span class="n">detector</span><span class="p">)):</span>
@@ -942,10 +942,18 @@
                 <span class="p">)</span>
             <span class="n">x_px</span><span class="p">,</span> <span class="n">y_px</span> <span class="o">=</span> <span class="n">xy_cal_px</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">z_px</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_array_index_from_angle</span><span class="p">(</span><span class="n">z_rad</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">has_property</span><span class="p">(</span><span class="s2">&quot;time_of_flight&quot;</span><span class="p">):</span>
+                    <span class="n">tof</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_property</span><span class="p">(</span><span class="s2">&quot;time_of_flight&quot;</span><span class="p">)</span>
+                    <span class="n">frames</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tof</span><span class="p">)))</span>
+                    <span class="n">tof_to_frame</span> <span class="o">=</span> <span class="n">tof_helpers</span><span class="o">.</span><span class="n">tof_to_frame_interpolator</span><span class="p">(</span><span class="n">tof</span><span class="p">,</span> <span class="n">frames</span><span class="p">)</span>
+                    <span class="n">z</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">z</span> <span class="o">&lt;</span> <span class="nb">min</span><span class="p">(</span><span class="n">tof</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="n">tof</span><span class="p">))</span>
+                    <span class="n">z</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">z</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">(</span><span class="n">tof</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">tof</span><span class="p">))</span>
+                    <span class="n">z_px</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">double</span><span class="p">(</span><span class="n">tof_to_frame</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">z_px</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">get_array_index_from_angle</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># must be a still image, z centroid not meaningful</span>
-                <span class="n">z_px</span> <span class="o">=</span> <span class="n">z_rad</span>
+                <span class="n">z_px</span> <span class="o">=</span> <span class="n">z</span>
             <span class="n">xyzcal_px</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">x_px</span><span class="p">,</span> <span class="n">y_px</span><span class="p">,</span> <span class="n">z_px</span><span class="p">)</span>
             <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;xyzcal.px&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">imgset_sel</span><span class="p">,</span> <span class="n">xyzcal_px</span><span class="p">)</span>
 
@@ -1004,6 +1012,25 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">uc_params</span><span class="p">[:</span><span class="mi">3</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using max_cell: </span><span class="si">%.1f</span><span class="s2"> Angstrom&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
+
+                <span class="n">convert_reflections_z_to_deg</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">all_tof_experiments</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">expt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiments</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">has_property</span><span class="p">(</span>
+                        <span class="s2">&quot;time_of_flight&quot;</span>
+                    <span class="p">):</span>
+                        <span class="n">all_tof_experiments</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">elif</span> <span class="n">all_tof_experiments</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="s2">&quot;Cannot find max cell for ToF and non-ToF experiments at the same time&quot;</span>
+                        <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">all_tof_experiments</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">step_size</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting default ToF step size to 500 usec&quot;</span><span class="p">)</span>
+                        <span class="n">params</span><span class="o">.</span><span class="n">step_size</span> <span class="o">=</span> <span class="mi">500</span>
+                        <span class="n">convert_reflections_z_to_deg</span> <span class="o">=</span> <span class="kc">False</span>
+
                 <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span> <span class="o">=</span> <span class="n">find_max_cell</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">reflections</span><span class="p">,</span>
                     <span class="n">max_cell_multiplier</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">multiplier</span><span class="p">,</span>
@@ -1015,6 +1042,7 @@
                     <span class="n">filter_ice</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">filter_ice</span><span class="p">,</span>
                     <span class="n">filter_overlaps</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">filter_overlaps</span><span class="p">,</span>
                     <span class="n">overlaps_border</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">overlaps_border</span><span class="p">,</span>
+                    <span class="n">convert_reflections_z_to_deg</span><span class="o">=</span><span class="n">convert_reflections_z_to_deg</span><span class="p">,</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">max_cell</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found max_cell: </span><span class="si">%.1f</span><span class="s2"> Angstrom&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_cell</span><span class="p">)</span></div>
 

@@ -290,6 +290,9 @@
             <span class="s2">&quot;flags&quot;</span><span class="p">,</span>
             <span class="s2">&quot;shoebox&quot;</span><span class="p">,</span>
             <span class="s2">&quot;delpsical.weights&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;wavelength&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;wavelength_cal&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;s0&quot;</span><span class="p">,</span>
         <span class="p">]</span>
         <span class="c1"># NB xyzobs.px.value &amp; xyzcal.px required by SauterPoon outlier rejector</span>
         <span class="c1"># NB delpsical.weights is used by ExternalDelPsiWeightingStrategy</span>
@@ -435,6 +438,7 @@
         <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;x_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_calc</span> <span class="o">-</span> <span class="n">x_obs</span>
         <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;y_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y_calc</span> <span class="o">-</span> <span class="n">y_obs</span>
         <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;phi_resid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">phi_calc</span> <span class="o">-</span> <span class="n">phi_obs</span>
+        <span class="n">refman</span><span class="o">.</span><span class="n">update_residuals</span><span class="p">()</span>
 
         <span class="c1"># determine whether to do basic centroid analysis to automatically</span>
         <span class="c1"># determine outlier rejection block</span>
@@ -925,6 +929,9 @@
             <span class="k">if</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;mm&quot;</span><span class="p">:</span>
                 <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">(mm)&quot;</span><span class="p">)</span>
                 <span class="n">rmsd_multipliers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;A&quot;</span><span class="p">:</span>
+                <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">(A)&quot;</span><span class="p">)</span>
+                <span class="n">rmsd_multipliers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;rad&quot;</span><span class="p">:</span>  <span class="c1"># convert radians to degrees for reporting</span>
                 <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">(deg)&quot;</span><span class="p">)</span>
                 <span class="n">rmsd_multipliers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">RAD2DEG</span><span class="p">)</span>
@@ -1006,6 +1013,8 @@
                 <span class="c1"># will convert other angles in radians to degrees (e.g. for</span>
                 <span class="c1"># RMSD_DeltaPsi and RMSD_2theta)</span>
                 <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">(deg)&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;RMSD_wavelength&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;frame&quot;</span><span class="p">:</span>
+                <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">(frame)&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>  <span class="c1"># skip other/unknown RMSDs</span>
                 <span class="k">pass</span>
 
@@ -1027,7 +1036,7 @@
             <span class="n">scan</span> <span class="o">=</span> <span class="n">exp</span><span class="o">.</span><span class="n">scan</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">images_per_rad</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">ZeroDivisionError</span><span class="p">):</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">ZeroDivisionError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">):</span>
                 <span class="n">images_per_rad</span> <span class="o">=</span> <span class="kc">None</span>
 
             <span class="n">raw_rmsds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="o">.</span><span class="n">rmsds_for_experiment</span><span class="p">(</span><span class="n">iexp</span><span class="p">)</span>
@@ -1044,6 +1053,8 @@
                     <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">px_per_mm</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
                 <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;RMSD_Phi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;rad&quot;</span><span class="p">:</span>
                     <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">images_per_rad</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;RMSD_wavelength&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;frame&quot;</span><span class="p">:</span>
+                    <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span><span class="p">)</span>
                 <span class="k">elif</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;rad&quot;</span><span class="p">:</span>
                     <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">RAD2DEG</span><span class="p">)</span>
             <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">iexp</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">num</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">r</span><span class="si">:</span><span class="s2">.5g</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rmsds</span><span class="p">])</span>
@@ -1072,14 +1083,14 @@
     <span class="k">def</span> <span class="nf">print_panel_rmsd_table</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;print useful output about refinement steps in the form of a simple table&quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">all_tof</span><span class="p">():</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;Multiple scans present. Only the first scan will be used &quot;</span>
                 <span class="s2">&quot;to determine the image width for reporting RMSDs&quot;</span>
             <span class="p">)</span>
         <span class="n">scan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_experiments</span><span class="o">.</span><span class="n">scans</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">images_per_rad</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">scan</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">scan</span> <span class="ow">and</span> <span class="n">scan</span><span class="o">.</span><span class="n">has_property</span><span class="p">(</span><span class="s2">&quot;oscillation&quot;</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mf">0.0</span><span class="p">:</span>
                 <span class="n">images_per_rad</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">scan</span><span class="o">.</span><span class="n">get_oscillation</span><span class="p">(</span><span class="n">deg</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
 
@@ -1100,6 +1111,8 @@
                     <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;RMSD_DeltaPsi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;rad&quot;</span>
                 <span class="p">):</span>  <span class="c1"># convert radians to degrees for reporting of stills</span>
                     <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">(deg)&quot;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;RMSD_wavelength&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;frame&quot;</span><span class="p">:</span>
+                    <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">(frame)&quot;</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>  <span class="c1"># skip RMSDs that cannot be expressed in image/scan space</span>
                     <span class="k">pass</span>
 
@@ -1126,6 +1139,8 @@
                         <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">images_per_rad</span><span class="p">)</span>
                     <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;RMSD_DeltaPsi&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;rad&quot;</span><span class="p">:</span>
                         <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span> <span class="o">*</span> <span class="n">RAD2DEG</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;RMSD_wavelength&quot;</span> <span class="ow">and</span> <span class="n">units</span> <span class="o">==</span> <span class="s2">&quot;frame&quot;</span><span class="p">:</span>
+                        <span class="n">rmsds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rmsd</span><span class="p">)</span>
                 <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">ipanel</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">num</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">r</span><span class="si">:</span><span class="s2">.5g</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rmsds</span><span class="p">])</span>
 
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
