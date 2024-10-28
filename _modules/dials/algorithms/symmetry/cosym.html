@@ -8,11 +8,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dials.algorithms.symmetry.cosym &#8212; DIALS  documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=c058f7c8" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=686e5160" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=27fed22d" />
     <link rel="stylesheet" href="../../../../_static/dials-styles.css" type="text/css" />
     <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="icon" href="../../../../_static/favicon.ico"/>
     <link rel="author" title="About these documents" href="../../../../about.html" />
@@ -80,85 +80,103 @@
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+<span class="c1"># these parameters are only required if running the cosym procedure in symmetry analysis mode.</span>
+<span class="n">symmetry_analysis_phil</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">lattice_group = None</span>
+<span class="s2">  .type = space_group</span>
+<span class="s2">  .short_caption = &quot;Lattice group&quot;</span>
+
+<span class="s2">space_group = None</span>
+<span class="s2">  .type = space_group</span>
+<span class="s2">  .short_caption = &quot;Space group&quot;</span>
+
+<span class="s2">lattice_symmetry_max_delta = 5.0</span>
+<span class="s2">  .type = float(value_min=0)</span>
+<span class="s2">  .short_caption = &quot;Lattice symmetry max δ&quot;</span>
+
+<span class="s2">best_monoclinic_beta = True</span>
+<span class="s2">  .type = bool</span>
+<span class="s2">  .help = &quot;If True, then for monoclinic centered cells, I2 will be preferred over C2 if&quot;</span>
+<span class="s2">          &quot;it gives a less oblique cell (i.e. smaller beta angle).&quot;</span>
+<span class="s2">  .short_caption = &quot;Best monoclinic β&quot;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="c1"># these parameters are required for the core cosym procedure for e.g. non-symmetry based isomorphism analysis</span>
+<span class="n">cosym_scope</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">min_reflections = 10</span>
+<span class="s2">  .type = int(value_min=0)</span>
+<span class="s2">  .help = &quot;The minimum number of merged reflections per experiment required to perform cosym analysis.&quot;</span>
+
+<span class="s2">seed = 230</span>
+<span class="s2">  .type = int(value_min=0)</span>
+
+<span class="s2">normalisation = kernel quasi *ml_iso ml_aniso</span>
+<span class="s2">  .type = choice</span>
+
+<span class="s2">d_min = Auto</span>
+<span class="s2">  .type = float(value_min=0)</span>
+
+<span class="s2">min_i_mean_over_sigma_mean = 4</span>
+<span class="s2">  .type = float(value_min=0)</span>
+<span class="s2">  .short_caption = &quot;Minimum &lt;I&gt;/&lt;σ&gt;&quot;</span>
+
+<span class="s2">min_cc_half = 0.6</span>
+<span class="s2">  .type = float(value_min=0, value_max=1)</span>
+<span class="s2">  .short_caption = &quot;Minimum CC½&quot;</span>
+
+<span class="s2">dimensions = Auto</span>
+<span class="s2">  .type = int(value_min=2)</span>
+<span class="s2">  .short_caption = &quot;Dimensions&quot;</span>
+
+<span class="s2">use_curvatures = True</span>
+<span class="s2">  .type = bool</span>
+<span class="s2">  .short_caption = &quot;Use curvatures&quot;</span>
+
+<span class="s2">weights = count standard_error</span>
+<span class="s2">  .type = choice</span>
+<span class="s2">  .short_caption = &quot;Weights&quot;</span>
+<span class="s2">  .help = &quot;If not None, a weights matrix is used in the cosym procedure.&quot;</span>
+<span class="s2">          &quot;weights=count uses the number of reflections used to calculate a pairwise correlation coefficient as its weight&quot;</span>
+<span class="s2">          &quot;weights=standard_error uses the reciprocal of the standard error as the weight. The standard error is given by&quot;</span>
+<span class="s2">          &quot;the sqrt of (1-CC*2)/(n-2), where (n-2) are the degrees of freedom in a pairwise CC calculation.&quot;</span>
+<span class="s2">cc_weights = None sigma</span>
+<span class="s2">  .type = choice</span>
+<span class="s2">  .help = &quot;If not None, a weighted cc-half formula is used for calculating pairwise correlation coefficients and degrees of&quot;</span>
+<span class="s2">          &quot;freedom in the cosym procedure.&quot;</span>
+<span class="s2">          &quot;weights=sigma uses the intensity uncertainties to perform inverse variance weighting during the cc calculation.&quot;</span>
+
+<span class="s2">min_pairs = 3</span>
+<span class="s2">  .type = int(value_min=1)</span>
+<span class="s2">  .help = &#39;Minimum number of pairs for inclusion of correlation coefficient in calculation of Rij matrix.&#39;</span>
+<span class="s2">  .short_caption = &quot;Minimum number of pairs&quot;</span>
+
+<span class="s2">minimization</span>
+<span class="s2">  .short_caption = &quot;Minimization&quot;</span>
+<span class="s2">{</span>
+<span class="s2">  engine = *scitbx scipy</span>
+<span class="s2">    .type = choice</span>
+<span class="s2">    .short_caption = &quot;Engine&quot;</span>
+<span class="s2">  max_iterations = 100</span>
+<span class="s2">    .type = int(value_min=0)</span>
+<span class="s2">    .short_caption = &quot;Maximum number of iterations&quot;</span>
+<span class="s2">  max_calls = None</span>
+<span class="s2">    .type = int(value_min=0)</span>
+<span class="s2">    .short_caption = &quot;Maximum number of calls&quot;</span>
+<span class="s2">}</span>
+
+<span class="s2">nproc = Auto</span>
+<span class="s2">  .type = int(value_min=1)</span>
+<span class="s2">  .help = &quot;Number of processes&quot;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
 <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">iotbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;\</span>
-
-<span class="sd">normalisation = kernel quasi *ml_iso ml_aniso</span>
-<span class="sd">  .type = choice</span>
-
-<span class="sd">d_min = Auto</span>
-<span class="sd">  .type = float(value_min=0)</span>
-
-<span class="sd">min_i_mean_over_sigma_mean = 4</span>
-<span class="sd">  .type = float(value_min=0)</span>
-<span class="sd">  .short_caption = &quot;Minimum &lt;I&gt;/&lt;σ&gt;&quot;</span>
-
-<span class="sd">min_cc_half = 0.6</span>
-<span class="sd">  .type = float(value_min=0, value_max=1)</span>
-<span class="sd">  .short_caption = &quot;Minimum CC½&quot;</span>
-
-<span class="sd">lattice_group = None</span>
-<span class="sd">  .type = space_group</span>
-<span class="sd">  .short_caption = &quot;Lattice group&quot;</span>
-
-<span class="sd">space_group = None</span>
-<span class="sd">  .type = space_group</span>
-<span class="sd">  .short_caption = &quot;Space group&quot;</span>
-
-<span class="sd">lattice_symmetry_max_delta = 5.0</span>
-<span class="sd">  .type = float(value_min=0)</span>
-<span class="sd">  .short_caption = &quot;Lattice symmetry max δ&quot;</span>
-
-<span class="sd">best_monoclinic_beta = True</span>
-<span class="sd">  .type = bool</span>
-<span class="sd">  .help = &quot;If True, then for monoclinic centered cells, I2 will be preferred over C2 if&quot;</span>
-<span class="sd">          &quot;it gives a less oblique cell (i.e. smaller beta angle).&quot;</span>
-<span class="sd">  .short_caption = &quot;Best monoclinic β&quot;</span>
-
-<span class="sd">dimensions = Auto</span>
-<span class="sd">  .type = int(value_min=2)</span>
-<span class="sd">  .short_caption = &quot;Dimensions&quot;</span>
-
-<span class="sd">use_curvatures = True</span>
-<span class="sd">  .type = bool</span>
-<span class="sd">  .short_caption = &quot;Use curvatures&quot;</span>
-
-<span class="sd">weights = count standard_error</span>
-<span class="sd">  .type = choice</span>
-<span class="sd">  .short_caption = &quot;Weights&quot;</span>
-<span class="sd">  .help = &quot;If not None, a weights matrix is used in the cosym procedure.&quot;</span>
-<span class="sd">          &quot;weights=count uses the number of reflections used to calculate a pairwise correlation coefficient as its weight&quot;</span>
-<span class="sd">          &quot;weights=standard_error uses the reciprocal of the standard error as the weight. The standard error is given by&quot;</span>
-<span class="sd">          &quot;the sqrt of (1-CC*2)/(n-2), where (n-2) are the degrees of freedom in a pairwise CC calculation.&quot;</span>
-<span class="sd">cc_weights = None sigma</span>
-<span class="sd">  .type = choice</span>
-<span class="sd">  .help = &quot;If not None, a weighted cc-half formula is used for calculating pairwise correlation coefficients and degrees of&quot;</span>
-<span class="sd">          &quot;freedom in the cosym procedure.&quot;</span>
-<span class="sd">          &quot;weights=sigma uses the intensity uncertainties to perform inverse variance weighting during the cc calculation.&quot;</span>
-
-<span class="sd">min_pairs = 3</span>
-<span class="sd">  .type = int(value_min=1)</span>
-<span class="sd">  .help = &#39;Minimum number of pairs for inclusion of correlation coefficient in calculation of Rij matrix.&#39;</span>
-<span class="sd">  .short_caption = &quot;Minimum number of pairs&quot;</span>
-
-<span class="sd">minimization</span>
-<span class="sd">  .short_caption = &quot;Minimization&quot;</span>
-<span class="sd">{</span>
-<span class="sd">  engine = *scitbx scipy</span>
-<span class="sd">    .type = choice</span>
-<span class="sd">    .short_caption = &quot;Engine&quot;</span>
-<span class="sd">  max_iterations = 100</span>
-<span class="sd">    .type = int(value_min=0)</span>
-<span class="sd">    .short_caption = &quot;Maximum number of iterations&quot;</span>
-<span class="sd">  max_calls = None</span>
-<span class="sd">    .type = int(value_min=0)</span>
-<span class="sd">    .short_caption = &quot;Maximum number of calls&quot;</span>
-<span class="sd">}</span>
-
-<span class="sd">nproc = Auto</span>
-<span class="sd">  .type = int(value_min=1)</span>
-<span class="sd">  .help = &quot;Number of processes&quot;</span>
+<span class="sd">%s</span>
+<span class="sd">%s</span>
 <span class="sd">&quot;&quot;&quot;</span>
+    <span class="o">%</span> <span class="p">(</span><span class="n">cosym_scope</span><span class="p">,</span> <span class="n">symmetry_analysis_phil</span><span class="p">),</span>
+    <span class="n">process_includes</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 
 
@@ -195,6 +213,7 @@
                 <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">seed_dataset</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span>
             <span class="p">),</span> <span class="s2">&quot;cosym_analysis: seed_dataset parameter must be an integer that can be used to index the intensities list&quot;</span>
 
+        <span class="n">max_id</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">intensities</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="n">intensities</span><span class="p">,</span>
             <span class="n">normalisation</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">normalisation</span><span class="p">,</span>
@@ -209,6 +228,31 @@
         <span class="n">Subject</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span> <span class="n">events</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;optimised&quot;</span><span class="p">,</span> <span class="s2">&quot;analysed_symmetry&quot;</span><span class="p">,</span> <span class="s2">&quot;analysed_clusters&quot;</span><span class="p">]</span>
         <span class="p">)</span>
+
+        <span class="c1"># remove those with less than min_reflections after setup.</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">min_reflections</span><span class="p">:</span>
+            <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">min_id</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">histy</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="o">.</span><span class="n">as_double</span><span class="p">(),</span>
+                <span class="n">min_id</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="n">max_id</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="n">n_slots</span><span class="o">=</span><span class="n">max_id</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">min_id</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="n">histy</span><span class="o">.</span><span class="n">slots</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">min_id</span><span class="p">,</span> <span class="n">max_id</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)):</span>
+                <span class="n">n</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="n">params</span><span class="o">.</span><span class="n">min_reflections</span><span class="p">:</span>
+                    <span class="n">to_remove</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">to_remove</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Removing datasets </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">to_remove</span><span class="p">)</span><span class="si">}</span><span class="s2"> with &lt; </span><span class="si">{</span><span class="n">params</span><span class="o">.</span><span class="n">min_reflections</span><span class="si">}</span><span class="s2"> reflections&quot;</span>
+                <span class="p">)</span>
+                <span class="n">sel</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">to_remove</span><span class="p">:</span>
+                    <span class="n">sel</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">==</span> <span class="n">i</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensities</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">space_group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -315,67 +359,77 @@
             <span class="n">nproc</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_determine_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dimensions</span> <span class="ow">is</span> <span class="n">Auto</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dimensions</span> <span class="o">=</span> <span class="mi">2</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dimensions</span> <span class="ow">is</span> <span class="n">Auto</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Automatic determination of number of dimensions for analysis&quot;</span>
+    <span class="k">def</span> <span class="nf">_determine_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dims_to_test</span><span class="p">,</span> <span class="n">outlier_rejection</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Automatic determination of number of dimensions for analysis&quot;</span><span class="p">)</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">functional</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dims_to_test</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing dimension: </span><span class="si">%i</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">set_dimensions</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+            <span class="n">max_calls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">minimization</span><span class="o">.</span><span class="n">max_calls</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_optimise</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">minimization</span><span class="o">.</span><span class="n">engine</span><span class="p">,</span>
+                <span class="n">max_iterations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">minimization</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">,</span>
+                <span class="n">max_calls</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">max_calls</span><span class="p">)</span> <span class="k">if</span> <span class="n">max_calls</span> <span class="k">else</span> <span class="n">max_calls</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">functional</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">dim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing dimension: </span><span class="si">%i</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">set_dimensions</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
-                <span class="n">max_calls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">minimization</span><span class="o">.</span><span class="n">max_calls</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_optimise</span><span class="p">(</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">minimization</span><span class="o">.</span><span class="n">engine</span><span class="p">,</span>
-                    <span class="n">max_iterations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">minimization</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">,</span>
-                    <span class="n">max_calls</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">max_calls</span><span class="p">)</span> <span class="k">if</span> <span class="n">max_calls</span> <span class="k">else</span> <span class="n">max_calls</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
-                <span class="n">functional</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">minimizer</span><span class="o">.</span><span class="n">fun</span><span class="p">)</span>
 
-            <span class="c1"># Find the elbow point of the curve, in the same manner as that used by</span>
-            <span class="c1"># distl spotfinder for resolution method 1 (Zhang et al 2006).</span>
-            <span class="c1"># See also dials/algorithms/spot_finding/per_image_analysis.py</span>
-
-            <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
-            <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">functional</span><span class="p">)</span>
-            <span class="n">slopes</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-            <span class="n">p_m</span> <span class="o">=</span> <span class="n">slopes</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span>
-
-            <span class="n">x1</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="n">p_m</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">p_m</span><span class="p">]))</span>
-            <span class="n">x2</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
-
-            <span class="n">gaps</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">v</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(((</span><span class="n">x2</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">x1</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="o">-</span><span class="p">(</span><span class="n">x2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x1</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
-
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p_m</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)):</span>
-                <span class="n">x0</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
-                <span class="n">r</span> <span class="o">=</span> <span class="n">x1</span> <span class="o">-</span> <span class="n">x0</span>
-                <span class="n">g</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">))</span>
-                <span class="n">gaps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
-
-            <span class="n">p_g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">gaps</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span>
-
-            <span class="n">x_g</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">p_g</span> <span class="o">+</span> <span class="n">p_m</span><span class="p">]</span>
-
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="n">dials</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">tabulate</span><span class="p">(</span>
-                    <span class="nb">zip</span><span class="p">(</span><span class="n">dimensions</span><span class="p">,</span> <span class="n">functional</span><span class="p">),</span> <span class="n">headers</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;Dimensions&quot;</span><span class="p">,</span> <span class="s2">&quot;Functional&quot;</span><span class="p">)</span>
+            <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+            <span class="n">functional</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">compute_functional_score_for_dimension_assessment</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">minimizer</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">outlier_rejection</span>
                 <span class="p">)</span>
             <span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Best number of dimensions: </span><span class="si">%i</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">x_g</span><span class="p">)</span>
+
+        <span class="c1"># Find the elbow point of the curve, in the same manner as that used by</span>
+        <span class="c1"># distl spotfinder for resolution method 1 (Zhang et al 2006).</span>
+        <span class="c1"># See also dials/algorithms/spot_finding/per_image_analysis.py</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">functional</span><span class="p">)</span>
+        <span class="n">slopes</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">p_m</span> <span class="o">=</span> <span class="n">slopes</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span>
+
+        <span class="n">x1</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="n">p_m</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">p_m</span><span class="p">]))</span>
+        <span class="n">x2</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+
+        <span class="n">gaps</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(((</span><span class="n">x2</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">x1</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="o">-</span><span class="p">(</span><span class="n">x2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x1</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p_m</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)):</span>
+            <span class="n">x0</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">x1</span> <span class="o">-</span> <span class="n">x0</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">))</span>
+            <span class="n">gaps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+
+        <span class="n">p_g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">gaps</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span>
+
+        <span class="n">x_g</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">p_g</span> <span class="o">+</span> <span class="n">p_m</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="n">dials</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">tabulate</span><span class="p">(</span>
+                <span class="nb">zip</span><span class="p">(</span><span class="n">dimensions</span><span class="p">,</span> <span class="n">functional</span><span class="p">),</span> <span class="n">headers</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;Dimensions&quot;</span><span class="p">,</span> <span class="s2">&quot;Functional&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Best number of dimensions: </span><span class="si">%i</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">x_g</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">x_g</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;As a minimum of 2-dimensions is required, dimensions have been set to 2.&quot;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">set_dimensions</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">set_dimensions</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x_g</span><span class="p">))</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using </span><span class="si">%i</span><span class="s2"> dimensions for analysis&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using </span><span class="si">%i</span><span class="s2"> dimensions for analysis&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dimensions</span><span class="p">,</span> <span class="n">functional</span>
 
 <div class="viewcode-block" id="CosymAnalysis.run">
 <a class="viewcode-back" href="../../../../documentation/library_reference/algorithms/dials.algorithms.symmetry.html#dials.algorithms.symmetry.cosym.CosymAnalysis.run">[docs]</a>
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_intialise_target</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_determine_dimensions</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dimensions</span> <span class="ow">is</span> <span class="n">Auto</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">dim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_determine_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_optimise</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">minimization</span><span class="o">.</span><span class="n">engine</span><span class="p">,</span>
             <span class="n">max_iterations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">minimization</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">,</span>
@@ -388,6 +442,7 @@
 
     <span class="nd">@Subject</span><span class="o">.</span><span class="n">notify_event</span><span class="p">(</span><span class="n">event</span><span class="o">=</span><span class="s2">&quot;optimised&quot;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">_optimise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">engine</span><span class="p">,</span> <span class="n">max_iterations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_calls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
         <span class="n">NN</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_ids</span><span class="p">))</span>
         <span class="n">n_sym_ops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">sym_ops</span><span class="p">)</span>
 

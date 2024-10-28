@@ -8,11 +8,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dxtbx.model.experiment_list &#8212; DIALS  documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=c058f7c8" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=686e5160" />
     <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=27fed22d" />
     <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
     <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <link rel="icon" href="../../../_static/favicon.ico"/>
     <link rel="author" title="About these documents" href="../../../about.html" />
@@ -305,7 +305,7 @@
 <span class="sd">        loaded from the named file in the target directory.</span>
 
 <span class="sd">        If any experiments point to a file in this way, the imageset is</span>
-<span class="sd">        loaded and the experiment is rewritted with an integer pointing</span>
+<span class="sd">        loaded and the experiment is rewritten with an integer pointing</span>
 <span class="sd">        to the new ImageSet in the returned list.</span>
 
 <span class="sd">        Returns:</span>
@@ -347,7 +347,10 @@
         <span class="bp">self</span><span class="p">,</span> <span class="n">imageset_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="nb">str</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Read a filename from an imageset dict and load if required.</span>
+<span class="sd">        Read a filename from an imageset dict and load if available. This is</span>
+<span class="sd">        used to load mask, gain, pedestal and offset maps. In some situations</span>
+<span class="sd">        (such as tests) these files are not available, in which case the</span>
+<span class="sd">        filename is kept but the data is None.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            imageset_data: The dictionary holding imageset information</span>
@@ -355,19 +358,24 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            A tuple of (filename, data) where data has been loaded from</span>
-<span class="sd">            the pickle file. If there is no key entry then (None, None)</span>
-<span class="sd">            is returned. If the configuration parameter check_format is</span>
-<span class="sd">            False then (filename, None) will be returned.</span>
+<span class="sd">            the pickle file, or is None if the file is inaccessible. If there</span>
+<span class="sd">            is no key entry then (&quot;&quot;, None) is returned.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">imageset_data</span><span class="p">:</span>
             <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="kc">None</span>
 
         <span class="n">filename</span> <span class="o">=</span> <span class="n">resolve_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">[</span><span class="n">param</span><span class="p">],</span> <span class="n">directory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_directory</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_format</span> <span class="ow">and</span> <span class="n">filename</span><span class="p">:</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">filename</span><span class="p">,</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;bytes&quot;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;bytes&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
 
-        <span class="k">return</span> <span class="n">filename</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">filename</span><span class="p">,</span> <span class="n">data</span>
 
     <span class="k">def</span> <span class="nf">_imageset_from_imageset_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imageset_data</span><span class="p">,</span> <span class="n">models</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Make an imageset from imageset_data - help with refactor decode.&quot;&quot;&quot;</span>
@@ -388,6 +396,14 @@
         <span class="n">pedestal_filename</span><span class="p">,</span> <span class="n">pedestal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_pickle_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="s2">&quot;pedestal&quot;</span><span class="p">)</span>
         <span class="n">dx_filename</span><span class="p">,</span> <span class="n">dx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_pickle_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="s2">&quot;dx&quot;</span><span class="p">)</span>
         <span class="n">dy_filename</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_pickle_path</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="s2">&quot;dy&quot;</span><span class="p">)</span>
+
+        <span class="c1"># If dx, dy maps are expected then they must be loaded even when</span>
+        <span class="c1"># self._check_format == False, because they affect the operation of</span>
+        <span class="c1"># programs (dials.index, dials.refine) that do not need the image data.</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">dx_filename</span> <span class="ow">or</span> <span class="n">dy_filename</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">((</span><span class="n">dx</span><span class="p">,</span> <span class="n">dx</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;dx (</span><span class="si">{</span><span class="n">dx_filename</span><span class="si">}</span><span class="s2">) and dy (</span><span class="si">{</span><span class="n">dy_filename</span><span class="si">}</span><span class="s2">) maps are expected&quot;</span>
+            <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">imageset_data</span><span class="p">[</span><span class="s2">&quot;__id__&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ImageSet&quot;</span><span class="p">:</span>
             <span class="n">imageset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_stills</span><span class="p">(</span><span class="n">imageset_data</span><span class="p">,</span> <span class="n">format_kwargs</span><span class="o">=</span><span class="n">format_kwargs</span><span class="p">)</span>
@@ -463,7 +479,6 @@
                     <span class="n">imageset</span><span class="o">.</span><span class="n">set_detector</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
                     <span class="n">imageset</span><span class="o">.</span><span class="n">set_goniometer</span><span class="p">(</span><span class="n">goniometer</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
                     <span class="n">imageset</span><span class="o">.</span><span class="n">set_scan</span><span class="p">(</span><span class="n">scan</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
-
             <span class="n">imageset</span><span class="o">.</span><span class="n">update_detector_px_mm_data</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="n">imageset</span>
@@ -958,9 +973,14 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Load an experiment list from a json file.&quot;&quot;&quot;</span>
         <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
         <span class="n">directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span>
-                <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">ExperimentListFactory</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span>
+                    <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">check_format</span><span class="o">=</span><span class="n">check_format</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">directory</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">UnicodeDecodeError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidExperimentListError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Cannot interpret </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> as an ExperimentList&quot;</span>
             <span class="p">)</span></div>
 
 
