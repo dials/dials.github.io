@@ -166,57 +166,71 @@
             <span class="p">)</span>
 
         <span class="n">UB_matrices</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">mat3_double</span><span class="p">([</span><span class="n">cm</span><span class="o">.</span><span class="n">get_A</span><span class="p">()</span> <span class="k">for</span> <span class="n">cm</span> <span class="ow">in</span> <span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()])</span>
+        <span class="n">imgset_ids</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;imageset_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
 
-        <span class="n">result</span> <span class="o">=</span> <span class="n">ext</span><span class="o">.</span><span class="n">AssignIndicesLocal</span><span class="p">(</span>
-            <span class="n">rlps</span><span class="p">,</span>
-            <span class="n">phi</span><span class="p">,</span>
-            <span class="n">UB_matrices</span><span class="p">,</span>
-            <span class="n">epsilon</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_epsilon</span><span class="p">,</span>
-            <span class="n">delta</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_delta</span><span class="p">,</span>
-            <span class="n">l_min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_l_min</span><span class="p">,</span>
-            <span class="n">nearest_neighbours</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_nearest_neighbours</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">miller_indices</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">miller_indices</span><span class="p">()</span>
-        <span class="n">crystal_ids</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">crystal_ids</span><span class="p">()</span>
-        <span class="n">hkl</span> <span class="o">=</span> <span class="n">miller_indices</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span><span class="o">.</span><span class="n">iround</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i_imgset</span><span class="p">,</span> <span class="n">imgset</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">imagesets</span><span class="p">()):</span>
+            <span class="n">sel_imgset</span> <span class="o">=</span> <span class="n">imgset_ids</span> <span class="o">==</span> <span class="n">i_imgset</span>
 
-        <span class="k">assert</span> <span class="n">miller_indices</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">crystal_ids</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-
-        <span class="k">for</span> <span class="n">i_cryst</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">crystal_ids</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">i_cryst</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">continue</span>
-
-            <span class="n">A</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiments</span><span class="p">[</span><span class="n">i_cryst</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_A</span><span class="p">())</span>
-            <span class="n">A_inv</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
-
-            <span class="n">cryst_sel</span> <span class="o">=</span> <span class="n">crystal_ids</span> <span class="o">==</span> <span class="n">i_cryst</span>
-            <span class="n">rlp_sel</span> <span class="o">=</span> <span class="n">rlps</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">cryst_sel</span><span class="p">)</span>
-            <span class="n">hkl_sel</span> <span class="o">=</span> <span class="n">hkl</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">cryst_sel</span><span class="p">)</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span>
-
-            <span class="n">d_sel</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">rlp_sel</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
-            <span class="n">d_perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">d_sel</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-            <span class="n">hf_0</span> <span class="o">=</span> <span class="n">A_inv</span> <span class="o">*</span> <span class="n">rlp_sel</span><span class="p">[</span><span class="n">d_perm</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-            <span class="n">h_0</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">([</span><span class="n">nint</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">hf_0</span><span class="o">.</span><span class="n">elems</span><span class="p">])</span>
-            <span class="n">offset</span> <span class="o">=</span> <span class="n">h_0</span> <span class="o">-</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">hkl_sel</span><span class="p">[</span><span class="n">d_perm</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
-            <span class="c1"># print &quot;offset:&quot;, offset.elems</span>
-
-            <span class="n">h</span> <span class="o">=</span> <span class="n">hkl_sel</span> <span class="o">+</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">hkl_sel</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">offset</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
-
-            <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
-                <span class="n">cryst_sel</span><span class="p">,</span> <span class="n">flex</span><span class="o">.</span><span class="n">miller_index</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">h</span><span class="o">.</span><span class="n">iround</span><span class="p">()))</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">ext</span><span class="o">.</span><span class="n">AssignIndicesLocal</span><span class="p">(</span>
+                <span class="n">rlps</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_imgset</span><span class="p">),</span>
+                <span class="n">phi</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_imgset</span><span class="p">),</span>
+                <span class="n">UB_matrices</span><span class="p">,</span>
+                <span class="n">epsilon</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_epsilon</span><span class="p">,</span>
+                <span class="n">delta</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_delta</span><span class="p">,</span>
+                <span class="n">l_min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_l_min</span><span class="p">,</span>
+                <span class="n">nearest_neighbours</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_nearest_neighbours</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">cryst_sel</span><span class="p">,</span> <span class="n">i_cryst</span><span class="p">)</span>
+            <span class="n">miller_indices</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">miller_indices</span><span class="p">()</span>
+            <span class="n">crystal_ids</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">crystal_ids</span><span class="p">()</span>
+            <span class="n">hkl</span> <span class="o">=</span> <span class="n">miller_indices</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span><span class="o">.</span><span class="n">iround</span><span class="p">()</span>
 
-        <span class="n">crystal_ids</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">crystal_ids</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">crystal_ids</span>
-        <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">crystal_ids</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+            <span class="k">assert</span> <span class="n">miller_indices</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">crystal_ids</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all_eq</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
 
-        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">isel</span><span class="p">,</span> <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">])</span>
-        <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">isel</span><span class="p">,</span> <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
-        <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span>
-            <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">indexed</span>
-        <span class="p">)</span></div>
+            <span class="n">expt_ids</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">crystal_ids</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i_cryst</span><span class="p">,</span> <span class="n">cryst</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="o">.</span><span class="n">crystals</span><span class="p">()):</span>
+                <span class="n">sel_cryst</span> <span class="o">=</span> <span class="n">crystal_ids</span> <span class="o">==</span> <span class="n">i_cryst</span>
+                <span class="k">for</span> <span class="n">i_expt</span> <span class="ow">in</span> <span class="n">experiments</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">crystal</span><span class="o">=</span><span class="n">cryst</span><span class="p">,</span> <span class="n">imageset</span><span class="o">=</span><span class="n">imgset</span><span class="p">):</span>
+                    <span class="n">expt_ids</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel_cryst</span><span class="p">,</span> <span class="n">i_expt</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">experiments</span><span class="p">[</span><span class="n">i_expt</span><span class="p">]</span><span class="o">.</span><span class="n">identifier</span><span class="p">:</span>
+                        <span class="n">reflections</span><span class="o">.</span><span class="n">experiment_identifiers</span><span class="p">()[</span><span class="n">i_expt</span><span class="p">]</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span>
+                            <span class="n">i_expt</span>
+                        <span class="p">]</span><span class="o">.</span><span class="n">identifier</span>
+
+            <span class="k">for</span> <span class="n">i_cryst</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">crystal_ids</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i_cryst</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">A</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">experiments</span><span class="p">[</span><span class="n">i_cryst</span><span class="p">]</span><span class="o">.</span><span class="n">crystal</span><span class="o">.</span><span class="n">get_A</span><span class="p">())</span>
+                <span class="n">A_inv</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span>
+
+                <span class="n">cryst_sel</span> <span class="o">=</span> <span class="n">crystal_ids</span> <span class="o">==</span> <span class="n">i_cryst</span>
+                <span class="n">rlp_sel</span> <span class="o">=</span> <span class="n">rlps</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">cryst_sel</span><span class="p">)</span>
+                <span class="n">hkl_sel</span> <span class="o">=</span> <span class="n">hkl</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">cryst_sel</span><span class="p">)</span><span class="o">.</span><span class="n">as_vec3_double</span><span class="p">()</span>
+
+                <span class="n">d_sel</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">rlp_sel</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+                <span class="n">d_perm</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">sort_permutation</span><span class="p">(</span><span class="n">d_sel</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="n">hf_0</span> <span class="o">=</span> <span class="n">A_inv</span> <span class="o">*</span> <span class="n">rlp_sel</span><span class="p">[</span><span class="n">d_perm</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="n">h_0</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">([</span><span class="n">nint</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">hf_0</span><span class="o">.</span><span class="n">elems</span><span class="p">])</span>
+                <span class="n">offset</span> <span class="o">=</span> <span class="n">h_0</span> <span class="o">-</span> <span class="n">matrix</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">hkl_sel</span><span class="p">[</span><span class="n">d_perm</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+                <span class="c1"># print &quot;offset:&quot;, offset.elems</span>
+
+                <span class="n">h</span> <span class="o">=</span> <span class="n">hkl_sel</span> <span class="o">+</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="n">hkl_sel</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">offset</span><span class="o">.</span><span class="n">elems</span><span class="p">)</span>
+
+                <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span>
+                    <span class="n">cryst_sel</span><span class="p">,</span> <span class="n">flex</span><span class="o">.</span><span class="n">miller_index</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">h</span><span class="o">.</span><span class="n">iround</span><span class="p">()))</span>
+                <span class="p">)</span>
+                <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">cryst_sel</span><span class="p">,</span> <span class="n">i_cryst</span><span class="p">)</span>
+
+            <span class="n">crystal_ids</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">crystal_ids</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">crystal_ids</span>
+            <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">crystal_ids</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+            <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">isel</span><span class="p">,</span> <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">])</span>
+            <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">isel</span><span class="p">,</span> <span class="n">refs</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+            <span class="n">reflections</span><span class="o">.</span><span class="n">set_flags</span><span class="p">(</span>
+                <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">indexed</span>
+            <span class="p">)</span></div>
 
 </pre></div>
 
