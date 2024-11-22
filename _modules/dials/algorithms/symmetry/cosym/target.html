@@ -357,6 +357,8 @@
         <span class="n">wij_matrix</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="c1"># note we use weights=True to help us work out where we have calculated rij,</span>
+            <span class="c1"># even if the weights phil option is None</span>
             <span class="n">futures</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">pool</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span>
                     <span class="n">_compute_rij_matrix_one_row_block</span><span class="p">,</span>
@@ -384,7 +386,8 @@
                         <span class="n">wij_matrix</span> <span class="o">+=</span> <span class="n">wij</span>
 
         <span class="n">rij_matrix</span> <span class="o">=</span> <span class="n">rij_matrix</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">wij_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">:</span>
+            <span class="c1">## use the counts as weights</span>
             <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">wij_matrix</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">==</span> <span class="s2">&quot;standard_error&quot;</span><span class="p">:</span>
                 <span class="c1"># N.B. using effective n due to sigma weighting, which can be below 2</span>
@@ -394,6 +397,20 @@
                 <span class="n">se</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">rij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]))</span> <span class="o">/</span> <span class="p">(</span><span class="n">wij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
                 <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">rij_matrix</span><span class="p">)</span>
                 <span class="n">wij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">se</span>
+            <span class="c1"># rescale the weights matrix such that the sum of wij_matrix == the number of non-zero entries</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">wij_matrix</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wij_matrix</span><span class="p">)</span>
+            <span class="n">wij_matrix</span> <span class="o">*=</span> <span class="n">scale</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1">## No weights - i.e. equal weights in places where we can calculate an rij value,</span>
+            <span class="c1">## but also making sure our diagonal elements are zero as we exclude the</span>
+            <span class="c1">## self-correlation elements from rij and the cosym procedure - we need zero weights</span>
+            <span class="c1">## for uncalculate correlations so they aren&#39;t taken into account in the functional</span>
+            <span class="c1">## evaluation.</span>
+            <span class="c1">## at this point, wij matrix contains neff values where it was possible to calculate</span>
+            <span class="c1">## a pairwise correlation.</span>
+            <span class="n">wij_matrix</span> <span class="o">=</span> <span class="n">wij_matrix</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">wij_matrix</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">wij_matrix</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
 
         <span class="k">return</span> <span class="n">rij_matrix</span><span class="p">,</span> <span class="n">wij_matrix</span>
 
@@ -474,23 +491,27 @@
         <span class="c1"># Cosym does not make use of the on-diagonal correlation coefficients</span>
         <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">rij</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 
+        <span class="c1">## First, populate a weights matrix of the number of pairs i.e. counts</span>
+        <span class="c1">## if we are not going to use weights, this helps us select where we</span>
+        <span class="c1">## calculated values, so that we can set them to constant weights</span>
+        <span class="n">wij</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">rij</span><span class="p">)</span>
+        <span class="n">right_up</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices_from</span><span class="p">(</span><span class="n">wij</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># For each correlation coefficient, set the weight equal to the size of</span>
+        <span class="c1"># the sample used to calculate that coefficient</span>
+        <span class="n">pairwise_combos</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">all_intensities</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">sample_size</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+            <span class="n">pairs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">x</span> <span class="o">&amp;</span> <span class="n">y</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pairs</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_pairs</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">pairs</span>
+
+        <span class="n">wij</span><span class="p">[</span><span class="n">right_up</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">starmap</span><span class="p">(</span><span class="n">sample_size</span><span class="p">,</span> <span class="n">pairwise_combos</span><span class="p">))</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">:</span>
-            <span class="n">wij</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">rij</span><span class="p">)</span>
-            <span class="n">right_up</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices_from</span><span class="p">(</span><span class="n">wij</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-
-            <span class="c1"># For each correlation coefficient, set the weight equal to the size of</span>
-            <span class="c1"># the sample used to calculate that coefficient</span>
-            <span class="n">pairwise_combos</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">all_intensities</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
-
-            <span class="k">def</span> <span class="nf">sample_size</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
-                <span class="n">pairs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">x</span> <span class="o">&amp;</span> <span class="n">y</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">pairs</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_pairs</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="mi">0</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="n">pairs</span>
-
-            <span class="n">wij</span><span class="p">[</span><span class="n">right_up</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">starmap</span><span class="p">(</span><span class="n">sample_size</span><span class="p">,</span> <span class="n">pairwise_combos</span><span class="p">))</span>
-
+            <span class="c1">## the weights are currently the pairwise sample sizes</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">==</span> <span class="s2">&quot;standard_error&quot;</span><span class="p">:</span>
                 <span class="c1"># Set each weights as the reciprocal of the standard error on the</span>
                 <span class="c1"># corresponding correlation coefficient</span>
@@ -514,8 +535,17 @@
                         <span class="sa">f</span><span class="s2">&quot;Unable to calculate any correlations for dataset index </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">n_refl</span><span class="si">}</span><span class="s2"> reflections).&quot;</span>
                         <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Increasing min_reflections may overcome this problem.&quot;</span>
                     <span class="p">)</span>
+            <span class="c1"># rescale the weights matrix such that the sum of wij_matrix == the number of non-zero entries</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">wij</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wij</span><span class="p">)</span>
+            <span class="n">wij</span> <span class="o">*=</span> <span class="n">scale</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">wij</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1">## we are not going to use weights, so set them to constant weights</span>
+            <span class="c1">## as we still needs zeros to avoid inclusion of uncalculate values in</span>
+            <span class="c1">## the functional evaluation.</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">wij</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">wij</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="c1"># Symmetrise the wij matrix</span>
+            <span class="n">wij</span> <span class="o">+=</span> <span class="n">wij</span><span class="o">.</span><span class="n">T</span>
 
         <span class="k">return</span> <span class="n">rij</span><span class="p">,</span> <span class="n">wij</span>
 
