@@ -1,0 +1,327 @@
+
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dials.algorithms.indexing.lattice_search.ffb_indexer &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/basic.css?v=686e5160" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" href="../../../../../_static/dials-styles.css" type="text/css" />
+    <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="icon" href="../../../../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../../../../about.html" />
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../../../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../../../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for dials.algorithms.indexing.lattice_search.ffb_indexer</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span>
+
+<span class="kn">import</span> <span class="nn">iotbx.phil</span>
+<span class="kn">from</span> <span class="nn">cctbx.sgtbx</span> <span class="kn">import</span> <span class="n">space_group</span>
+<span class="kn">from</span> <span class="nn">dxtbx</span> <span class="kn">import</span> <span class="n">flumpy</span>
+<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="n">Crystal</span>
+
+<span class="kn">from</span> <span class="nn">dials.algorithms.indexing</span> <span class="kn">import</span> <span class="n">DialsIndexError</span>
+
+<span class="kn">from</span> <span class="nn">.strategy</span> <span class="kn">import</span> <span class="n">Strategy</span>
+
+<span class="c1"># Import fast feedback indexer package (CUDA implementation of the TORO algorithm)</span>
+<span class="c1"># https://github.com/paulscherrerinstitute/fast-feedback-indexer/tree/main/python</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">ffbidx</span>
+<span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
+    <span class="n">ffbidx</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">ffbidx_phil_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">ffbidx</span>
+<span class="s2">    .expert_level = 1</span>
+<span class="s2">{</span>
+<span class="s2">    max_output_cells = 32</span>
+<span class="s2">        .type = int(value_min=1)</span>
+<span class="s2">        .help = &quot;Maximum number of output cells&quot;</span>
+<span class="s2">    max_spots = 300</span>
+<span class="s2">        .type = int(value_min=8)</span>
+<span class="s2">        .help = &quot;Maximum number of reciprocal spots taken into account&quot;</span>
+<span class="s2">    num_candidate_vectors = 32</span>
+<span class="s2">        .type = int(value_min=1)</span>
+<span class="s2">        .help = &quot;Number of candidate cell vectors&quot;</span>
+<span class="s2">    redundant_computations = True</span>
+<span class="s2">        .type = bool</span>
+<span class="s2">        .help = &quot;Calculate candidates for all three cell vectors&quot;</span>
+<span class="s2">    dist1 = 0.3</span>
+<span class="s2">        .type = float(value_min=0.001, value_max=0.5)</span>
+<span class="s2">        .help = &quot;Reciprocal spots within this threshold contribute to the score for vector sampling&quot;</span>
+<span class="s2">    dist3 = 0.15</span>
+<span class="s2">        .type = float(value_min=0.001, value_max=0.8)</span>
+<span class="s2">        .help = &quot;Reciprocal spots within this threshold contribute to the score for cell sampling&quot;</span>
+<span class="s2">    num_halfsphere_points = 32768</span>
+<span class="s2">        .type = int(value_min=8000)</span>
+<span class="s2">        .help = &quot;Number of sampling points on the half sphere&quot;</span>
+<span class="s2">    max_dist = 0.00075</span>
+<span class="s2">        .type = float(value_min=0.0)</span>
+<span class="s2">        .help = &quot;Maximum final distance between measured and calculated reciprocal spot&quot;</span>
+<span class="s2">    min_spots = 8</span>
+<span class="s2">        .type = int(value_min=6)</span>
+<span class="s2">        .help = &quot;Minimum number of reciprocal spots within distance max_dist&quot;</span>
+<span class="s2">    method = *ifssr ifss ifse raw</span>
+<span class="s2">        .type = choice</span>
+<span class="s2">        .help = &quot;Refinement method (consult algorithm description)&quot;</span>
+<span class="s2">    triml = 0.001</span>
+<span class="s2">        .type = float(value_min=0, value_max=0.5)</span>
+<span class="s2">        .help = &quot;lower trimming value for intermediate score calculations&quot;</span>
+<span class="s2">    trimh = 0.3</span>
+<span class="s2">        .type = float(value_min=0, value_max=0.5)</span>
+<span class="s2">        .help = &quot;higher trimming value for intermediate score calculations&quot;</span>
+<span class="s2">    delta = 0.1</span>
+<span class="s2">        .type = float(value_min=0.000001)</span>
+<span class="s2">        .help = &quot;log2 curve position for intermediate score calculations, lower values will me more selective in choosing close spots&quot;</span>
+<span class="s2">    simple_data_filename = None</span>
+<span class="s2">        .type = path</span>
+<span class="s2">        .help = &quot;Optional filename for the output of a simple data file for debugging&quot;</span>
+<span class="s2">        .expert_level = 2</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">write_simple_data_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">rlp</span><span class="p">,</span> <span class="n">cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write a simple data file for debugging.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">cell</span><span class="o">.</span><span class="n">ravel</span><span class="p">()))</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rlp</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">ravel</span><span class="p">()))</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="FfbIndexer">
+<a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.lattice_search.FfbIndexer">[docs]</a>
+<span class="k">class</span> <span class="nc">FfbIndexer</span><span class="p">(</span><span class="n">Strategy</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A lattice search strategy using a Cuda-accelerated implementation of the TORO algorithm.</span>
+<span class="sd">    For more info, see:</span>
+<span class="sd">    [Gasparotto P, et al. TORO Indexer: a PyTorch-based indexing algorithm for kilohertz serial crystallography. J. Appl. Cryst. 2024 57(4)](https://doi.org/10.1107/S1600576724003182)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">phil_help</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">&quot;A lattice search strategy for very fast indexing using Cuda acceleration&quot;</span>
+    <span class="p">)</span>
+
+    <span class="n">phil_scope</span> <span class="o">=</span> <span class="n">iotbx</span><span class="o">.</span><span class="n">phil</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">ffbidx_phil_str</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FfbIndexer.__init__">
+<a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.lattice_search.FfbIndexer.__init__">[docs]</a>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">target_symmetry_primitive</span><span class="p">,</span> <span class="n">max_lattices</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct FfbIndexer object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target_symmetry_primitive (cctbx.crystal.symmetry): The target</span>
+<span class="sd">                crystal symmetry and unit cell</span>
+<span class="sd">            max_lattices (int): The maximum number of lattice models to find</span>
+<span class="sd">            params (phil,optional): Phil params</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ffbidx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DialsIndexError</span><span class="p">(</span>
+                <span class="s2">&quot;ffbidx requires the fast feedback indexer package. See (https://github.com/paulscherrerinstitute/fast-feedback-indexer)&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_symmetry_primitive</span> <span class="o">=</span> <span class="n">target_symmetry_primitive</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_lattices</span> <span class="o">=</span> <span class="n">max_lattices</span>
+
+        <span class="k">if</span> <span class="n">target_symmetry_primitive</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DialsIndexError</span><span class="p">(</span><span class="s2">&quot;Target unit cell must be provided for ffbidx&quot;</span><span class="p">)</span>
+
+        <span class="n">target_cell</span> <span class="o">=</span> <span class="n">target_symmetry_primitive</span><span class="o">.</span><span class="n">unit_cell</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">target_cell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Please specify known_symmetry.unit_cell&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+
+        <span class="c1"># Need the real space cell as numpy float32 array with all x vector coordinates, followed by y and z coordinates consecutively in memory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_cell</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">target_cell</span><span class="o">.</span><span class="n">orthogonalization_matrix</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Create fast feedback indexer object (on default CUDA device)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">indexer</span> <span class="o">=</span> <span class="n">ffbidx</span><span class="o">.</span><span class="n">Indexer</span><span class="p">(</span>
+                <span class="n">max_output_cells</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">max_output_cells</span><span class="p">,</span>
+                <span class="n">max_spots</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">max_spots</span><span class="p">,</span>
+                <span class="n">num_candidate_vectors</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">num_candidate_vectors</span><span class="p">,</span>
+                <span class="n">redundant_computations</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">redundant_computations</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DialsIndexError</span><span class="p">(</span>
+                <span class="s2">&quot;The ffbidx package is not correctly configured for this system. See (https://github.com/paulscherrerinstitute/fast-feedback-indexer). Error: &quot;</span>
+                <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FfbIndexer.find_crystal_models">
+<a class="viewcode-back" href="../../../../../documentation/library_reference/algorithms/dials.algorithms.indexing.html#dials.algorithms.indexing.lattice_search.FfbIndexer.find_crystal_models">[docs]</a>
+    <span class="k">def</span> <span class="nf">find_crystal_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reflections</span><span class="p">,</span> <span class="n">experiments</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Find a list of candidate crystal models.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            reflections (dials.array_family.flex.reflection_table):</span>
+<span class="sd">                The found spots centroids and associated data</span>
+
+<span class="sd">            experiments (dxtbx.model.experiment_list.ExperimentList):</span>
+<span class="sd">                The experimental geometry models</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of candidate crystal models.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">rlp</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">flumpy</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;rlp&quot;</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">simple_data_filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">write_simple_data_file</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">simple_data_filename</span><span class="p">,</span> <span class="n">rlp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_cell</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Need the reciprocal lattice points as numpy float32 array with all x coordinates, followed by y and z coordinates consecutively in memory</span>
+        <span class="n">rlp</span> <span class="o">=</span> <span class="n">rlp</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="n">output_cells</span><span class="p">,</span> <span class="n">scores</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexer</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">rlp</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_cell</span><span class="p">,</span>
+            <span class="n">dist1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dist1</span><span class="p">,</span>
+            <span class="n">dist3</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dist3</span><span class="p">,</span>
+            <span class="n">num_halfsphere_points</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_halfsphere_points</span><span class="p">,</span>
+            <span class="n">max_dist</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_dist</span><span class="p">,</span>
+            <span class="n">min_spots</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">min_spots</span><span class="p">,</span>
+            <span class="n">n_output_cells</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_output_cells</span><span class="p">,</span>
+            <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">method</span><span class="p">,</span>
+            <span class="n">triml</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">triml</span><span class="p">,</span>
+            <span class="n">trimh</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">trimh</span><span class="p">,</span>
+            <span class="n">delta</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">delta</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">cell_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexer</span><span class="o">.</span><span class="n">crystals</span><span class="p">(</span>
+            <span class="n">output_cells</span><span class="p">,</span>
+            <span class="n">rlp</span><span class="p">,</span>
+            <span class="n">scores</span><span class="p">,</span>
+            <span class="n">threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_dist</span><span class="p">,</span>
+            <span class="n">min_spots</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">min_spots</span><span class="p">,</span>
+            <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">method</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">candidate_crystal_models</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">cell_indices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">candidate_crystal_models</span>
+
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">cell_indices</span><span class="p">:</span>
+            <span class="n">j</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">index</span>
+            <span class="n">real_a</span> <span class="o">=</span> <span class="n">output_cells</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span>
+            <span class="n">real_b</span> <span class="o">=</span> <span class="n">output_cells</span><span class="p">[:,</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">real_c</span> <span class="o">=</span> <span class="n">output_cells</span><span class="p">[:,</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span>
+            <span class="n">crystal</span> <span class="o">=</span> <span class="n">Crystal</span><span class="p">(</span>
+                <span class="n">real_a</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                <span class="n">real_b</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                <span class="n">real_c</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                <span class="n">space_group</span><span class="o">=</span><span class="n">space_group</span><span class="p">(</span><span class="s2">&quot;P1&quot;</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">candidate_crystal_models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">crystal</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">candidate_crystal_models</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../documentation/index.html">Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../documentation/tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://dials.github.io/kb">Knowledge Base</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../national_resource.html">US National Resource</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../projects.html">Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../../../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../../../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &#169;2024, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
