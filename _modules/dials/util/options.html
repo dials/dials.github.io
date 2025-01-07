@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dials.util.options &#8212; DIALS  documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=686e5160" />
     <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=27fed22d" />
     <link rel="stylesheet" href="../../../_static/dials-styles.css" type="text/css" />
@@ -43,39 +43,39 @@
           <div class="body" role="main">
             
   <h1>Source code for dials.util.options</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">import</span> <span class="nn">argparse</span>
-<span class="kn">import</span> <span class="nn">copy</span>
-<span class="kn">import</span> <span class="nn">itertools</span>
-<span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">pickle</span>
-<span class="kn">import</span> <span class="nn">sys</span>
-<span class="kn">import</span> <span class="nn">traceback</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">namedtuple</span>
-<span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">itertools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pickle</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">traceback</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">namedtuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">glob</span><span class="w"> </span><span class="kn">import</span> <span class="n">glob</span>
 
-<span class="kn">from</span> <span class="nn">orderedset</span> <span class="kn">import</span> <span class="n">OrderedSet</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">orderedset</span><span class="w"> </span><span class="kn">import</span> <span class="n">OrderedSet</span>
 
-<span class="kn">import</span> <span class="nn">libtbx.phil</span>
-<span class="kn">from</span> <span class="nn">dxtbx.model</span> <span class="kn">import</span> <span class="n">ExperimentList</span>
-<span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentListFactory</span>
-<span class="kn">from</span> <span class="nn">dxtbx.util</span> <span class="kn">import</span> <span class="n">get_url_scheme</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">libtbx.phil</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExperimentList</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.model.experiment_list</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExperimentListFactory</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_url_scheme</span>
 
-<span class="kn">from</span> <span class="nn">dials.array_family</span> <span class="kn">import</span> <span class="n">flex</span>
-<span class="kn">from</span> <span class="nn">dials.util</span> <span class="kn">import</span> <span class="n">Sorry</span>
-<span class="kn">from</span> <span class="nn">dials.util.multi_dataset_handling</span> <span class="kn">import</span> <span class="p">(</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dials.array_family</span><span class="w"> </span><span class="kn">import</span> <span class="n">flex</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dials.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sorry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dials.util.multi_dataset_handling</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">renumber_table_id_columns</span><span class="p">,</span>
     <span class="n">sort_tables_to_experiments_order</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">FilenameDataWrapper</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dials.util.phil</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilenameDataWrapper</span>
 
 
 <div class="viewcode-block" id="InvalidPhilError">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.InvalidPhilError">[docs]</a>
-<span class="k">class</span> <span class="nc">InvalidPhilError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">InvalidPhilError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
@@ -206,12 +206,12 @@
 
 <div class="viewcode-block" id="Importer">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer">[docs]</a>
-<span class="k">class</span> <span class="nc">Importer</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Importer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A class to import the command line arguments.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="Importer.__init__">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.__init__">[docs]</a>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">args</span><span class="p">,</span>
         <span class="n">read_experiments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -278,7 +278,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_read_reflections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unhandled</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_handle_converter_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argument</span><span class="p">,</span> <span class="n">exception</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">validation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_handle_converter_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argument</span><span class="p">,</span> <span class="n">exception</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">validation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="s2">&quot;Record information about errors that occurred processing an argument&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">handling_errors</span><span class="p">[</span><span class="n">argument</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
             <span class="n">ArgumentHandlingErrorInfo</span><span class="p">(</span>
@@ -293,7 +293,7 @@
 
 <div class="viewcode-block" id="Importer.try_read_experiments_from_images">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.try_read_experiments_from_images">[docs]</a>
-    <span class="k">def</span> <span class="nf">try_read_experiments_from_images</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">try_read_experiments_from_images</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">args</span><span class="p">,</span>
         <span class="n">verbose</span><span class="p">,</span>
@@ -317,7 +317,7 @@
 <span class="sd">        :param load_models: Whether to load all models for ExperimentLists</span>
 <span class="sd">        :return: Unhandled arguments</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">ExperimentListFactory</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.model.experiment_list</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExperimentListFactory</span>
 
         <span class="c1"># If filenames contain wildcards, expand</span>
         <span class="n">args_new</span> <span class="o">=</span> <span class="p">[]</span>
@@ -359,7 +359,7 @@
 
 <div class="viewcode-block" id="Importer.try_read_experiments">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.try_read_experiments">[docs]</a>
-    <span class="k">def</span> <span class="nf">try_read_experiments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">check_format</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">try_read_experiments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">check_format</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Try to import experiments.</span>
 
@@ -368,7 +368,7 @@
 <span class="sd">        :param verbose: Print verbose output</span>
 <span class="sd">        :returns: Unhandled arguments</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="n">InvalidExperimentListError</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.model.experiment_list</span><span class="w"> </span><span class="kn">import</span> <span class="n">InvalidExperimentListError</span>
 
         <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">argument</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
@@ -395,7 +395,7 @@
 
 <div class="viewcode-block" id="Importer.try_read_reflections">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.Importer.try_read_reflections">[docs]</a>
-    <span class="k">def</span> <span class="nf">try_read_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">try_read_reflections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Try to import reflections.</span>
 
 <span class="sd">        :param args: The input arguments</span>
@@ -431,12 +431,12 @@
 
 <div class="viewcode-block" id="PhilCommandParser">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.PhilCommandParser">[docs]</a>
-<span class="k">class</span> <span class="nc">PhilCommandParser</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PhilCommandParser</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A class to parse phil parameters from positional arguments&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="PhilCommandParser.__init__">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.PhilCommandParser.__init__">[docs]</a>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">phil</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">read_experiments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -453,7 +453,7 @@
 <span class="sd">        :param read_experiments_from_images: Try to read the experiments from images</span>
 <span class="sd">        :param check_format: Check the format when reading images</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dials.util.phil</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse</span>
 
         <span class="c1"># Set the system phil scope</span>
         <span class="k">if</span> <span class="n">phil</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -477,7 +477,7 @@
 
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the phil object</span>
 
@@ -486,7 +486,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">system_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">system_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the system phil.</span>
 
@@ -495,7 +495,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_system_phil</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">diff_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">diff_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the diff phil.</span>
 
@@ -505,7 +505,7 @@
 
 <div class="viewcode-block" id="PhilCommandParser.parse_args">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.PhilCommandParser.parse_args">[docs]</a>
-    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_args</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_unhandled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -518,20 +518,20 @@
 <span class="sd">                            ignoring class constructor options.</span>
 <span class="sd">        :return: The options and parameters and (optionally) unhandled arguments</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dxtbx.model.experiment_list</span> <span class="kn">import</span> <span class="p">(</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.model.experiment_list</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
             <span class="n">BeamComparison</span><span class="p">,</span>
             <span class="n">DetectorComparison</span><span class="p">,</span>
             <span class="n">GoniometerComparison</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dials.util.phil</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse</span>
 
         <span class="c1"># Parse the command line phil parameters</span>
         <span class="n">user_phils</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">unhandled</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">interpreter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_phil</span><span class="o">.</span><span class="n">command_line_argument_interpreter</span><span class="p">()</span>
 
-        <span class="k">def</span> <span class="nf">_is_a_phil_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">_is_a_phil_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
             <span class="k">return</span> <span class="nb">any</span><span class="p">(</span>
                 <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">phil_ext</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">phil_ext</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;.phil&quot;</span><span class="p">,</span> <span class="s2">&quot;.param&quot;</span><span class="p">,</span> <span class="s2">&quot;.params&quot;</span><span class="p">,</span> <span class="s2">&quot;.eff&quot;</span><span class="p">,</span> <span class="s2">&quot;.def&quot;</span><span class="p">)</span>
@@ -655,13 +655,13 @@
         <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">importer</span><span class="o">.</span><span class="n">unhandled</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_generate_input_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_generate_input_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate the required input scope.</span>
 
 <span class="sd">        :return: The input phil scope</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">dials.util.phil</span> <span class="kn">import</span> <span class="n">parse</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dials.util.phil</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse</span>
 
         <span class="c1"># Create the input scope</span>
         <span class="n">require_input_scope</span> <span class="o">=</span> <span class="p">(</span>
@@ -711,12 +711,12 @@
 
 <div class="viewcode-block" id="ArgumentParserBase">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParserBase">[docs]</a>
-<span class="k">class</span> <span class="nc">ArgumentParserBase</span><span class="p">(</span><span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ArgumentParserBase</span><span class="p">(</span><span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for the option parser.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="ArgumentParserBase.__init__">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParserBase.__init__">[docs]</a>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_options</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialise the class.</span>
 
@@ -804,7 +804,7 @@
 
 <div class="viewcode-block" id="ArgumentParserBase.parse_known_args">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParserBase.parse_known_args">[docs]</a>
-    <span class="k">def</span> <span class="nf">parse_known_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_known_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">quick_parse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Parse the command line arguments and get system configuration.</span>
 
@@ -840,7 +840,7 @@
 
 <div class="viewcode-block" id="ArgumentParserBase.format_epilog">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParserBase.format_epilog">[docs]</a>
-    <span class="k">def</span> <span class="nf">format_epilog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">formatter</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">format_epilog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">formatter</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Don&#39;t do formatting on epilog.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">epilog</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="s2">&quot;&quot;</span>
@@ -851,14 +851,14 @@
 
 <div class="viewcode-block" id="ArgumentParser">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParser">[docs]</a>
-<span class="k">class</span> <span class="nc">ArgumentParser</span><span class="p">(</span><span class="n">ArgumentParserBase</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ArgumentParser</span><span class="p">(</span><span class="n">ArgumentParserBase</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A class to parse command line options and get the system configuration.</span>
 <span class="sd">    The class extends argparse.ArgumentParser to include the reading of phil</span>
 <span class="sd">    parameters.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="ArgumentParser.__init__">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParser.__init__">[docs]</a>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">phil</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">read_experiments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -900,7 +900,7 @@
 
 <div class="viewcode-block" id="ArgumentParser.parse_args">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParser.parse_args">[docs]</a>
-    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_args</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">show_diff_phil</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -994,7 +994,7 @@
         <span class="k">return</span> <span class="n">params</span><span class="p">,</span> <span class="n">options</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_warn_about_unhandled_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unhandled</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_warn_about_unhandled_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unhandled</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate any messages about unhandled arguments.</span>
 
@@ -1030,9 +1030,7 @@
                     <span class="p">)</span>
                 <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">exception</span><span class="p">,</span> <span class="n">Sorry</span><span class="p">):</span>
                     <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                        <span class="s1">&#39;  &quot;</span><span class="si">{}</span><span class="s1">&quot; failed during </span><span class="si">{}</span><span class="s1"> processing:</span><span class="se">\n</span><span class="s1">    </span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                            <span class="n">arg</span><span class="p">,</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span>
-                        <span class="p">)</span>
+                        <span class="sa">f</span><span class="s1">&#39;  &quot;</span><span class="si">{</span><span class="n">arg</span><span class="si">}</span><span class="s1">&quot; failed during </span><span class="si">{</span><span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">type</span><span class="si">}</span><span class="s1"> processing:</span><span class="se">\n</span><span class="s1">    </span><span class="si">{</span><span class="n">err</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span>
                     <span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
@@ -1061,7 +1059,7 @@
         <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the phil object</span>
 
@@ -1070,7 +1068,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">phil</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">system_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">system_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the system phil.</span>
 
@@ -1079,7 +1077,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">system_phil</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">diff_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">diff_phil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the diff phil.</span>
 
@@ -1087,7 +1085,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phil_parser</span><span class="o">.</span><span class="n">diff_phil</span>
 
-    <span class="k">def</span> <span class="nf">_strip_rst_markup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_strip_rst_markup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Strip rst markup</span>
 
@@ -1098,7 +1096,7 @@
 
 <div class="viewcode-block" id="ArgumentParser.format_help">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.ArgumentParser.format_help">[docs]</a>
-    <span class="k">def</span> <span class="nf">format_help</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">format_help</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Format the help string</span>
 
@@ -1109,7 +1107,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strip_rst_markup</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_export_autocomplete_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_export_autocomplete_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># complete list of all parameters</span>
         <span class="n">parameter_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># short name -&gt; full name expansion for unique names</span>
@@ -1140,7 +1138,7 @@
             <span class="k">elif</span> <span class="n">d</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">phil_type</span> <span class="o">==</span> <span class="s2">&quot;bool&quot;</span><span class="p">:</span>
                 <span class="n">parameter_choice_list</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">path</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">]</span>
 
-        <span class="k">def</span> <span class="nf">construct_completion_tree</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">construct_completion_tree</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;Construct a tree of parameters, grouped by common prefixes&quot;&quot;&quot;</span>
 
             <span class="c1"># Split parameter paths at &#39;.&#39; character</span>
@@ -1200,7 +1198,7 @@
 
         <span class="n">tree</span> <span class="o">=</span> <span class="n">construct_completion_tree</span><span class="p">(</span><span class="n">parameter_list</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="nf">_tree_to_bash</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">tree</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">_tree_to_bash</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">tree</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">subkey</span> <span class="ow">in</span> <span class="n">tree</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">subkey</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
                     <span class="n">_tree_to_bash</span><span class="p">(</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">subkey</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="n">tree</span><span class="p">[</span><span class="n">subkey</span><span class="p">])</span>
@@ -1232,10 +1230,10 @@
 
 <div class="viewcode-block" id="OptionParser">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser">[docs]</a>
-<span class="k">class</span> <span class="nc">OptionParser</span><span class="p">(</span><span class="n">ArgumentParser</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OptionParser</span><span class="p">(</span><span class="n">ArgumentParser</span><span class="p">):</span>
 <div class="viewcode-block" id="OptionParser.__init__">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.OptionParser.__init__">[docs]</a>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="c1"># Backwards compatibility 2021-11-10; 2022-04-06</span>
         <span class="c1"># Remove after Dec 2022</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
@@ -1250,7 +1248,7 @@
 
 <div class="viewcode-block" id="flatten_reflections">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.flatten_reflections">[docs]</a>
-<span class="k">def</span> <span class="nf">flatten_reflections</span><span class="p">(</span><span class="n">filename_object_list</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">flatten_reflections</span><span class="p">(</span><span class="n">filename_object_list</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Flatten a list of reflections tables</span>
 
@@ -1270,7 +1268,7 @@
 
 <div class="viewcode-block" id="flatten_experiments">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.flatten_experiments">[docs]</a>
-<span class="k">def</span> <span class="nf">flatten_experiments</span><span class="p">(</span><span class="n">filename_object_list</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">flatten_experiments</span><span class="p">(</span><span class="n">filename_object_list</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Flatten a list of experiment lists</span>
 
@@ -1287,7 +1285,7 @@
 
 <div class="viewcode-block" id="reflections_and_experiments_from_files">
 <a class="viewcode-back" href="../../../documentation/library_reference/util/index.html#dials.util.options.reflections_and_experiments_from_files">[docs]</a>
-<span class="k">def</span> <span class="nf">reflections_and_experiments_from_files</span><span class="p">(</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">reflections_and_experiments_from_files</span><span class="p">(</span>
     <span class="n">reflection_file_object_list</span><span class="p">,</span> <span class="n">experiment_file_object_list</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract reflection tables and an experiment list from the files.</span>
