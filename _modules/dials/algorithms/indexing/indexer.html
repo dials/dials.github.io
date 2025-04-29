@@ -66,6 +66,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">dials.algorithms.indexing.max_cell</span><span class="w"> </span><span class="kn">import</span> <span class="n">find_max_cell</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dials.algorithms.indexing.symmetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymmetryHandler</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dials.algorithms.refinement</span><span class="w"> </span><span class="kn">import</span> <span class="n">DialsRefineConfigError</span><span class="p">,</span> <span class="n">DialsRefineRuntimeError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dials.algorithms.spot_finding.per_image_analysis</span><span class="w"> </span><span class="kn">import</span> <span class="n">ice_rings_selection</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dials.array_family</span><span class="w"> </span><span class="kn">import</span> <span class="n">flex</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dials.util.multi_dataset_handling</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_experiment_identifiers</span>
 
@@ -975,20 +976,39 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">expt</span><span class="o">.</span><span class="n">crystal</span><span class="p">)</span>
 
         <span class="n">indexed_flags</span> <span class="o">=</span> <span class="n">reflections</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">reflections</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">indexed</span><span class="p">)</span>
+        <span class="n">ice_rings</span> <span class="o">=</span> <span class="n">ice_rings_selection</span><span class="p">(</span><span class="n">reflections</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unindexed_reflections</span><span class="p">:</span>
+            <span class="n">unindexed_rings</span> <span class="o">=</span> <span class="n">ice_rings_selection</span><span class="p">(</span><span class="n">unindexed_reflections</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">unindexed_rings</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">imageset_id</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;imageset_id&quot;</span><span class="p">]</span>
-        <span class="n">rows</span> <span class="o">=</span> <span class="p">[[</span><span class="s2">&quot;Imageset&quot;</span><span class="p">,</span> <span class="s2">&quot;# indexed&quot;</span><span class="p">,</span> <span class="s2">&quot;# unindexed&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">% i</span><span class="s2">ndexed&quot;</span><span class="p">]]</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span>
+                <span class="s2">&quot;Imageset&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;# indexed&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;# unindexed</span><span class="se">\n</span><span class="s2">total&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;# unindexed</span><span class="se">\n</span><span class="s2">non-ice&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;</span><span class="si">% i</span><span class="s2">ndexed&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">]</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">flex</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">imageset_id</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-            <span class="n">imageset_indexed_flags</span> <span class="o">=</span> <span class="n">indexed_flags</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">imageset_id</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="n">imageset_id</span> <span class="o">==</span> <span class="n">i</span>
+            <span class="n">imageset_indexed_flags</span> <span class="o">=</span> <span class="n">indexed_flags</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
+            <span class="n">ice</span> <span class="o">=</span> <span class="n">ice_rings</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span>
             <span class="n">indexed_count</span> <span class="o">=</span> <span class="n">imageset_indexed_flags</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">unindexed_count</span> <span class="o">=</span> <span class="n">imageset_indexed_flags</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">unindexed_noice</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">imageset_indexed_flags</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">ice</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
             <span class="k">if</span> <span class="n">unindexed_reflections</span><span class="p">:</span>
                 <span class="n">sel</span> <span class="o">=</span> <span class="n">unindexed_reflections</span><span class="p">[</span><span class="s2">&quot;imageset_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">i</span>
                 <span class="n">unindexed_count</span> <span class="o">+=</span> <span class="n">sel</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">unindexed_noice</span> <span class="o">+=</span> <span class="n">unindexed_rings</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
             <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                 <span class="p">[</span>
                     <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
                     <span class="nb">str</span><span class="p">(</span><span class="n">indexed_count</span><span class="p">),</span>
                     <span class="nb">str</span><span class="p">(</span><span class="n">unindexed_count</span><span class="p">),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">unindexed_noice</span><span class="p">),</span>
                     <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">indexed_count</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">indexed_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">unindexed_count</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
                 <span class="p">]</span>
             <span class="p">)</span>
