@@ -550,6 +550,10 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">check_format</span><span class="p">:</span>
             <span class="k">assert</span> <span class="ow">not</span> <span class="n">check_headers</span>
 
+        <span class="c1"># Import here as Format and Imageset have cyclic dependencies</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.format.Format</span><span class="w"> </span><span class="kn">import</span> <span class="n">Format</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.format.FormatMultiImage</span><span class="w"> </span><span class="kn">import</span> <span class="n">FormatMultiImage</span>
+
         <span class="c1"># Check the template is valid</span>
         <span class="k">if</span> <span class="s2">&quot;#&quot;</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
             <span class="c1"># Get the template image range</span>
@@ -559,23 +563,30 @@
             <span class="c1"># Set the image range</span>
             <span class="n">indices</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
             <span class="n">filenames</span> <span class="o">=</span> <span class="n">_expand_template_to_sorted_filenames</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
+                <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span>
+                    <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">format_class</span> <span class="o">=</span> <span class="n">Format</span>
         <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Note, this assumes image stacks can only be written by dectris detectors,</span>
+            <span class="c1"># but doesn&#39;t account for other imagestack formats like MRC.</span>
             <span class="k">if</span> <span class="s2">&quot;master&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid template&quot;</span><span class="p">)</span>
             <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
-
-        <span class="c1"># Import here as Format and Imageset have cyclic dependencies</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.format.Format</span><span class="w"> </span><span class="kn">import</span> <span class="n">Format</span>
-
-        <span class="c1"># Get the format class</span>
-        <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
-            <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">format_class</span> <span class="o">=</span> <span class="n">Format</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">image_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
+                <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span>
+                    <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">format_class</span> <span class="o">=</span> <span class="n">FormatMultiImage</span>
 
         <span class="c1"># Create the sequence object</span>
         <span class="n">sequence</span> <span class="o">=</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
             <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">single_file_indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span>
             <span class="n">as_sequence</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">beam</span><span class="o">=</span><span class="n">beam</span><span class="p">,</span>
@@ -677,29 +688,36 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a sequence&quot;&quot;&quot;</span>
         <span class="n">indices</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
 
+        <span class="c1"># Import here as Format and Imageset have cyclic dependencies</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.format.Format</span><span class="w"> </span><span class="kn">import</span> <span class="n">Format</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.format.FormatMultiImage</span><span class="w"> </span><span class="kn">import</span> <span class="n">FormatMultiImage</span>
+
         <span class="c1"># Get the template format</span>
         <span class="k">if</span> <span class="s2">&quot;#&quot;</span> <span class="ow">in</span> <span class="n">template</span><span class="p">:</span>
             <span class="n">filenames</span> <span class="o">=</span> <span class="n">_expand_template_to_sorted_filenames</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
+            <span class="c1"># Get the format object and reader</span>
+            <span class="k">if</span> <span class="n">format_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
+                    <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span>
+                        <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">format_class</span> <span class="o">=</span> <span class="n">Format</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">format_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
+                    <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span>
+                        <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">format_class</span> <span class="o">=</span> <span class="n">FormatMultiImage</span>
 
         <span class="c1"># Set the image range</span>
         <span class="n">array_range</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">assert</span> <span class="n">array_range</span> <span class="o">==</span> <span class="n">scan</span><span class="o">.</span><span class="n">get_array_range</span><span class="p">()</span>
             <span class="n">scan</span><span class="o">.</span><span class="n">set_batch_offset</span><span class="p">(</span><span class="n">array_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-
-        <span class="c1"># Get the format object and reader</span>
-        <span class="k">if</span> <span class="n">format_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Import here as Format and Imageset have cyclic dependencies</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.format.Format</span><span class="w"> </span><span class="kn">import</span> <span class="n">Format</span>
-
-            <span class="k">if</span> <span class="n">check_format</span><span class="p">:</span>
-                <span class="n">format_class</span> <span class="o">=</span> <span class="n">dxtbx</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">Registry</span><span class="o">.</span><span class="n">get_format_class_for_file</span><span class="p">(</span>
-                    <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">format_class</span> <span class="o">=</span> <span class="n">Format</span>
 
         <span class="k">return</span> <span class="n">format_class</span><span class="o">.</span><span class="n">get_imageset</span><span class="p">(</span>
             <span class="n">filenames</span><span class="p">,</span>
