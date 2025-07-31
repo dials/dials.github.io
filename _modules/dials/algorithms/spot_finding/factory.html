@@ -58,7 +58,11 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">dials.extensions</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">dials.util.masking</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dials.algorithms.background.simple</span><span class="w"> </span><span class="kn">import</span> <span class="n">Linear2dModeller</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">dials.algorithms.spot_finding.finder</span><span class="w"> </span><span class="kn">import</span> <span class="n">SpotFinder</span><span class="p">,</span> <span class="n">TOFSpotFinder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dials.algorithms.spot_finding.finder</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LaueSpotFinder</span><span class="p">,</span>
+    <span class="n">SpotFinder</span><span class="p">,</span>
+    <span class="n">TOFSpotFinder</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dials.array_family</span><span class="w"> </span><span class="kn">import</span> <span class="n">flex</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -177,6 +181,13 @@
 <span class="sd">      min_chunksize = 20</span>
 <span class="sd">        .type = int(value_min=1)</span>
 <span class="sd">        .help = &quot;When chunksize is auto, this is the minimum chunksize&quot;</span>
+<span class="sd">    }</span>
+<span class="sd">    laue {</span>
+<span class="sd">      initial_wavelength = None</span>
+<span class="sd">        .type = float(value_min=.1)</span>
+<span class="sd">        .help = &quot;Initial wavelength assignment for reflections from Laue data&quot;</span>
+<span class="sd">                &quot;If None, initial_wavelength will be set as the average of &quot;</span>
+<span class="sd">                &quot;beam.wavelength_range&quot;</span>
 <span class="sd">    }</span>
 <span class="sd">  }</span>
 <span class="sd">  &quot;&quot;&quot;</span><span class="p">,</span>
@@ -547,7 +558,7 @@
             <span class="k">elif</span> <span class="n">contains_tof_experiments</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;All experiment scans must contain time_of_flight&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">contains_tof_experiments</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_tof</span><span class="p">():</span>
             <span class="c1"># ToF spots from spallation sources typically have elongated tails</span>
             <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">max_separation</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>
                 <span class="c1"># Based on ISISSXD data</span>
@@ -575,6 +586,31 @@
                 <span class="n">min_spot_size</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_spot_size</span><span class="p">,</span>
                 <span class="n">max_spot_size</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">max_spot_size</span><span class="p">,</span>
                 <span class="n">min_chunksize</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">min_chunksize</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_laue</span><span class="p">():</span>
+            <span class="n">filter_spots</span> <span class="o">=</span> <span class="n">SpotFinderFactory</span><span class="o">.</span><span class="n">configure_filter</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">LaueSpotFinder</span><span class="p">(</span>
+                <span class="n">experiments</span><span class="o">=</span><span class="n">experiments</span><span class="p">,</span>
+                <span class="n">threshold_function</span><span class="o">=</span><span class="n">threshold_function</span><span class="p">,</span>
+                <span class="n">mask</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">lookup</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span>
+                <span class="n">filter_spots</span><span class="o">=</span><span class="n">filter_spots</span><span class="p">,</span>
+                <span class="n">scan_range</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">scan_range</span><span class="p">,</span>
+                <span class="n">write_hot_mask</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">write_hot_mask</span><span class="p">,</span>
+                <span class="n">hot_mask_prefix</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">hot_mask_prefix</span><span class="p">,</span>
+                <span class="n">mp_method</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">method</span><span class="p">,</span>
+                <span class="n">mp_nproc</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span>
+                <span class="n">mp_njobs</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">njobs</span><span class="p">,</span>
+                <span class="n">mp_chunksize</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">chunksize</span><span class="p">,</span>
+                <span class="n">max_strong_pixel_fraction</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">max_strong_pixel_fraction</span><span class="p">,</span>
+                <span class="n">compute_mean_background</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">compute_mean_background</span><span class="p">,</span>
+                <span class="n">region_of_interest</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">region_of_interest</span><span class="p">,</span>
+                <span class="n">mask_generator</span><span class="o">=</span><span class="n">mask_generator</span><span class="p">,</span>
+                <span class="n">min_spot_size</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">min_spot_size</span><span class="p">,</span>
+                <span class="n">max_spot_size</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">max_spot_size</span><span class="p">,</span>
+                <span class="n">min_chunksize</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">mp</span><span class="o">.</span><span class="n">min_chunksize</span><span class="p">,</span>
+                <span class="n">initial_wavelength</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">spotfinder</span><span class="o">.</span><span class="n">laue</span><span class="o">.</span><span class="n">initial_wavelength</span><span class="p">,</span>
             <span class="p">)</span>
 
         <span class="n">filter_spots</span> <span class="o">=</span> <span class="n">SpotFinderFactory</span><span class="o">.</span><span class="n">configure_filter</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
