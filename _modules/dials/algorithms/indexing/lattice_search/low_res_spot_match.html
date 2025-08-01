@@ -348,10 +348,15 @@
         <span class="n">detector</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">detectors</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">beam</span> <span class="o">=</span> <span class="n">experiments</span><span class="o">.</span><span class="n">beams</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
 
-        <span class="c1"># Lab coordinate of the beam centre, using the first spot&#39;s panel</span>
-        <span class="n">panel</span> <span class="o">=</span> <span class="n">detector</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;panel&quot;</span><span class="p">]]</span>
-        <span class="n">bc</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_ray_intersection</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())</span>
-        <span class="n">bc_lab</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_lab_coord</span><span class="p">(</span><span class="n">bc</span><span class="p">)</span>
+        <span class="c1"># Lab coordinate of the beam centre,</span>
+        <span class="c1"># using the first panel found to intersect</span>
+        <span class="k">for</span> <span class="n">panel</span> <span class="ow">in</span> <span class="n">detector</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">bc</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_ray_intersection</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">get_unit_s0</span><span class="p">())</span>
+            <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>  <span class="c1"># Does not intersect panel</span>
+                <span class="k">continue</span>
+            <span class="n">bc_lab</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">get_lab_coord</span><span class="p">(</span><span class="n">bc</span><span class="p">)</span>
+            <span class="k">break</span>
 
         <span class="c1"># Lab coordinate of each spot</span>
         <span class="n">spot_lab</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">))</span>
@@ -410,11 +415,17 @@
         <span class="n">inner_spot_lab</span> <span class="o">=</span> <span class="n">spot_lab</span> <span class="o">-</span> <span class="n">panel_dirs</span> <span class="o">*</span> <span class="p">(</span><span class="n">tol</span> <span class="o">*</span> <span class="n">sig_r</span><span class="p">)</span>
 
         <span class="c1"># Set d* at band limits</span>
-        <span class="n">inv_lambda</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_laue</span><span class="p">()</span> <span class="ow">or</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_tof</span><span class="p">():</span>
+            <span class="n">wavelength</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;wavelength&quot;</span><span class="p">]</span>
+            <span class="n">s0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;s0&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">wavelength</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+            <span class="n">s0</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">()</span>
+        <span class="n">inv_lambda</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">wavelength</span>
         <span class="n">s1_outer</span> <span class="o">=</span> <span class="n">outer_spot_lab</span><span class="o">.</span><span class="n">each_normalize</span><span class="p">()</span> <span class="o">*</span> <span class="n">inv_lambda</span>
         <span class="n">s1_inner</span> <span class="o">=</span> <span class="n">inner_spot_lab</span><span class="o">.</span><span class="n">each_normalize</span><span class="p">()</span> <span class="o">*</span> <span class="n">inv_lambda</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_outer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s1_outer</span> <span class="o">-</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_inner&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s1_inner</span> <span class="o">-</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">())</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_outer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s1_outer</span> <span class="o">-</span> <span class="n">s0</span><span class="p">)</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_inner&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s1_inner</span> <span class="o">-</span> <span class="n">s0</span><span class="p">)</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_band2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">pow2</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_outer&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">spots</span><span class="p">[</span><span class="s2">&quot;d_star_inner&quot;</span><span class="p">]</span>
         <span class="p">)</span>
