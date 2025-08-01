@@ -53,8 +53,10 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">iotbx.phil</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dxtbx.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Crystal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scitbx</span><span class="w"> </span><span class="kn">import</span> <span class="n">matrix</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dials.algorithms.indexing</span><span class="w"> </span><span class="kn">import</span> <span class="n">DialsIndexError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dials.array_family</span><span class="w"> </span><span class="kn">import</span> <span class="n">flex</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.strategy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Strategy</span>
 
@@ -234,8 +236,7 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">index_pink</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">s0</span><span class="p">,</span>
-        <span class="n">s1</span><span class="p">,</span>
+        <span class="n">rlps</span><span class="p">,</span>
         <span class="n">max_refls</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
         <span class="n">rotogram_grid_points</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
         <span class="n">voxel_grid_points</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
@@ -246,8 +247,7 @@
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
-<span class="sd">            s0 (array): An array of 3 floating point numbers corresponding to the s0 vector. This will be normalized.</span>
-<span class="sd">            s1 (array): An n x 3 array floating point numbers corresponding to the s1 vectors. This will be normalized.</span>
+<span class="sd">            rlps (array): An n x 3 array floating point numbers corresponding to the rlp vectors. This will be normalized.</span>
 <span class="sd">            max_refls (int, optional): The maximum number of refls to consider.</span>
 <span class="sd">            rotogram_grid_points (int, optional): The number of points at which to evaluate the rotograms.</span>
 <span class="sd">            voxel_grid_points (int, optional): The fineness of the discretization used to quantitate rotograms.</span>
@@ -259,10 +259,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            iter_UB: an interable of crystal bases as numpy arrays</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">s0_hat</span> <span class="o">=</span> <span class="n">normalize</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">s0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">float_dtype</span><span class="p">))</span>
-        <span class="n">s1_hat</span> <span class="o">=</span> <span class="n">normalize</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">float_dtype</span><span class="p">))</span>
-
-        <span class="n">q</span> <span class="o">=</span> <span class="n">s1_hat</span> <span class="o">-</span> <span class="n">s0_hat</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">rlps</span>
         <span class="n">q_len</span> <span class="o">=</span> <span class="n">norm2</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># length of q if lambda is 1A</span>
 
         <span class="c1"># Possible resolution range for each observation considering wavelength range</span>
@@ -274,8 +271,6 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">res_min</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_refls</span><span class="p">:</span>
             <span class="n">dmin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">res_min</span><span class="p">)[</span><span class="o">-</span><span class="n">max_refls</span><span class="p">]</span>
             <span class="n">in_range</span> <span class="o">=</span> <span class="n">res_min</span> <span class="o">&gt;=</span> <span class="n">dmin</span>
-            <span class="n">s1_hat</span> <span class="o">=</span> <span class="n">s1_hat</span><span class="p">[</span><span class="n">in_range</span><span class="p">]</span>
-            <span class="n">s1</span> <span class="o">=</span> <span class="n">s1</span><span class="p">[</span><span class="n">in_range</span><span class="p">]</span>
             <span class="n">q</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="n">in_range</span><span class="p">]</span>
             <span class="n">q_len</span> <span class="o">=</span> <span class="n">q_len</span><span class="p">[</span><span class="n">in_range</span><span class="p">]</span>
             <span class="n">res_min</span> <span class="o">=</span> <span class="n">res_min</span><span class="p">[</span><span class="n">in_range</span><span class="p">]</span>
@@ -446,28 +441,53 @@
         <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">*=</span> <span class="mi">0</span>
         <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
 
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">experiments</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;pink_indexer received an experimentlist with length &gt; 1. To use the pink_indexer method, you must set joint_indexing=False when you call dials.index&quot;</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-
         <span class="n">expt</span> <span class="o">=</span> <span class="n">experiments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">refls</span> <span class="o">=</span> <span class="n">reflections</span>
 
         <span class="n">cell</span> <span class="o">=</span> <span class="n">gemmi</span><span class="o">.</span><span class="n">UnitCell</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">cell</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
 
-        <span class="n">beam</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">beam</span>
-        <span class="n">s0</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_s0</span><span class="p">()</span>
         <span class="n">wav</span><span class="p">,</span> <span class="n">bw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">percent_bandwidth</span>
+        <span class="n">beam</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">beam</span>
         <span class="k">if</span> <span class="n">wav</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">wav</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_laue</span><span class="p">()</span> <span class="ow">or</span> <span class="n">experiments</span><span class="o">.</span><span class="n">all_tof</span><span class="p">():</span>
+                <span class="k">assert</span> <span class="s2">&quot;wavelength&quot;</span> <span class="ow">in</span> <span class="n">reflections</span>
+                <span class="n">wav</span> <span class="o">=</span> <span class="n">reflections</span><span class="p">[</span><span class="s2">&quot;wavelength&quot;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">wav</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_wavelength</span><span class="p">()</span>
+
         <span class="k">if</span> <span class="n">bw</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">bw</span> <span class="o">=</span> <span class="mf">1.0</span>
         <span class="n">pidxr</span> <span class="o">=</span> <span class="n">Indexer</span><span class="p">(</span><span class="n">cell</span><span class="p">,</span> <span class="n">wav</span><span class="p">,</span> <span class="n">bw</span><span class="p">)</span>
-        <span class="n">s1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">refls</span><span class="p">[</span><span class="s2">&quot;s1&quot;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
+
+        <span class="n">rlps</span> <span class="o">=</span> <span class="n">flex</span><span class="o">.</span><span class="n">vec3_double</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">refls</span><span class="p">))</span>
+        <span class="n">s1</span> <span class="o">=</span> <span class="n">refls</span><span class="p">[</span><span class="s2">&quot;s1&quot;</span><span class="p">]</span>
+        <span class="n">s1_hat</span> <span class="o">=</span> <span class="n">s1</span> <span class="o">/</span> <span class="n">s1</span><span class="o">.</span><span class="n">norms</span><span class="p">()</span>
+        <span class="n">s0_hat</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">get_unit_s0</span><span class="p">()</span>
+
+        <span class="c1"># Rotate reflections to common coordinate frame</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">expt</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">experiments</span><span class="p">):</span>
+            <span class="n">sel_expt</span> <span class="o">=</span> <span class="n">refls</span><span class="p">[</span><span class="s2">&quot;imageset_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">i</span>
+            <span class="n">s1_hat_expt</span> <span class="o">=</span> <span class="n">s1_hat</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_expt</span><span class="p">)</span>
+            <span class="n">q</span> <span class="o">=</span> <span class="n">s1_hat_expt</span> <span class="o">-</span> <span class="n">s0_hat</span>
+
+            <span class="k">if</span> <span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">setting_rotation</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_setting_rotation</span><span class="p">())</span>
+                <span class="n">rotation_axis</span> <span class="o">=</span> <span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_rotation_axis_datum</span><span class="p">()</span>
+                <span class="n">sample_rotation</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">sqr</span><span class="p">(</span><span class="n">expt</span><span class="o">.</span><span class="n">goniometer</span><span class="o">.</span><span class="n">get_fixed_rotation</span><span class="p">())</span>
+                <span class="n">q</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">setting_rotation</span><span class="o">.</span><span class="n">inverse</span><span class="p">())</span> <span class="o">*</span> <span class="n">q</span>
+
+                <span class="k">if</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">expt</span><span class="o">.</span><span class="n">scan</span><span class="o">.</span><span class="n">has_property</span><span class="p">(</span><span class="s2">&quot;oscillation&quot;</span><span class="p">):</span>
+                    <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">refls</span><span class="p">[</span><span class="s2">&quot;xyzobs.mm.value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">sel_expt</span><span class="p">)</span><span class="o">.</span><span class="n">parts</span><span class="p">()</span>
+                    <span class="n">q</span><span class="o">.</span><span class="n">rotate_around_origin</span><span class="p">(</span><span class="n">rotation_axis</span><span class="p">,</span> <span class="o">-</span><span class="n">z</span><span class="p">)</span>
+
+                <span class="n">q</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">sample_rotation</span><span class="o">.</span><span class="n">inverse</span><span class="p">())</span> <span class="o">*</span> <span class="n">q</span>
+
+            <span class="n">rlps</span><span class="o">.</span><span class="n">set_selected</span><span class="p">(</span><span class="n">sel_expt</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+
+        <span class="n">rlps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rlps</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">candidate_crystal_models</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">UB</span> <span class="ow">in</span> <span class="n">pidxr</span><span class="o">.</span><span class="n">index_pink</span><span class="p">(</span>
-            <span class="n">s0</span><span class="p">,</span>
-            <span class="n">s1</span><span class="p">,</span>
+            <span class="n">rlps</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">max_refls</span><span class="p">,</span>
             <span class="n">rotogram_grid_points</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rotogram_grid_points</span><span class="p">,</span>
             <span class="n">voxel_grid_points</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">voxel_grid_points</span><span class="p">,</span>
