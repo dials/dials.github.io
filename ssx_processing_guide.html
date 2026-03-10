@@ -52,18 +52,38 @@
 <p>This is a guide on how to process synchrotron serial crystallography (SSX) data
 with DIALS, using stepwise command line programs in a similar manner to processing
 rotation data.</p>
-<section id="indexing-ssx-data-with-dials-ssx-index">
-<h2>Indexing SSX data with dials.ssx_index<a class="headerlink" href="#indexing-ssx-data-with-dials-ssx-index" title="Link to this heading">¶</a></h2>
-<p>A sequence of SSX images can be imported and spotfinding can be run in the same
+<section id="importing-and-spotfinding">
+<h2>Importing and spotfinding<a class="headerlink" href="#importing-and-spotfinding" title="Link to this heading">¶</a></h2>
+<p>A sequence of still shot images can be imported and spotfinding can be run in the same
 way as for rotation data:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="kn">import</span><span class="w"> </span><span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">images</span><span class="o">*</span><span class="n">cbf</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="kn">import</span><span class="w"> </span><span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">images</span><span class="o">*</span><span class="n">cbf</span> <span class="n">convert_stills_to_sequences</span><span class="o">=</span><span class="kc">True</span>
 <span class="n">dials</span><span class="o">.</span><span class="n">find_spots</span> <span class="n">imported</span><span class="o">.</span><span class="n">expt</span>
 </pre></div>
 </div>
 <p>Note that for simplicity in this example we are not using a reference geometry when importing.
 These commands produce an <code class="samp docutils literal notranslate"><span class="pre">imported.expt</span></code> experiments file containing the experimental
-metadata and a <code class="samp docutils literal notranslate"><span class="pre">strong.refl</span></code> reflections file containing the found spots.
-Then to index the data, we can use:</p>
+metadata and a <code class="samp docutils literal notranslate"><span class="pre">strong.refl</span></code> reflections file containing the found spots.</p>
+<p>It is important to note that the dials data structures obtained upon import can differ depending
+on the image format and metadata, which can cause performance issues in spotfinding if not handled
+correctly via the use of the <code class="samp docutils literal notranslate"><span class="pre">convert_stills_to_sequences=True</span></code> parameter in <code class="samp docutils literal notranslate"><span class="pre">dials.import</span></code>.
+The bottom of the <code class="samp docutils literal notranslate"><span class="pre">dials.import</span></code> log lists the interpretation of the images, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">num</span> <span class="n">images</span><span class="p">:</span> <span class="mi">100</span>
+<span class="n">sequences</span><span class="p">:</span>
+  <span class="n">still</span><span class="p">:</span>    <span class="mi">1</span>
+  <span class="n">sweep</span><span class="p">:</span>    <span class="mi">0</span>
+<span class="n">num</span> <span class="n">stills</span><span class="p">:</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>The “sequences” datastructure is optimised for processing sequences of image data in a stepwise
+manner, whereas alternative datastructures are optimised for distributed processing of still
+images in the <code class="samp docutils literal notranslate"><span class="pre">dials.stills_process</span></code> program.
+If you see an entry under “num stills:”, this can lead to slow spotfinding for the stepwise
+processing described in this guide; using the parameter <code class="samp docutils literal notranslate"><span class="pre">convert_stills_to_sequences=True</span></code>
+as part of your <code class="samp docutils literal notranslate"><span class="pre">dials.import</span></code> command will overcome this.</p>
+</section>
+<section id="indexing-ssx-data-with-dials-ssx-index">
+<h2>Indexing SSX data with dials.ssx_index<a class="headerlink" href="#indexing-ssx-data-with-dials-ssx-index" title="Link to this heading">¶</a></h2>
+<p>Then to index the data, we can use:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dials</span><span class="o">.</span><span class="n">ssx_index</span> <span class="n">strong</span><span class="o">.</span><span class="n">refl</span> <span class="n">imported</span><span class="o">.</span><span class="n">expt</span>
 </pre></div>
 </div>
@@ -161,6 +181,14 @@ of useful statistics such as the number of spots integrated on each image,
 the modelled mosaicity values and unit cell clustering analysis. This data can
 also be output to json format for further analysis, by providing a filename to
 the option <code class="samp docutils literal notranslate"><span class="pre">output.json</span></code>.</p>
+</section>
+<section id="scaling-and-merging-data">
+<h2>Scaling and merging data<a class="headerlink" href="#scaling-and-merging-data" title="Link to this heading">¶</a></h2>
+<p>It is advised to first perform scaling and merging using the <code class="samp docutils literal notranslate"><span class="pre">xia2.ssx_reduce</span></code> pipeline, as
+described at <a class="reference external" href="https://xia2.github.io/serial_crystallography.html#data-reduction">https://xia2.github.io/serial_crystallography.html#data-reduction</a>. The default parameters
+of <code class="samp docutils literal notranslate"><span class="pre">dials.scale</span></code>, <code class="samp docutils literal notranslate"><span class="pre">dials.cosym</span></code> and other data reduction programs are set for full rotation data;
+the <code class="samp docutils literal notranslate"><span class="pre">xia2.ssx_reduce</span></code> pipeline will run these programs with sensible defaults. You are then able to
+inspect the logs, see which parameters were used and try stepwise processing with the dials commands.</p>
 </section>
 </section>
 
