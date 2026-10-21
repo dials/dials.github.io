@@ -59,7 +59,10 @@ downstream programs such as Pointless and Aimless. For exporting integrated,
 but unscaled data, the required input is an integrated.expt file and an
 integrated.refl file. For exporting scaled data, the required input is a
 scaled.expt file and a scaled.refl file, in which case the intensity=scale
-flag will be set implicitly.</p>
+flag will be set implicitly. Polychromatic (Laue or time-of-flight) data are
+exported with one batch per experiment and the wavelength of each reflection
+in a LAMBDA column, along with the PANEL number to which XDET and YDET refer
+and, for time-of-flight data, the TOF in microseconds.</p>
 <p>NXS format exports the files as an NXmx file. The required input is an
 integrated.expt file and an integrated.refl file.</p>
 <p>MMCIF format exports the files as an mmcif file. The required input is an
@@ -88,7 +91,10 @@ solution in programs such as Olex2. Unlike SHELX format, the intensities are
 not rescaled to fit a fixed-width field. For electron diffraction the relevant
 items of the electron diffraction extension to the core dictionary are written
 too, and metadata that a data reduction cannot know can be added with
-cif.extra.</p>
+cif.extra. The items describing the reflections used to determine the unit cell
+(_cell_measurement_reflns_used and _cell_measurement_theta_min/max) are not
+known to dials.export. Run dials.two_theta_refine with output.cif= after
+integration or scaling and pass the CIF to cif.combine to include them.</p>
 <p>Examples:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Export to mtz</span>
 <span class="n">dials</span><span class="o">.</span><span class="n">export</span> <span class="n">integrated</span><span class="o">.</span><span class="n">expt</span> <span class="n">integrated</span><span class="o">.</span><span class="n">refl</span>
@@ -118,6 +124,9 @@ cif.extra.</p>
 <span class="n">dials</span><span class="o">.</span><span class="n">export</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="nb">format</span><span class="o">=</span><span class="n">cif</span>
 <span class="n">dials</span><span class="o">.</span><span class="n">export</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="nb">format</span><span class="o">=</span><span class="n">cif</span> <span class="n">cif</span><span class="o">.</span><span class="n">hklout</span><span class="o">=</span><span class="n">dials</span><span class="o">.</span><span class="n">cif</span>
 <span class="n">dials</span><span class="o">.</span><span class="n">export</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="nb">format</span><span class="o">=</span><span class="n">cif</span> <span class="n">composition</span><span class="o">=</span><span class="n">C3H7NO2S</span>
+<span class="n">dials</span><span class="o">.</span><span class="n">two_theta_refine</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="n">output</span><span class="o">.</span><span class="n">cif</span><span class="o">=</span><span class="n">cell</span><span class="o">.</span><span class="n">cif</span>
+<span class="n">dials</span><span class="o">.</span><span class="n">export</span> <span class="n">refined_cell</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="nb">format</span><span class="o">=</span><span class="n">cif</span> <span class="n">cif</span><span class="o">.</span><span class="n">combine</span><span class="o">=</span><span class="n">cell</span><span class="o">.</span><span class="n">cif</span>
+
 <span class="n">dials</span><span class="o">.</span><span class="n">export</span> <span class="n">scaled</span><span class="o">.</span><span class="n">expt</span> <span class="n">scaled</span><span class="o">.</span><span class="n">refl</span> <span class="nb">format</span><span class="o">=</span><span class="n">cif</span> \
     <span class="s2">"cif.extra=_diffrn_source_type=LaB6 gun"</span> \
     <span class="n">cif</span><span class="o">.</span><span class="n">extra</span><span class="o">=</span><span class="n">_diffrn_precession_semi_angle</span><span class="o">=</span><span class="mf">1.0</span>
@@ -188,6 +197,7 @@ cif.extra.</p>
   <span class="n">hklout</span> <span class="o">=</span> <span class="n">dials</span><span class="o">.</span><span class="n">cif</span>
   <span class="n">scale_group_code</span> <span class="o">=</span> <span class="kc">False</span>
   <span class="n">datablock</span> <span class="o">=</span> <span class="n">dials</span>
+  <span class="n">combine</span> <span class="o">=</span> <span class="kc">None</span>
   <span class="n">extra</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">}</span>
 <span class="n">pets</span> <span class="p">{</span>
@@ -383,6 +393,14 @@ cif.extra.</p>
   <span class="n">datablock</span> <span class="o">=</span> <span class="n">dials</span>
     <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">"The name of the CIF data block"</span>
     <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">str</span>
+  <span class="n">combine</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">"A CIF written by dials.two_theta_refine (output.cif=) from which"</span>
+            <span class="s2">"to take _cell_measurement_reflns_used,"</span>
+            <span class="s2">"_cell_measurement_theta_min and _cell_measurement_theta_max."</span>
+            <span class="s2">"These describe the reflections used to determine the unit cell,"</span>
+            <span class="s2">"which dials.export does not know, so they are otherwise omitted."</span>
+            <span class="s2">"cif.extra takes precedence."</span>
+    <span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">path</span>
   <span class="n">extra</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="o">.</span><span class="n">help</span> <span class="o">=</span> <span class="s2">"An extra '_data_name=value' pair to write, which overrides any"</span>
             <span class="s2">"value DIALS would write for that data name. Repeat to write more"</span>
