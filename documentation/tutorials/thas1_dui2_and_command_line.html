@@ -1,0 +1,1117 @@
+
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Processing a Zn-SAD data set with DUI2 or the command line &#8212; DIALS  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" href="../../_static/dials-styles.css" type="text/css" />
+    <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script defer="defer" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="icon" href="../../_static/favicon.ico"/>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Processing in Detail with DUI" href="processing_in_detail_betalactamase_dui.html" />
+    <link rel="prev" title="Tutorials" href="index.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  <div class="logoheader container">
+  <a href="../../index.html">
+  <img class="logoheader" alt="DIALS" src="../../_static/dials_header.png" />
+  </a>
+  </div>
+  
+
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="processing-a-zn-sad-data-set-with-dui2-or-the-command-line">
+<h1>Processing a Zn-SAD data set with DUI2 or the command line<a class="headerlink" href="#processing-a-zn-sad-data-set-with-dui2-or-the-command-line" title="Link to this heading">¶</a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>This tutorial takes you through processing a typical macromolecular
+crystallography data set with DIALS, from importing the images to exporting
+scaled intensities ready for structure solution. You can drive DIALS either
+from the <a class="reference external" href="https://github.com/ccp4/DUI2">DUI2</a> graphical user interface or by typing commands at a terminal.
+The crystallography is the same either way. Only the actions you take differ.</p>
+<p>Wherever the two routes differ you will see a pair of tabs labelled <strong>DUI2</strong> and
+<strong>Command line</strong>. Choose the tab for the route you are following. All the tabs
+on the page switch together, so you only need to choose once.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-0" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-0">
+DUI2</label><div class="sd-tab-content docutils">
+<p>You are following the DUI2 route. Instructions in these tabs tell you
+which buttons to press in the DUI2 window.</p>
+</div>
+<input id="sd-tab-item-1" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-1">
+Command line</label><div class="sd-tab-content docutils">
+<p>You are following the command-line route. Instructions in these tabs
+tell you which DIALS commands to type at a terminal.</p>
+</div>
+</div>
+</section>
+<section id="data">
+<h2>Data<a class="headerlink" href="#data" title="Link to this heading">¶</a></h2>
+<p>To process the data locally with DIALS you will need a copy of the data set on
+your computer. If you do not have it already you can download it from Zenodo:
+<a class="reference external" href="https://doi.org/10.5281/zenodo.21258293"><img alt="thas1" src="https://zenodo.org/badge/DOI/10.5281/zenodo.21258293.svg" /></a></p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>If you are at a DIALS workshop please ask your tutor where to find the
+data set, which might already be downloaded for you.</p>
+</div>
+<p>We will use the Zinc <em>K</em> edge data set, which consists of 800 images named
+<code class="samp docutils literal notranslate"><span class="pre">ADH4_M7S9_6_0001.cbf</span></code> to <code class="samp docutils literal notranslate"><span class="pre">ADH4_M7S9_6_0800.cbf</span></code> (ADH4 is an old
+name for the gene encoding the protein).</p>
+</section>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Link to this heading">¶</a></h2>
+<p>We will work on a data set recorded from crystals of the enzyme
+tetrahydroalstonine synthase (THAS1), with thanks to Prof. Dave Lawson for
+providing the data set. The images were collected at Diamond Light Source on a
+PILATUS 6M pixel array detector at an X-ray wavelength of 1.282 Å, at the Zinc
+<em>K</em> edge. There is sufficient anomalous signal to solve the structure by
+experimental phasing (SAD). There are some more details about the data set in
+the <a class="reference external" href="https://doi.org/10.5281/zenodo.21258293">Zenodo deposition</a>.</p>
+<p>First we will set up a xia2 processing job, running remotely on the CCP4 Cloud
+at Harwell. This keeps your local computer free to process the data at the same
+time with DIALS, using either DUI2 or the command line.</p>
+<p>Once you have finished the interactive processing, you can compare your results
+with the xia2 job. Are there any differences? Which job has better statistics?</p>
+</section>
+<section id="processing-with-xia2-on-ccp4-cloud">
+<h2>Processing with xia2 on CCP4 Cloud<a class="headerlink" href="#processing-with-xia2-on-ccp4-cloud" title="Link to this heading">¶</a></h2>
+<p>If you have the CCP4 icons available, double click on the icon named “CCP4Cloud
+Remote”. Alternatively, in a terminal with the CCP4 environment sourced, run the
+script <strong class="program">ccp4cloud-remote</strong>. This opens a web browser where you can log
+in to the CCP4 Cloud at Harwell. Here we assume you already have an account and
+know how to create a new project.</p>
+<p>To process the images on CCP4 Cloud the images must be available on Cloud. You
+could upload the data set from your computer, but that would take a long time,
+and the data set is already publicly available on Zenodo. Instead, we can tell
+Cloud to fetch the data directly from Zenodo. If the data set is already in your
+Cloud storage, skip ahead to the xia2 job.</p>
+<p>Start a new task in your Cloud project. Open the “Data Import” folder in the
+“All tasks” list and select “Fetch diffraction images from WWW repositories”
+from the “Upload to Cloud Storage” section. Enter
+<code class="samp docutils literal notranslate"><span class="pre">https://doi.org/10.5281/zenodo.21258293</span></code> as the DOI code and start the
+job.</p>
+<p>Now add a new “Automatic Image Processing with Xia-2” task. Under “Input Data”,
+make sure the task will “Look for X-ray images in cloud storage”. Browse for the
+image directory, navigating to
+<code class="samp docutils literal notranslate"><span class="pre">My</span> <span class="pre">Cloud</span> <span class="pre">Storage/zenodo/21258293/images/Zinc_K_edge_data</span></code>. Then click on
+the directory <code class="samp docutils literal notranslate"><span class="pre">images_1-800</span></code> and “Select” it (do not “Open” it). Set a
+sensible project and crystal name, and don’t forget to add “Zn” as the heavy
+atom type! There’s no need to set any advanced options, just press “Run”. Make
+sure the job starts, but after that you can leave it to process while you work
+on the images locally with DIALS.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Image data uploaded to Cloud is large and will eventually be deleted to
+save space. So don’t consider CCP4 Cloud as a backup solution for your
+diffraction data!</p>
+</div>
+</section>
+<section id="setting-up-dials-processing">
+<h2>Setting up DIALS processing<a class="headerlink" href="#setting-up-dials-processing" title="Link to this heading">¶</a></h2>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-2" name="sd-tab-set-1" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-2">
+DUI2</label><div class="sd-tab-content docutils">
+<p>We will process the images with DIALS through DUI2. You can start DUI2
+in either of two ways:</p>
+<ul>
+<li><p>If DUI2 is installed as an app on your computer (for example, on
+Windows), launch it from your desktop’s application menu. On
+Windows, click the Start button and type “DUI2”, then click the DUI2
+entry. Don’t worry if nothing seems to happen! DUI2 starts slowly.
+Eventually it will ask you to select a directory to work in.</p></li>
+<li><p>Alternatively, open a terminal with the CCP4 environment sourced.
+Opening a terminal differs by operating system. Please ask for help if
+you are unsure how to do this. Change to a directory where you want to
+do the processing (we recommend a different directory from the one
+holding the images), then start <strong class="program">dui2</strong>. For example, using
+BASH on Linux or Mac:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~
+mkdir<span class="w"> </span>THAS1-dials
+<span class="nb">cd</span><span class="w"> </span>THAS1-dials
+dui2
+</pre></div>
+</div>
+<p>or at the Windows command prompt:</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span><span class="k">cd</span> <span class="nv">%USERPROFILE%</span>
+<span class="k">mkdir</span> THAS1-dials
+<span class="k">cd</span> THAS1-dials
+dui2
+</pre></div>
+</div>
+</li>
+</ul>
+<p>Once the program starts you should see something like this:</p>
+<img alt="The DUI2 window at start up" src="https://dials.github.io/images/thas1/dui2_start.png" />
+</div>
+<input id="sd-tab-item-3" name="sd-tab-set-1" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-3">
+Command line</label><div class="sd-tab-content docutils">
+<p>We will process the images by running DIALS commands at a terminal.
+In a terminal with the CCP4 (or DIALS) environment sourced, first
+change to a directory where you want to do the processing (we
+recommend a different directory from the one holding the images):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~
+mkdir<span class="w"> </span>THAS1-dials
+<span class="nb">cd</span><span class="w"> </span>THAS1-dials
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="importing-the-images">
+<h2>Importing the images<a class="headerlink" href="#importing-the-images" title="Link to this heading">¶</a></h2>
+<p>The first task in data processing with DIALS is to import the images, using the
+program <strong class="program">dials.import</strong>.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-4" name="sd-tab-set-2" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-4">
+DUI2</label><div class="sd-tab-content docutils">
+<p>The DUI2 history tree already highlights an incomplete <code class="docutils literal notranslate"><span class="pre">import</span></code>
+node. To see some help for a node that hasn’t yet been run, click on
+the “Log” tab on the right. Note that this help message mainly
+describes running <strong class="program">dials.import</strong> from the command line, so
+some of it might not apply to DUI2.</p>
+<p>To import the data set, click on the “Open images” button and navigate
+to the directory where the images are located. Click on just one of
+the CBF images, say <code class="samp docutils literal notranslate"><span class="pre">ADH4_M7S9_6_0001.cbf</span></code>, and then click
+“Open”. DUI2 automatically converts that to a template that matches
+all the images in the data set.</p>
+<img alt="The DUI2 window about to import" src="https://dials.github.io/images/thas1/dui2_import.png" />
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For EIGER data there is not one file per image, but usually a few
+files with the extension <code class="file docutils literal notranslate"><span class="pre">.h5</span></code>. In this case, just select the
+file with the name that ends <code class="file docutils literal notranslate"><span class="pre">_master.h5</span></code>, or, better, the
+file with the extension <code class="file docutils literal notranslate"><span class="pre">.nxs</span></code> if there is one.</p>
+</div>
+<p>DUI2 has not actually done the import yet. To do that, click on the
+“Run” button with the DIALS logo, at the bottom of the window. Once the
+job has finished, the “Log” tab shows output like this:</p>
+</div>
+<input id="sd-tab-item-5" name="sd-tab-set-2" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-5">
+Command line</label><div class="sd-tab-content docutils">
+<p>Like other <code class="docutils literal notranslate"><span class="pre">dials.something</span></code> commands, running the program without
+options prints a help message with some usage examples:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.import
+</pre></div>
+</div>
+<p>You may have to scroll up to read the full output. If you add the
+option <code class="docutils literal notranslate"><span class="pre">-h</span></code> to this command you will see not only the help message,
+but also the structured definitions of the command line parameters
+that you can pass to the program.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>What happens if you pass multiple <code class="docutils literal notranslate"><span class="pre">h</span></code> and <code class="docutils literal notranslate"><span class="pre">v</span></code> characters? Try
+this out later with other DIALS programs too.</p>
+</div>
+<p>Now import the images with the following command, after adjusting the
+path to the files on your computer:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.import<span class="w"> </span>/path/to/images/ADH4_M7S9_6_*.cbf
+</pre></div>
+</div>
+<p>Note the use of the wildcard <code class="docutils literal notranslate"><span class="pre">*</span></code> character in the
+<strong class="program">dials.import</strong> command. This is not DIALS syntax: the shell
+expands it to match every image file in that directory, from
+<code class="samp docutils literal notranslate"><span class="pre">ADH4_M7S9_6_0001.cbf</span></code> to <code class="samp docutils literal notranslate"><span class="pre">ADH4_M7S9_6_0800.cbf</span></code>.
+<strong class="program">dials.import</strong> reads the header of each of these files,
+checks the diffraction geometry, and determines the relationship
+between the files.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For EIGER data there is not one file per image, but usually a few
+files with the extension <code class="file docutils literal notranslate"><span class="pre">.h5</span></code>. In this case, just pass the
+file with the name that ends <code class="file docutils literal notranslate"><span class="pre">_master.h5</span></code>, or, better, the
+file with the extension <code class="file docutils literal notranslate"><span class="pre">.nxs</span></code> if there is one.</p>
+</div>
+<p>If all goes well you will see output that looks something like this:</p>
+</div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>--------------------------------------------------------------------------------
+  format: &lt;class 'dxtbx.format.FormatCBFMiniPilatusDLS6MSN100.FormatCBFMiniPilatusDLS6MSN100'&gt;
+  template: /data/THAS1/images_1-800/ADH4_M7S9_6_####.cbf:1:800
+  num images: 800
+  sequences:
+    still:    0
+    sweep:    1
+  num stills: 0
+--------------------------------------------------------------------------------
+Writing experiments to imported.expt
+</pre></div>
+</div>
+<p>This tells you that DIALS interprets the 800 images as a single rotation sweep.
+It writes the diffraction geometry and associated metadata to a new file,
+<code class="file docutils literal notranslate"><span class="pre">imported.expt</span></code>.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-6" name="sd-tab-set-3" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-6">
+DUI2</label><div class="sd-tab-content docutils">
+<p>You can see a summary of the experimental models, including the
+detector and beam geometry, in the HTML report available from the
+“Report” tab, under the “Experiments” heading.</p>
+</div>
+<input id="sd-tab-item-7" name="sd-tab-set-3" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-7">
+Command line</label><div class="sd-tab-content docutils">
+<p>To get human-readable information from that file, try:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.show<span class="w"> </span>imported.expt
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="viewing-the-images">
+<h2>Viewing the images<a class="headerlink" href="#viewing-the-images" title="Link to this heading">¶</a></h2>
+<p>Whichever route you take, you should look at the images!</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-8" name="sd-tab-set-4" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-8">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click on the “Image” tab to view the diffraction images in DUI2’s
+viewer. If you have a mouse wheel you can use it to zoom, or use the
+magnifying glass buttons at the upper right of the window. Click and
+drag to scroll the image. More options to change the contrast and
+colour scheme are in the “Display info” pull-down menu.</p>
+<img alt="The DUI2 image viewer" src="https://dials.github.io/images/thas1/dui2_image_viewer.png" />
+</div>
+<input id="sd-tab-item-9" name="sd-tab-set-4" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-9">
+Command line</label><div class="sd-tab-content docutils">
+<p>DIALS contains a feature-rich image viewer for this purpose:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.image_viewer<span class="w"> </span>imported.expt
+</pre></div>
+</div>
+<p>Take a moment to explore the controls in the image viewer. Can you
+drag the image around and zoom using the mouse? Can you see the
+intensity and resolution information for a single pixel? What is your
+preferred colour scheme and brightness? Can you scroll through and see
+how the diffraction images change as data collection proceeds? Don’t
+be afraid to play with the controls. Nothing you do here will affect
+processing of the data set.</p>
+</div>
+</div>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Look at images at various points in the data set: at the beginning, in the
+middle, and at the end. Does the crystal diffract well throughout? Are there
+any other features present alongside the diffraction spots?</p>
+</div>
+</section>
+<section id="masking-the-backstop-shadow-optional">
+<h2>Masking the backstop shadow (optional)<a class="headerlink" href="#masking-the-backstop-shadow-optional" title="Link to this heading">¶</a></h2>
+<p>There is a horizontal backstop shadow across the images. We could mask it out if
+we wanted, but the rotation axis is aligned with the backstop shadow. (You can
+see the rotation axis in <strong class="program">dials.image_viewer</strong>, but not in the DUI2
+viewer.) Spots close to the rotation axis are less reliable and will not be
+integrated anyway. Can you work out why?</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-10" name="sd-tab-set-5" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-10">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Nevertheless, if you want to try it, you can mask out the shadow.
+Click the “apply mask” button and choose one of the options (we
+recommend “Polygon”), then click in the image to define a mask. Be
+aware that the mask is not actually applied until you click the DIALS
+“Run” button! After that the masked region is displayed in translucent
+red, like this:</p>
+<img alt="The backstop mask is shown as a translucent red polygon" src="https://dials.github.io/images/thas1/dui2_mask.png" />
+</div>
+<input id="sd-tab-item-11" name="sd-tab-set-5" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-11">
+Command line</label><div class="sd-tab-content docutils">
+<p>Nevertheless, if you want to try it, you can mask out the shadow using
+the image viewer. First increase the brightness to make the shadow
+more visible. A value of 100 should do fine. Then zoom into the image
+to make it easier to click around the edge of the shadow. A zoom level
+of 100% is likely to make the shadow fill the width of your screen.
+Now, in the “Actions” menu at the top of the main image viewer window,
+select “Show mask tool”, and then choose one of the modes (we
+recommend “Polygon”). Now click around the edge of the shadow. When you
+have finished, select a different mode (say “Circle”) to ensure that
+the polygon has been completed. Finally click the “Save” button to
+save the mask definition to the file <code class="file docutils literal notranslate"><span class="pre">mask.phil</span></code>, and close the
+image viewer.</p>
+<p>To actually set the defined mask in the experiments file, run these
+commands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.generate_mask<span class="w"> </span>imported.expt<span class="w"> </span>mask.phil
+dials.apply_mask<span class="w"> </span>imported.expt<span class="w"> </span><span class="nv">mask</span><span class="o">=</span>pixels.mask
+</pre></div>
+</div>
+<p>If you now open the new file with the image viewer
+(<code class="samp docutils literal notranslate"><span class="pre">dials.image_viewer</span> <span class="pre">masked.expt</span></code>) and click “Show mask” in the
+main controls, you will see that the backstop shadow mask has been
+combined with the default mask for the module gaps.</p>
+<img alt="The first image showing the mask" src="https://dials.github.io/images/thas1/image_viewer_masked.png" />
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In the commands that follow, use <code class="file docutils literal notranslate"><span class="pre">masked.expt</span></code> if you masked
+the backstop, or <code class="file docutils literal notranslate"><span class="pre">imported.expt</span></code> if you did not.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="finding-spots">
+<h2>Finding spots<a class="headerlink" href="#finding-spots" title="Link to this heading">¶</a></h2>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-12" name="sd-tab-set-6" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-12">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click the “find spots” button to move to the next step. You can adjust
+various parameters that control the spot-finding algorithm. For
+PILATUS data sets like this one the default parameters are usually
+sensible, so just click the “Run” button to start the job.</p>
+</div>
+<input id="sd-tab-item-13" name="sd-tab-set-6" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-13">
+Command line</label><div class="sd-tab-content docutils">
+<p>With the image viewer open, select the “Threshold pixels” checkbox.
+This shows you which pixels the spot-finding algorithm considers to be
+“strong”.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Do the strong pixels match the position of the diffraction spots?
+What happens if you change parameters of the threshold algorithm
+(like kernel size and gain)? What happens if you select different
+threshold algorithms?</p>
+</div>
+<p>The default parameters seem pretty good for this data set, so exit the
+image viewer and run a default spot-finding job:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.find_spots<span class="w"> </span>masked.expt
+</pre></div>
+</div>
+<p>If you did not mask the backstop, use <code class="file docutils literal notranslate"><span class="pre">imported.expt</span></code> in place
+of <code class="file docutils literal notranslate"><span class="pre">masked.expt</span></code> here and in the later commands.</p>
+</div>
+</div>
+<p>DIALS finds spots throughout the entire rotation scan, whereas some other
+programs default to finding spots on just enough images to perform indexing.
+This means spot-finding takes longer with DIALS, but the information determined
+from the entire scan can be reused multiple times. In fact, DIALS will not need
+to read the image data again until integration. At the end of the spot-finding
+procedure the log shows an ASCII-art histogram of the number of spots found on
+each image. In this case it is pretty boring because the crystal diffracts
+consistently well throughout the scan:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Histogram of per-image spot count for imageset 0:
+307302 spots found on 800 images (max 5525 / bin)
+*                                * **** ** * * **  ** *    *
+************************************************************
+************************************************************
+************************************************************
+************************************************************
+************************************************************
+************************************************************
+************************************************************
+************************************************************
+************************************************************
+1                         image                          800
+
+--------------------------------------------------------------------------------
+Saved 307302 reflections to strong.refl
+</pre></div>
+</div>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-14" name="sd-tab-set-7" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-14">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Similar information is available graphically from the “Report” tab.
+Click on the button to open the report in a web browser, then click
+on “Analysis of strong reflections” to see the per-image counts. You
+can also see details of the experiment geometry by clicking on the
+“Experiments” heading to expand the box.</p>
+</div>
+<input id="sd-tab-item-15" name="sd-tab-set-7" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-15">
+Command line</label><div class="sd-tab-content docutils">
+<p>You can see similar information graphically by generating an HTML
+report:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.report<span class="w"> </span>masked.expt<span class="w"> </span>strong.refl
+</pre></div>
+</div>
+<p>Open <code class="file docutils literal notranslate"><span class="pre">dials.report.html</span></code> in a web browser and click on “Analysis
+of strong reflections” to see the per-image counts.</p>
+</div>
+</div>
+</section>
+<section id="viewing-the-reciprocal-lattice">
+<h2>Viewing the reciprocal lattice<a class="headerlink" href="#viewing-the-reciprocal-lattice" title="Link to this heading">¶</a></h2>
+<p>The <strong class="program">dials.reciprocal_lattice_viewer</strong> displays the positions of the
+strong spots mapped into reciprocal space.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-16" name="sd-tab-set-8" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-16">
+DUI2</label><div class="sd-tab-content docutils">
+<p>DUI2 does not contain its own reciprocal lattice viewer, but it can
+launch <strong class="program">dials.reciprocal_lattice_viewer</strong> for you, from a
+button in the “Reciprocal lattice” tab. Press that button.</p>
+</div>
+<input id="sd-tab-item-17" name="sd-tab-set-8" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-17">
+Command line</label><div class="sd-tab-content docutils">
+<p>Pass both the experimental geometry file (<code class="file docutils literal notranslate"><span class="pre">masked.expt</span></code> or
+<code class="file docutils literal notranslate"><span class="pre">imported.expt</span></code>) and the spot file <code class="file docutils literal notranslate"><span class="pre">strong.refl</span></code> to
+<strong class="program">dials.reciprocal_lattice_viewer</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.reciprocal_lattice_viewer<span class="w"> </span>masked.expt<span class="w"> </span>strong.refl
+</pre></div>
+</div>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Use tab completion, if your shell supports it, to avoid typing out
+long commands or filenames like
+<strong class="program">dials.reciprocal_lattice_viewer</strong>. Even without tab
+completion, in this case you can use the alias
+<strong class="program">dials.rlv</strong> instead.</p>
+</div>
+</div>
+</div>
+<p>Take some time to explore the controls in the
+<strong class="program">dials.reciprocal_lattice_viewer</strong>.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>What does middle-button drag do? Try setting “Max Z” to something small, like
+5. What does this show you? Align the view down the rotation axis and then
+click to increase the Max Z value (use Alt-click to jump in blocks of 100).
+Can you see how data collection sweeps out a volume of reciprocal space? Can
+you align the view in a direction that clearly shows the crystal lattice?</p>
+</div>
+<p>Before indexing, the main purpose of the
+<strong class="program">dials.reciprocal_lattice_viewer</strong> is to look for pathologies that might
+cause indexing to fail, such as poor diffraction geometry, noisy spots, split
+spots, ice rings, and so on. In this case the reciprocal lattice looks very
+clean. Here is a view with a nicely aligned lattice, suggesting that indexing
+should not be a problem:</p>
+<img alt="The aligned reciprocal lattice points" src="https://dials.github.io/images/thas1/reciprocal_lattice_aligned.png" />
+</section>
+<section id="indexing">
+<h2>Indexing<a class="headerlink" href="#indexing" title="Link to this heading">¶</a></h2>
+<p>By default, <strong class="program">dials.index</strong> will find a <span class="math notranslate nohighlight">\(P\,1\)</span> cell, using the 3D
+FFT algorithm.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-18" name="sd-tab-set-9" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-18">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click the “index” button to set up a <strong class="program">dials.index</strong> job. The
+default settings are fine for our purposes, but feel free to
+experiment with the others. If a job goes wrong you can always click
+back to the <code class="docutils literal notranslate"><span class="pre">find_spots</span></code> node on the history tree and start a new
+“index” job from that point. Click “Run” to start the job.</p>
+<p>It is worth taking a moment to read the output in the “Log” tab once
+the job completes.</p>
+</div>
+<input id="sd-tab-item-19" name="sd-tab-set-9" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-19">
+Command line</label><div class="sd-tab-content docutils">
+<p>Run a default <strong class="program">dials.index</strong> job:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.index<span class="w"> </span>masked.expt<span class="w"> </span>strong.refl
+</pre></div>
+</div>
+<p>It is worth taking a moment to read the log output.</p>
+</div>
+</div>
+<p>The program runs through a few stages:</p>
+<ul class="simple">
+<li><p>Setting up for indexing (calculating <code class="docutils literal notranslate"><span class="pre">max_cell</span></code>, setting resolution limits,
+mapping spots to reciprocal space and forming the FFT grid)</p></li>
+<li><p>Performing the FFT, searching for real space basis vectors and forming
+candidate solutions (in this case 50)</p></li>
+<li><p>Ranking the solutions and choosing the single best</p></li>
+<li><p>Performing geometry refinement in macrocycles with increasing resolution. At
+each stage this:</p>
+<ul>
+<li><p>Identifies outliers</p></li>
+<li><p>Parameterises the diffraction geometry</p></li>
+<li><p>Refines this geometry against the observations</p></li>
+<li><p>Increases resolution for the next macrocycle</p></li>
+</ul>
+</li>
+<li><p>Once the resolution limit includes all reflections, writing the final refined
+model and reflections to the files <code class="file docutils literal notranslate"><span class="pre">indexed.expt</span></code> and
+<code class="file docutils literal notranslate"><span class="pre">indexed.refl</span></code></p></li>
+</ul>
+<p>Parameters given to <strong class="program">dials.index</strong> control the behaviour of all of these
+stages, but in most cases the defaults are fine.</p>
+<p>Now we have a crystal model it is worth looking at the reciprocal lattice again.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-20" name="sd-tab-set-10" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-20">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Launch the <strong class="program">dials.reciprocal_lattice_viewer</strong> from the
+“Reciprocal lattice” tab.</p>
+</div>
+<input id="sd-tab-item-21" name="sd-tab-set-10" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-21">
+Command line</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.reciprocal_lattice_viewer<span class="w"> </span>indexed.expt<span class="w"> </span>indexed.refl
+</pre></div>
+</div>
+</div>
+</div>
+<p>The spots are now coloured according to whether they are indexed or not,
+although in this case almost all spots are indexed.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Try the “Show reciprocal cell” option. Zoom in and see if you can align the
+view with one of the reciprocal basis vectors, <span class="math notranslate nohighlight">\(a^\star\)</span>,
+<span class="math notranslate nohighlight">\(b^\star\)</span> or <span class="math notranslate nohighlight">\(c^\star\)</span>. Try the toggles between “indexed” and
+“unindexed”, “inliers” and “outliers”.</p>
+</div>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-22" name="sd-tab-set-11" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-22">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Back in the DUI2 main window, switch to the “Image” tab. Now that we
+have a crystal model, you can switch between displaying shoeboxes for
+the observed spots and little “<code class="docutils literal notranslate"><span class="pre">+</span></code>” symbols for the predicted spots
+(see the “Display info” pull-down). At a high enough zoom level the
+viewer also displays the Miller indices of the reflections.</p>
+</div>
+<input id="sd-tab-item-23" name="sd-tab-set-11" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-23">
+Command line</label><div class="sd-tab-content docutils">
+<p>You can also view the indexed spots and the predictions on the images,
+by running <code class="samp docutils literal notranslate"><span class="pre">dials.image_viewer</span> <span class="pre">indexed.expt</span> <span class="pre">indexed.refl</span></code>. Try
+the “Show predictions” and “Show miller indices” options.</p>
+</div>
+</div>
+</section>
+<section id="determining-the-bravais-lattice">
+<h2>Determining the Bravais lattice<a class="headerlink" href="#determining-the-bravais-lattice" title="Link to this heading">¶</a></h2>
+<p>The initial solution from <strong class="program">dials.index</strong> is triclinic, but the α, β and
+γ angles are very close to 90°. To identify compatible Bravais lattices we run
+<strong class="program">dials.refine_bravais_settings</strong>. This enforces the Bravais symmetry of
+compatible lattices (within some tolerance) and runs refinement.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-24" name="sd-tab-set-12" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-24">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click on the “refine bravais settings” button and press “Run”. The
+results are printed as a table at the end of the log shown in the
+“Log” tab:</p>
+</div>
+<input id="sd-tab-item-25" name="sd-tab-set-12" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-25">
+Command line</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.refine_bravais_settings<span class="w"> </span>indexed.expt<span class="w"> </span>indexed.refl
+</pre></div>
+</div>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Like <strong class="program">dials.reciprocal_lattice_viewer</strong>,
+<strong class="program">dials.refine_bravais_settings</strong> has a short alias:
+<strong class="program">dials.rbs</strong></p>
+</div>
+<p>The results are printed as a table:</p>
+</div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Chiral space groups corresponding to each Bravais lattice:
+aP: P1
+mP: P2 P21
+oP: P222 P2221 P21212 P212121
++------------+--------------+--------+--------------+----------+-----------+-------------------------------------------+----------+----------+
+|   Solution |   Metric fit |   rmsd | min/max cc   |   #spots | lattice   | unit_cell                                 |   volume | cb_op    |
+|------------+--------------+--------+--------------+----------+-----------+-------------------------------------------+----------+----------|
+|   *      5 |       0.0338 |  0.078 | 0.904/0.947  |    12000 | oP        | 57.10 102.19 112.16  90.00  90.00  90.00  |   654423 | a,b,c    |
+|   *      4 |       0.0338 |  0.078 | 0.947/0.947  |    12000 | mP        | 102.18  57.10 112.16  90.00  89.99  90.00 |   654379 | -b,-a,-c |
+|   *      3 |       0.0336 |  0.078 | 0.947/0.947  |    12000 | mP        | 57.10 112.16 102.19  90.00  90.00  90.00  |   654411 | -a,-c,-b |
+|   *      2 |       0.0083 |  0.071 | 0.904/0.904  |    12000 | mP        | 57.11 102.19 112.18  90.00  89.97  90.00  |   654619 | a,b,c    |
+|   *      1 |       0      |  0.071 | -/-          |    12000 | aP        | 57.11 102.19 112.18  89.99  89.97  90.01  |   654702 | a,b,c    |
++------------+--------------+--------+--------------+----------+-----------+-------------------------------------------+----------+----------+
+</pre></div>
+</div>
+<p>The choice of solution is down to the user, but solutions deemed acceptable are
+marked as such. In general, we look for the highest symmetry solution with
+reasonable values for the <code class="docutils literal notranslate"><span class="pre">Metric</span> <span class="pre">fit</span></code>, <code class="docutils literal notranslate"><span class="pre">rmsd</span></code> and <code class="docutils literal notranslate"><span class="pre">min/max</span> <span class="pre">cc</span></code> columns.
+Here we will take solution 5, the primitive orthorhombic (<code class="docutils literal notranslate"><span class="pre">oP</span></code>) one.</p>
+<p>To get appropriately reindexed reflections we run the program
+<strong class="program">dials.reindex</strong>, passing the change of basis operator printed in the
+last column of the table. For solution 5 that operator is just <code class="docutils literal notranslate"><span class="pre">a,b,c</span></code>, which
+is the identity: the reflections come out with the same indices as they go in.
+So reindexing is not strictly necessary here, but we show the step anyway
+because it usually is.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-26" name="sd-tab-set-13" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-26">
+DUI2</label><div class="sd-tab-content docutils">
+<p>In DUI2 it is easier to see the table in the next step, reindexing.
+Click on the “reindex” button. The input pane now shows the same
+information as the text table, with a recommended solution
+highlighted.</p>
+<img alt="The table of Bravais lattice solutions" src="https://dials.github.io/images/thas1/dui2_reindex_table.png" />
+<p>Acceptable solutions are marked with a “Y” in the “Ok” column. Make
+sure the row for solution 5 is highlighted and then press “Run”. DUI2
+takes care of both selecting the Bravais lattice and reindexing the
+reflections.</p>
+</div>
+<input id="sd-tab-item-27" name="sd-tab-set-13" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-27">
+Command line</label><div class="sd-tab-content docutils">
+<p><strong class="program">dials.refine_bravais_settings</strong> marks acceptable solutions
+with an asterisk: <code class="docutils literal notranslate"><span class="pre">*</span></code>. It writes out the experimental geometry for
+every solution (files <code class="file docutils literal notranslate"><span class="pre">bravais_setting_1.expt</span></code> to
+<code class="file docutils literal notranslate"><span class="pre">bravais_setting_5.expt</span></code>), but not the associated reflections.
+The reflection files are larger, and there is no point wasting disk
+space on solutions that will not be taken further. To reindex the
+reflections for solution 5:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.reindex<span class="w"> </span>indexed.refl<span class="w"> </span><span class="nv">change_of_basis_op</span><span class="o">=</span>a,b,c
+</pre></div>
+</div>
+<p>This writes the file <code class="file docutils literal notranslate"><span class="pre">reindexed.refl</span></code>.</p>
+</div>
+</div>
+<p>The space group is now <span class="math notranslate nohighlight">\(P\,2\,2\,2\)</span>. You can check this in the crystal
+model section of the HTML report. No attempt has been made yet to locate screw
+axes. That’s not a problem: we do not need to know the exact space group before
+integration, just a subgroup. There will be another attempt at symmetry
+determination later.</p>
+</section>
+<section id="refining-the-solution">
+<h2>Refining the solution<a class="headerlink" href="#refining-the-solution" title="Link to this heading">¶</a></h2>
+<p>We did some refinement during indexing, and again during Bravais lattice
+determination. Nevertheless, it is still worth running an additional step of
+refinement using the program <strong class="program">dials.refine</strong>. This uses a more
+sophisticated outlier rejection algorithm than before. It also refines a
+“scan-varying” model of the crystal, in which the orientation and unit cell may
+change as a function of position in the rotation scan.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-28" name="sd-tab-set-14" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-28">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click on the “refine” button and click “Run”.</p>
+</div>
+<input id="sd-tab-item-29" name="sd-tab-set-14" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-29">
+Command line</label><div class="sd-tab-content docutils">
+<p>Using the chosen Bravais lattice and our (unnecessarily) reindexed
+reflections, type:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.refine<span class="w"> </span>bravais_setting_5.expt<span class="w"> </span>reindexed.refl
+</pre></div>
+</div>
+</div>
+</div>
+<p>From the log you should see that initially 13 parameters are refined during the
+“scan-static” macrocycle. This is followed by a “scan-varying” macrocycle using
+37 parameters. Here the crystal parameters are made local to regions of the scan
+and the model is constructed by smoothing between these points. This more
+sophisticated model fits the predictions to the data better, and you should see
+lower RMSDs as a result. For example:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>RMSDs by experiment:
++-------+--------+----------+----------+------------+
+|   Exp |   Nref |   RMSD_X |   RMSD_Y |     RMSD_Z |
+|    id |        |     (px) |     (px) |   (images) |
+|-------+--------+----------+----------+------------|
+|     0 | 254417 |   0.2914 |  0.28382 |     0.1768 |
++-------+--------+----------+----------+------------+
+</pre></div>
+</div>
+<p>It is useful to look at the way the crystal parameters change during the scan,
+to make sure there are no unrealistic-looking changes.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-30" name="sd-tab-set-15" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-30">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click on the “Report” tab, open the report, and expand the “Analysis
+of scan-varying crystal model” section.</p>
+</div>
+<input id="sd-tab-item-31" name="sd-tab-set-15" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-31">
+Command line</label><div class="sd-tab-content docutils">
+<p>Generate an HTML report for the refined model:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.report<span class="w"> </span>refined.expt<span class="w"> </span>refined.refl
+</pre></div>
+</div>
+<p>This produces <code class="file docutils literal notranslate"><span class="pre">dials.report.html</span></code>, containing plots and a lot
+more information about the current stage of the data processing. Open
+it in a web browser and expand the “Analysis of scan-varying crystal
+model” section.</p>
+<p>Alternatively, <code class="samp docutils literal notranslate"><span class="pre">dials.plot_scan_varying_model</span> <span class="pre">refined.expt</span></code>
+writes similar plots as <code class="file docutils literal notranslate"><span class="pre">.png</span></code> files.</p>
+</div>
+</div>
+<p>You should see plots like these:</p>
+<img alt="The scan-varying crystal unit cell parameters" src="https://dials.github.io/images/thas1/report_scan_varying_cell.png" />
+<img alt="The scan-varying crystal orientation parameters" src="https://dials.github.io/images/thas1/report_scan_varying_orientation.png" />
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Check that the changes in unit cell parameters and orientation angles look
+small across the whole scan.</p>
+</div>
+</section>
+<section id="integration">
+<h2>Integration<a class="headerlink" href="#integration" title="Link to this heading">¶</a></h2>
+<p>We now have a model for how the data set evolves over the whole scan. We are
+ready to use it to integrate every spot, including the weak ones that were not
+found during spot-finding. Integration is the most resource-intensive part of
+processing and takes the longest. After starting this job, maybe now is a good
+time to check on the progress of the xia2 job running on CCP4 Cloud.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-32" name="sd-tab-set-16" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-32">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click on the “integrate” button and then “Run” to start a job with
+default parameters. You can switch to the “Log” tab to follow what
+stage the program is at.</p>
+</div>
+<input id="sd-tab-item-33" name="sd-tab-set-16" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-33">
+Command line</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.integrate<span class="w"> </span>refined.expt<span class="w"> </span>refined.refl
+</pre></div>
+</div>
+</div>
+</div>
+<p>After predicting reflections, <strong class="program">dials.integrate</strong> builds a model to
+determine how big the measurement boxes should be. This is printed to the log at
+the lines:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Calculating E.S.D Beam Divergence.
+Calculating E.S.D Reflecting Range (mosaicity).
+ sigma b: 0.041727 degrees
+ sigma m: 0.062834 degrees
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">m</span></code> value is the standard deviation of the reflecting range of
+reflections, which is sometimes (and inaccurately) called “mosaicity”. It is
+good to check that this value is not too high. Here it is well below 0.1°, so
+the sample seems very well behaved.</p>
+<p>After this step, <strong class="program">dials.integrate</strong> splits the processing over as many
+processors as you have available. It first models reflection profiles, and then
+performs the actual integration, using both summation integration and profile
+fitting methods. There are some summary tables at the end of the log that are
+worth a glance, but we won’t have a good idea of the quality of the data set
+until we do scaling.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-34" name="sd-tab-set-17" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-34">
+DUI2</label><div class="sd-tab-content docutils">
+<img alt="The Log tab just after integration" src="https://dials.github.io/images/thas1/dui2_integrate_log.png" />
+<p>Once integration has finished, the report available from the “Report”
+tab contains new information, in the “Analysis of reflection
+intensities” and “Analysis of reference profiles” sections under
+“DIALS analysis plots”.</p>
+</div>
+<input id="sd-tab-item-35" name="sd-tab-set-17" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-35">
+Command line</label><div class="sd-tab-content docutils">
+<p>Running <code class="samp docutils literal notranslate"><span class="pre">dials.report</span> <span class="pre">integrated.expt</span> <span class="pre">integrated.refl</span></code> produces
+a report with new information, in the “Analysis of reflection
+intensities” and “Analysis of reference profiles” sections under
+“DIALS analysis plots”.</p>
+</div>
+</div>
+</section>
+<section id="determining-the-crystal-symmetry">
+<h2>Determining the crystal symmetry<a class="headerlink" href="#determining-the-crystal-symmetry" title="Link to this heading">¶</a></h2>
+<p>Now we have integrated reflections we have much more useful data for symmetry
+checks. The program <strong class="program">dials.symmetry</strong> first checks the Laue group (we
+hope this confirms our earlier choice of Bravais lattice). Then it looks for
+potential screw axes by looking for apparent systematic absences.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-36" name="sd-tab-set-18" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-36">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click the “symmetry” button and “Run” for default parameters.</p>
+</div>
+<input id="sd-tab-item-37" name="sd-tab-set-18" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-37">
+Command line</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.symmetry<span class="w"> </span>integrated.expt<span class="w"> </span>integrated.refl
+</pre></div>
+</div>
+</div>
+</div>
+<p>The systematic absence information is written to a table in the log:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>+--------------+---------+---------------+--------------+---------------+--------------+-------------------+------------------+
+| Screw axis   |   Score |   No. present |   No. absent |   &lt;I&gt; present |   &lt;I&gt; absent |   &lt;I/sig&gt; present |   &lt;I/sig&gt; absent |
+|--------------+---------+---------------+--------------+---------------+--------------+-------------------+------------------|
+| 21a          |       0 |            10 |           10 |       1253.16 |      340.318 |            35.204 |           17.228 |
+| 21b          |       1 |            30 |           30 |       1575.34 |        1.901 |            45.998 |            0.318 |
+| 21c          |       1 |            38 |           39 |       1167.44 |        3.281 |            74.032 |            1.487 |
++--------------+---------+---------------+--------------+---------------+--------------+-------------------+------------------+
+</pre></div>
+</div>
+<p>Here we see clear screw axes along <em>b</em> and <em>c</em>. Reflections that are expected to
+be present have high average intensity and <span class="math notranslate nohighlight">\(I/\sigma\)</span>, while the absences
+have low values. For the potential screw axis along <em>a</em>, the expected present
+reflections do have higher intensity and <span class="math notranslate nohighlight">\(I/\sigma\)</span> than the absences, but
+the intensity in the putative absences is actually rather high. This indicates
+that a screw axis along <em>a</em> is not supported by the data. As a result,
+<strong class="program">dials.symmetry</strong> writes the files <code class="file docutils literal notranslate"><span class="pre">symmetrized.expt</span></code> and
+<code class="file docutils literal notranslate"><span class="pre">symmetrized.refl</span></code>, using the space group <span class="math notranslate nohighlight">\(P\,2\,2_1\,2_1\)</span>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><span class="math notranslate nohighlight">\(P\,2\,2_1\,2_1\)</span> is a non-standard setting of the space group
+<span class="math notranslate nohighlight">\(P\,2_1\,2_1\,2\)</span>, which is how the deposited structure of THAS1
+(PDB entry 5FI3) is described. The two differ only in how the axes are
+labelled, so the reflections must be reindexed (with the cell axes
+permuted) to go from one setting to the other. Downstream structure
+solution software can do this reindexing, so we don’t need to worry
+about it here.</p>
+</div>
+</section>
+<section id="scaling">
+<h2>Scaling<a class="headerlink" href="#scaling" title="Link to this heading">¶</a></h2>
+<p>The scaling program, <strong class="program">dials.scale</strong>, uses algorithms similar to Aimless
+to fit a physically interpretable scaling model to the data set. The model has
+three components:</p>
+<ul class="simple">
+<li><p>an overall rotation angle-dependent scale factor (accounting for beam
+intensity changes, variation in illuminated volume and similar effects)</p></li>
+<li><p>a relative B-factor decay term (accounting roughly for the loss of high
+resolution reflections caused by radiation damage)</p></li>
+<li><p>an absorption surface (accounting for absorption along the differing path
+lengths of scattered rays through the crystal volume)</p></li>
+</ul>
+<p>The parameters of these components are adjusted to minimise the differences
+between reflections and their symmetry mates (which ought to have the same
+intensity). While performing this fit, <strong class="program">dials.scale</strong> also optimises an
+error model so that the error associated with the merged intensity of each
+reflection group is appropriate. We run the program with default options.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-38" name="sd-tab-set-19" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-38">
+DUI2</label><div class="sd-tab-content docutils">
+<p>Click on the “scale” button and then “Run”.</p>
+</div>
+<input id="sd-tab-item-39" name="sd-tab-set-19" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-39">
+Command line</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.scale<span class="w"> </span>symmetrized.expt<span class="w"> </span>symmetrized.refl
+</pre></div>
+</div>
+</div>
+</div>
+<p>At the end of the log a standard table of merging statistics is printed. Parts
+of it may be familiar to you from “Table 1” of crystallographic structure
+papers:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>            -------------Summary of merging statistics--------------
+
+                                             Overall    Low     High
+High resolution limit                           1.26    3.42    1.26
+Low resolution limit                          112.16  112.61    1.28
+Completeness                                   82.6    97.7     5.8
+Multiplicity                                    3.8     4.3     1.0
+I/sigma                                        15.0    44.2     0.8
+Rmerge(I)                                     0.066   0.050   0.625
+Rmerge(I+/-)                                  0.054   0.043   1.675
+Rmeas(I)                                      0.075   0.056   0.884
+Rmeas(I+/-)                                   0.068   0.053   2.369
+Rpim(I)                                       0.034   0.026   0.625
+Rpim(I+/-)                                    0.041   0.031   1.675
+CC half                                       0.997   0.995   0.370
+Anomalous completeness                         69.8    91.7     0.1
+Anomalous multiplicity                          2.1     2.4     1.0
+Anomalous correlation                         0.131   0.074   0.000
+Anomalous slope                               1.124
+dF/F                                          0.071
+dI/s(dI)                                      1.255
+Total observations                           561027   39438     526
+Total unique                                 145885    9107     507
+</pre></div>
+</div>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Do the summary statistics look okay? Is there any sign of an anomalous
+signal?</p>
+</div>
+<p>The summary table is worth a quick glance, but graphical representations of the
+merging statistics are usually more informative.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-40" name="sd-tab-set-20" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-40">
+DUI2</label><div class="sd-tab-content docutils">
+<p>The report from the “Report” tab now contains plots of values against
+resolution and against image number.</p>
+</div>
+<input id="sd-tab-item-41" name="sd-tab-set-20" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-41">
+Command line</label><div class="sd-tab-content docutils">
+<p>Open the file <code class="file docutils literal notranslate"><span class="pre">dials.scale.html</span></code> in a web browser to see plots
+of values against resolution and against image number.</p>
+</div>
+</div>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Look at the plots in the report. What is the main factor determining the
+usable resolution limit in this case? How does the anomalous signal look?</p>
+</div>
+</section>
+<section id="exporting">
+<h2>Exporting<a class="headerlink" href="#exporting" title="Link to this heading">¶</a></h2>
+<p>Although <strong class="program">dials.scale</strong> reports the <em>merging statistics</em>, the data set
+has not actually been merged (merging keeps only a single record for each unique
+Miller index). We could export a merged MTZ for structure solution using
+<strong class="program">dials.merge</strong>. In our case, however, we prefer to export the scaled,
+unmerged data with <strong class="program">dials.export</strong> and then merge inside CCP4 Cloud, so
+that the merging statistics are also recorded there.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-42" name="sd-tab-set-21" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="dui2" for="sd-tab-item-42">
+DUI2</label><div class="sd-tab-content docutils">
+<p>If you wanted a merged MTZ, you would click on the “merge” button and
+export <code class="file docutils literal notranslate"><span class="pre">merged.mtz</span></code>. Instead, to export the unmerged data, click
+on the “export” button and click “Run”. Once that is finished, click
+on the “Download/save file” button to save the file to the directory
+where you started the processing.</p>
+<p>You can also upload the exported MTZ directly to CCP4 Cloud. To do
+that you need some information from Cloud. Go to your Cloud account
+and note the current project ID. Then click on the menu icon in the
+top left corner, and select “My Account”.</p>
+<img alt="The CCP4 Cloud menu with the My Account option" src="https://dials.github.io/images/thas1/cloud_my_account.png" />
+<p>On the page that opens, note your login name and copy the “CloudRun
+Id” value.</p>
+<p>Now, back in DUI2, press the “Upload to CCP4-cloud” button. Fill in
+the required fields in the pop-up window. If you are uploading to an
+existing project specified by ID, the value you give for “Project
+name” does not matter, but it cannot be left blank.</p>
+<img alt="Uploading to CCP4 Cloud" src="https://dials.github.io/images/thas1/dui2_cloudrun_upload.png" />
+<p>When the upload finishes, DUI2 creates a new <code class="docutils literal notranslate"><span class="pre">cloudrun</span></code> node, which
+runs the file import task on the MTZ in your Cloud project.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The “Upload to CCP4-cloud” button relies on the <code class="docutils literal notranslate"><span class="pre">cloudrun</span></code>
+program from a local CCP4 installation. If you installed DUI2
+standalone, the button will fail or be unavailable. In that case
+upload the MTZ file manually through the CCP4 Cloud website, as
+described below.</p>
+</div>
+</div>
+<input id="sd-tab-item-43" name="sd-tab-set-21" type="radio">
+<label class="sd-tab-label" data-sync-group="interface" data-sync-id="cli" for="sd-tab-item-43">
+Command line</label><div class="sd-tab-content docutils">
+<p>If you wanted a merged MTZ, you would run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.merge<span class="w"> </span>scaled.expt<span class="w"> </span>scaled.refl
+</pre></div>
+</div>
+<p>Instead, to export the unmerged data:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dials.export<span class="w"> </span>scaled.expt<span class="w"> </span>scaled.refl
+</pre></div>
+</div>
+<p>This produces the file <code class="file docutils literal notranslate"><span class="pre">scaled.mtz</span></code>, which we will upload to
+CCP4 Cloud through the CCP4 Cloud website, as described below.</p>
+</div>
+</div>
+<section id="uploading-an-mtz-file-to-ccp4-cloud-manually">
+<h3>Uploading an MTZ file to CCP4 Cloud manually<a class="headerlink" href="#uploading-an-mtz-file-to-ccp4-cloud-manually" title="Link to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p>In CCP4 Cloud, open your project’s task list and click “File(s) Upload and
+Import” to create a new upload task.</p>
+<img alt="CCP4 Cloud task list, ready to add a new task" src="https://dials.github.io/images/thas1/cloud_file_upload_1.png" />
+</li>
+<li><p>The task opens a “File import (new)” dialog. Click “Upload file(s)”.</p>
+<img alt="The File import (new) dialog with the Upload file(s) button" src="https://dials.github.io/images/thas1/cloud_file_upload_2.png" />
+</li>
+<li><p>Choose your exported MTZ file in your computer’s file browser. Once it has
+uploaded, a new dialog appears on top of the previous one. Click “Close”.</p>
+<img alt="Upload confirmation dialog with a Close button" src="https://dials.github.io/images/thas1/cloud_file_upload_3.png" />
+</li>
+<li><p>The “File import” dialog now reads “completed” and lists the uploaded file
+in a table. Your MTZ is now in the CCP4 Cloud project.</p>
+<img alt="The completed File import dialog listing the uploaded file" src="https://dials.github.io/images/thas1/cloud_file_upload_4.png" />
+</li>
+</ol>
+</section>
+</section>
+<section id="comparing-results-with-xia2">
+<h2>Comparing results with xia2<a class="headerlink" href="#comparing-results-with-xia2" title="Link to this heading">¶</a></h2>
+<p>Hopefully by now the xia2 job you started on CCP4 Cloud has finished. Following
+that job, run a “Merging and Scaling with Aimless” job, and under “Basic
+Options” select “no scaling only merge”. Leave everything else as default and
+run.</p>
+<p>Now follow your imported DIALS MTZ (from either the manual upload or the
+<code class="docutils literal notranslate"><span class="pre">cloudrun</span></code> upload) with another “no scaling only merge” Aimless job.</p>
+<p>Once both jobs have finished, open both results windows to compare results side
+by side. Navigate to the “Scaling and merging” section in each case to compare
+merging statistics from Aimless.</p>
+<p>Which job looks better, yours or xia2’s? Or are they about the same?</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper"><!--<h3>Navigation</h3>-->
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Documentation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../howto.html">How-to</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://dials.github.io/kb">Knowledge Base</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://discourse.rs-station.org/c/software/dials/10">Forum</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workshops/index.html">Workshops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../national_resource.html">US National Resource</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../publications.html">Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../projects.html">Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer container">
+  <a href="https://www.diamond.ac.uk/"><img class="logofooter" alt="Diamond" src="../../_static/diamond_logo.png" /></a>
+  <a href="https://www.ccp4.ac.uk/"><img class="logofooter" alt="CCP4" src="../../_static/CCP4-logo-plain.png" /></a>
+  <a href="https://www.stfc.ac.uk/"><img class="logofooter" alt="STFC" src="https://dials.github.io/images/logos/ukri-stfc.png" /></a>
+  <a href="https://www.lbl.gov/"><img class="logofooter" alt="LBL" src="https://dials.github.io/images/logos/lbl.png" /></a>
+  <a href="http://smb.slac.stanford.edu/"><img class="logofooter" alt="SSRL/SMB" src="https://dials.github.io/images/logos/smbssrl.jpg" /></a>
+  </div>
+
+  <script type="text/javascript">
+     $(document).ready(function() {
+         $(".toggle > *").hide();
+         $(".toggle .header").show();
+         $(".toggle .header").click(function() {
+             $(this).parent().children().not(".header").toggle(400);
+             $(this).parent().children(".header").toggleClass("open");
+         })
+     });
+  </script>
+  
+    <div class="footer">
+      &#169;2026, Diamond Light Source, Lawrence Berkeley National Laboratory and STFC.
+      
+    </div>
+
+    
+
+    
+
+  </body>
+</html>
